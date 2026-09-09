@@ -41,7 +41,7 @@ export async function createExpenseAction(
   });
 
   if (!validation.success) {
-    return { success: false, error: validation.error.errors[0]?.message || "Invalid expense details" };
+    return { success: false, error: validation.error.issues[0]?.message || "Invalid expense details" };
   }
 
   const { groupId, description, amount, paidByUserId, participantUserIds, expenseDate } = validation.data;
@@ -210,7 +210,7 @@ export async function recordSettlementAction(
   });
 
   if (!validation.success) {
-    return { success: false, error: validation.error.errors[0]?.message || "Invalid settlement details" };
+    return { success: false, error: validation.error.issues[0]?.message || "Invalid settlement details" };
   }
 
   const { groupId, paidByUserId, receivedByUserId, amount } = validation.data;

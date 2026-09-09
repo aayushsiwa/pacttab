@@ -33,7 +33,7 @@ export async function signUpAction(prevState: AuthActionState | null, formData: 
   });
 
   if (!validation.success) {
-    return { error: validation.error.errors[0]?.message || "Invalid input" };
+    return { error: validation.error.issues[0]?.message || "Invalid input" };
   }
 
   const normalizedUsername = validation.data.username.toLowerCase();
@@ -78,7 +78,7 @@ export async function signInAction(prevState: AuthActionState | null, formData: 
   });
 
   if (!validation.success) {
-    return { error: validation.error.errors[0]?.message || "Invalid input" };
+    return { error: validation.error.issues[0]?.message || "Invalid input" };
   }
 
   const normalizedUsername = validation.data.username.toLowerCase();

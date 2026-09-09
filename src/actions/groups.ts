@@ -31,7 +31,7 @@ export async function createGroupAction(prevState: GroupActionState | null, form
   });
 
   if (!validation.success) {
-    return { error: validation.error.errors[0]?.message || "Invalid group details" };
+    return { error: validation.error.issues[0]?.message || "Invalid group details" };
   }
 
   const groupId = crypto.randomUUID();
