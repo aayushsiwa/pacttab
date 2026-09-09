@@ -5,7 +5,13 @@ import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { LogOut } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LogOut, ChevronDown, Users } from "lucide-react";
 import { useTransition } from "react";
 
 interface NavbarProps {
@@ -59,24 +65,52 @@ export function Navbar({ user }: NavbarProps) {
 
         <div className="flex items-center gap-3">
           {user ? (
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center gap-2 rounded-full border bg-card/80 pl-1 pr-3 py-1 shadow-2xs">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={isPending}
+                className="flex items-center gap-2 rounded-full border border-border/80 bg-card/80 hover:bg-muted/80 pl-1 pr-2.5 py-1 shadow-2xs transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring select-none"
+              >
                 <UserAvatar username={user.username} size="sm" className="h-6 w-6" />
                 <span className="text-xs font-semibold text-foreground/90 max-w-[120px] truncate">
                   @{user.username}
                 </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                disabled={isPending}
-                className="gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg h-8 px-2.5"
+                <ChevronDown className="h-3 w-3 text-muted-foreground transition-transform" />
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                align="end"
+                className="w-52 p-1.5 rounded-2xl border border-border/80 bg-popover shadow-lg"
               >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline font-medium">Sign out</span>
-              </Button>
-            </div>
+                <div className="flex items-center gap-2.5 p-2 border-b border-border/60 mb-1">
+                  <UserAvatar username={user.username} size="default" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-foreground truncate">
+                      @{user.username}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      Signed in
+                    </p>
+                  </div>
+                </div>
+
+                <Link href="/groups" className="block sm:hidden">
+                  <DropdownMenuItem className="cursor-pointer gap-2 py-2 px-2.5 rounded-lg text-xs font-medium">
+                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>Your Groups</span>
+                  </DropdownMenuItem>
+                </Link>
+
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  variant="destructive"
+                  disabled={isPending}
+                  className="cursor-pointer gap-2 py-2 px-2.5 rounded-lg text-xs font-semibold text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
               <Link href="/login">
