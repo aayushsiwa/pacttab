@@ -10,9 +10,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, ChevronDown, Users } from "lucide-react";
-import { useTransition } from "react";
+import { LogOut, ChevronDown, Users, Sun, Moon, Laptop, Check } from "lucide-react";
+import { useTransition, useSyncExternalStore } from "react";
+import { useTheme } from "next-themes";
+
+const emptySubscribe = () => () => {};
 
 interface NavbarProps {
   user: {
@@ -23,6 +30,12 @@ interface NavbarProps {
 
 export function Navbar({ user }: NavbarProps) {
   const [isPending, startTransition] = useTransition();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   const handleSignOut = () => {
     startTransition(async () => {
@@ -79,7 +92,7 @@ export function Navbar({ user }: NavbarProps) {
 
               <DropdownMenuContent
                 align="end"
-                className="w-52 p-1.5 rounded-2xl border border-border/80 bg-popover shadow-lg"
+                className="w-56 p-1.5 rounded-2xl border border-border/80 bg-popover shadow-lg"
               >
                 <div className="flex items-center gap-2.5 p-2 border-b border-border/60 mb-1">
                   <UserAvatar username={user.username} size="default" />
@@ -100,6 +113,64 @@ export function Navbar({ user }: NavbarProps) {
                   </DropdownMenuItem>
                 </Link>
 
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="cursor-pointer gap-2 py-2 px-2.5 rounded-lg text-xs font-medium">
+                    {mounted ? (
+                      resolvedTheme === "dark" ? (
+                        <Moon className="h-3.5 w-3.5 text-indigo-400" />
+                      ) : (
+                        <Sun className="h-3.5 w-3.5 text-amber-500" />
+                      )
+                    ) : (
+                      <Sun className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                    <span>Theme</span>
+                    <span className="ml-auto text-[11px] capitalize text-muted-foreground mr-1">
+                      {mounted ? theme : "system"}
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-36 p-1 rounded-xl shadow-lg">
+                    <DropdownMenuItem
+                      onClick={() => setTheme("light")}
+                      className="cursor-pointer flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Sun className="h-3.5 w-3.5 text-amber-500" />
+                        <span>Light</span>
+                      </span>
+                      {mounted && theme === "light" && (
+                        <Check className="h-3.5 w-3.5 text-foreground ml-auto" />
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setTheme("dark")}
+                      className="cursor-pointer flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Moon className="h-3.5 w-3.5 text-indigo-400" />
+                        <span>Dark</span>
+                      </span>
+                      {mounted && theme === "dark" && (
+                        <Check className="h-3.5 w-3.5 text-foreground ml-auto" />
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setTheme("system")}
+                      className="cursor-pointer flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Laptop className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>System</span>
+                      </span>
+                      {mounted && theme === "system" && (
+                        <Check className="h-3.5 w-3.5 text-foreground ml-auto" />
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+                <DropdownMenuSeparator className="my-1" />
+
                 <DropdownMenuItem
                   onClick={handleSignOut}
                   variant="destructive"
@@ -113,6 +184,61 @@ export function Navbar({ user }: NavbarProps) {
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-card/80 hover:bg-muted/80 text-muted-foreground hover:text-foreground shadow-2xs transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Toggle theme"
+                >
+                  {mounted ? (
+                    resolvedTheme === "dark" ? (
+                      <Moon className="h-4 w-4 text-indigo-400" />
+                    ) : (
+                      <Sun className="h-4 w-4 text-amber-500" />
+                    )
+                  ) : (
+                    <Sun className="h-4 w-4" />
+                  )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36 p-1 rounded-xl shadow-lg">
+                  <DropdownMenuItem
+                    onClick={() => setTheme("light")}
+                    className="cursor-pointer flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Sun className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Light</span>
+                    </span>
+                    {mounted && theme === "light" && (
+                      <Check className="h-3.5 w-3.5 text-foreground ml-auto" />
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setTheme("dark")}
+                    className="cursor-pointer flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Moon className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>Dark</span>
+                    </span>
+                    {mounted && theme === "dark" && (
+                      <Check className="h-3.5 w-3.5 text-foreground ml-auto" />
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setTheme("system")}
+                    className="cursor-pointer flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Laptop className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>System</span>
+                    </span>
+                    {mounted && theme === "system" && (
+                      <Check className="h-3.5 w-3.5 text-foreground ml-auto" />
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Link href="/login">
                 <Button variant="ghost" size="sm" className="font-semibold text-xs h-9 px-3.5">
                   Sign in
