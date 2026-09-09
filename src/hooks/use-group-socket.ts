@@ -17,13 +17,24 @@ export interface ChatMessage {
 interface UseGroupSocketOptions {
   groupId: string;
   userId: string;
+  currentUsername?: string;
   onNewMessage?: (msg: ChatMessage) => void;
 }
 
-export function useGroupSocket({ groupId, userId, onNewMessage }: UseGroupSocketOptions) {
+export function useGroupSocket({ groupId, userId, currentUsername, onNewMessage }: UseGroupSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const onNewMessageRef = useRef(onNewMessage);
+  const currentUsernameRef = useRef(currentUsername);
   const router = useRouter();
+
+  useEffect(() => {
+    onNewMessageRef.current = onNewMessage;
+  }, [onNewMessage]);
+
+  useEffect(() => {
+    currentUsernameRef.current = currentUsername;
+  }, [currentUsername]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -63,7 +74,18 @@ export function useGroupSocket({ groupId, userId, onNewMessage }: UseGroupSocket
 
             if (data.type === "new_message") {
               const msg = (data as Extract<WSEvent, { type: "new_message" }>).message;
-              onNewMessage?.(msg);
+              onNewMessageRef.current?.(msg);
+
+              const activeUsername = currentUsernameRef.current;
+              if (
+                activeUsername &&
+                msg.authorId !== userId &&
+                msg.body.toLowerCase().includes(`@${activeUsername.toLowerCase()}`)
+              ) {
+                toast.info(`@${msg.authorUsername || "Someone"} mentioned you: "${msg.body}"`, {
+                  duration: 5000,
+                });
+              }
             } else if (data.type === "expense_created") {
               const exp = data as Extract<WSEvent, { type: "expense_created" }>;
               toast.info(`${exp.payerUsername} added expense: ${exp.description} (₹${exp.amount.toFixed(2)})`);

@@ -11,7 +11,8 @@
     "test:e2e": "tsx tests/e2e-flow.test.ts",
     "test:auth": "tsx tests/auth-invite-flow.test.ts",
     "test:ws": "tsx tests/websocket-flow.test.ts",
-    "test": "tsx tests/e2e-flow.test.ts && tsx tests/auth-invite-flow.test.ts && tsx tests/websocket-flow.test.ts"
+    "test:mention": "tsx tests/mention-flow.test.ts",
+    "test": "tsx tests/e2e-flow.test.ts && tsx tests/auth-invite-flow.test.ts && tsx tests/websocket-flow.test.ts && tsx tests/mention-flow.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

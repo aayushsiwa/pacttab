@@ -65,6 +65,7 @@ interface InviteItem {
 interface GroupTabsProps {
   groupId: string;
   currentUserId: string;
+  currentUsername: string;
   currentUserRole: string;
   members: GroupMemberItem[];
   messages: MessageItem[];
@@ -78,6 +79,7 @@ interface GroupTabsProps {
 export function GroupTabs({
   groupId,
   currentUserId,
+  currentUsername,
   currentUserRole,
   members,
   messages,
@@ -131,6 +133,8 @@ export function GroupTabs({
         <ChatView
           groupId={groupId}
           currentUserId={currentUserId}
+          currentUsername={currentUsername}
+          members={members}
           initialMessages={messages}
         />
       </TabsContent>

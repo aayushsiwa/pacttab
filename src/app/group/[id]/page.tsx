@@ -71,6 +71,7 @@ export default async function GroupPage({ params }: GroupPageProps) {
       <GroupTabs
         groupId={groupId}
         currentUserId={user.id}
+        currentUsername={user.username}
         currentUserRole={details.currentUserRole}
         members={details.members}
         messages={messages}

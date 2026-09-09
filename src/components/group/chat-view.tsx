@@ -4,22 +4,44 @@ import { useState, useRef, useEffect, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { sendMessageAction } from "@/actions/chat";
 import { useGroupSocket, type ChatMessage } from "@/hooks/use-group-socket";
+import { MessageContent } from "@/components/group/message-content";
+import { MentionAutocomplete } from "@/components/group/mention-autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Send, Sparkles, Info, Wifi, WifiOff } from "lucide-react";
+import { Send, Sparkles, Info, Wifi, WifiOff, AtSign } from "lucide-react";
 import { toast } from "sonner";
+
+interface Member {
+  id: string;
+  username: string;
+}
 
 interface ChatViewProps {
   groupId: string;
   currentUserId: string;
+  currentUsername: string;
+  members: Member[];
   initialMessages: ChatMessage[];
 }
 
-export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewProps) {
+export function ChatView({
+  groupId,
+  currentUserId,
+  currentUsername,
+  members,
+  initialMessages,
+}: ChatViewProps) {
   const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [isSending, startSending] = useTransition();
+
+  // Mention autocomplete state
+  const [isMentionOpen, setIsMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
+
+  const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -34,6 +56,7 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
   const { isConnected, sendWsMessage } = useGroupSocket({
     groupId,
     userId: currentUserId,
+    currentUsername,
     onNewMessage: handleNewMessage,
   });
 
@@ -58,10 +81,92 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
     return () => clearInterval(interval);
   }, [isConnected, router]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setText(val);
+
+    const cursor = e.target.selectionStart ?? val.length;
+    const textBeforeCursor = val.slice(0, cursor);
+    const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_]*)$/);
+
+    if (match) {
+      setMentionQuery(match[1]);
+      setIsMentionOpen(true);
+      setMentionIndex(0);
+    } else {
+      setIsMentionOpen(false);
+    }
+  };
+
+  const handleSelectMention = (username: string) => {
+    const cursor = inputRef.current?.selectionStart ?? text.length;
+    const textBeforeCursor = text.slice(0, cursor);
+    const textAfterCursor = text.slice(cursor);
+
+    const atIndex = textBeforeCursor.lastIndexOf("@");
+    if (atIndex === -1) return;
+
+    const newTextBefore = textBeforeCursor.slice(0, atIndex) + `@${username} `;
+    const newText = newTextBefore + textAfterCursor;
+
+    setText(newText);
+    setIsMentionOpen(false);
+
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const newPos = newTextBefore.length;
+        inputRef.current.setSelectionRange(newPos, newPos);
+      }
+    }, 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isMentionOpen) return;
+
+    const filteredMembers = members.filter((m) =>
+      m.username.toLowerCase().includes(mentionQuery.toLowerCase())
+    );
+
+    if (filteredMembers.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMentionIndex((prev) => (prev + 1) % filteredMembers.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMentionIndex((prev) => (prev - 1 + filteredMembers.length) % filteredMembers.length);
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      const selectedMember = filteredMembers[mentionIndex] || filteredMembers[0];
+      if (selectedMember) {
+        handleSelectMention(selectedMember.username);
+      }
+    } else if (e.key === "Escape") {
+      setIsMentionOpen(false);
+    }
+  };
+
+  const handleAtButtonClick = () => {
+    const cursor = inputRef.current?.selectionStart ?? text.length;
+    const newText = text.slice(0, cursor) + "@" + text.slice(cursor);
+    setText(newText);
+    setMentionQuery("");
+    setIsMentionOpen(true);
+    setMentionIndex(0);
+
+    setTimeout(() => {
+      inputRef.current?.focus();
+      const newPos = cursor + 1;
+      inputRef.current?.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() || isSending) return;
 
+    setIsMentionOpen(false);
     const messageText = text.trim();
     setText("");
 
@@ -69,7 +174,7 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
     const sentViaWs = sendWsMessage(messageText);
 
     if (!sentViaWs) {
-      // Fallback to Server Action if socket is buffering / disconnected
+      // Fallback to Server Action if socket is disconnected
       startSending(async () => {
         const res = await sendMessageAction(groupId, messageText);
         if (!res.success) {
@@ -110,13 +215,17 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
             <Info className="h-8 w-8 mb-2 opacity-40" />
             <p className="text-sm font-medium">No messages yet</p>
             <p className="text-xs max-w-xs mt-1 opacity-75">
-              Chat and financial activity for this group will appear here in real-time over WebSockets.
+              Chat and financial activity for this group will appear here in real-time over WebSockets. Type @ to mention someone!
             </p>
           </div>
         ) : (
           messages.map((msg) => {
             const isSystem = msg.type === "system";
             const isMe = msg.authorId === currentUserId;
+            const isMentioned =
+              !isMe &&
+              !isSystem &&
+              msg.body.toLowerCase().includes(`@${currentUsername.toLowerCase()}`);
 
             if (isSystem) {
               return (
@@ -138,18 +247,31 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
                 className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
               >
                 {!isMe && (
-                  <span className="text-[11px] font-semibold text-muted-foreground ml-1 mb-1 flex items-center gap-1">
-                    @{msg.authorUsername || "member"}
-                  </span>
+                  <div className="flex items-center gap-1.5 ml-1 mb-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground">
+                      @{msg.authorUsername || "member"}
+                    </span>
+                    {isMentioned && (
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-1.5 py-0.2 rounded-sm border border-amber-500/30">
+                        mentioned you
+                      </span>
+                    )}
+                  </div>
                 )}
                 <div
-                  className={`max-w-[80%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-2xs ${
+                  className={`max-w-[80%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-2xs transition-all ${
                     isMe
                       ? "bg-primary text-primary-foreground rounded-br-xs"
+                      : isMentioned
+                      ? "bg-amber-500/5 text-foreground border-2 border-amber-500/50 shadow-sm rounded-bl-xs"
                       : "bg-muted text-foreground border rounded-bl-xs"
                   }`}
                 >
-                  <p className="break-words whitespace-pre-wrap">{msg.body}</p>
+                  <MessageContent
+                    body={msg.body}
+                    currentUsername={currentUsername}
+                    isMe={isMe}
+                  />
                   <div
                     className={`text-[10px] mt-1 text-right ${
                       isMe ? "text-primary-foreground/75" : "text-muted-foreground"
@@ -168,20 +290,46 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Input */}
-      <form onSubmit={handleSend} className="p-3 border-t bg-background/80 flex items-center gap-2">
-        <Input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Send a real-time message..."
-          className="flex-1 bg-card"
-          maxLength={1000}
-          disabled={isSending}
-        />
-        <Button type="submit" size="icon" disabled={!text.trim() || isSending} className="shrink-0">
-          <Send className="h-4 w-4" />
-        </Button>
-      </form>
+      {/* Message Input with Mention Autocomplete */}
+      <div className="relative p-3 border-t bg-background/80">
+        {isMentionOpen && (
+          <MentionAutocomplete
+            members={members}
+            query={mentionQuery}
+            selectedIndex={mentionIndex}
+            onSelect={handleSelectMention}
+            currentUserId={currentUserId}
+          />
+        )}
+
+        <form onSubmit={handleSend} className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleAtButtonClick}
+            title="Mention a member (@)"
+            className="shrink-0 text-muted-foreground hover:text-foreground h-9 w-9"
+          >
+            <AtSign className="h-4 w-4" />
+          </Button>
+
+          <Input
+            ref={inputRef}
+            value={text}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message or @mention someone..."
+            className="flex-1 bg-card"
+            maxLength={1000}
+            disabled={isSending}
+          />
+
+          <Button type="submit" size="icon" disabled={!text.trim() || isSending} className="shrink-0 h-9 w-9">
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
