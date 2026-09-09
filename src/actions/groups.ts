@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { groups, groupMembers, inviteLinks, messages } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { broadcastWsEvent } from "@/lib/ws-hub";
 
 const CreateGroupSchema = z.object({
   name: z.string().trim().min(1, "Group name is required").max(100, "Group name must be 100 characters or fewer"),
@@ -214,13 +215,33 @@ export async function joinGroupAction(token: string): Promise<{ success: boolean
         .set({ useCount: sql`${inviteLinks.useCount} + 1` })
         .where(eq(inviteLinks.id, invite.id));
 
+      const joinMsgId = crypto.randomUUID();
       // Post system message to group chat
       await tx.insert(messages).values({
-        id: crypto.randomUUID(),
+        id: joinMsgId,
         groupId: invite.groupId,
         authorId: null,
         body: `${user.username} joined the group.`,
         type: "system",
+      });
+
+      await broadcastWsEvent({
+        type: "new_message",
+        groupId: invite.groupId,
+        message: {
+          id: joinMsgId,
+          body: `${user.username} joined the group.`,
+          type: "system",
+          createdAt: new Date().toISOString(),
+          authorId: null,
+          authorUsername: null,
+        },
+      });
+
+      await broadcastWsEvent({
+        type: "member_joined",
+        groupId: invite.groupId,
+        username: user.username,
       });
     });
 

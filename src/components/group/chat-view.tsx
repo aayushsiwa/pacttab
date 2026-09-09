@@ -1,46 +1,62 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { sendMessageAction } from "@/actions/chat";
+import { useGroupSocket, type ChatMessage } from "@/hooks/use-group-socket";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Send, Sparkles, Info, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
-
-interface Message {
-  id: string;
-  body: string;
-  type: string;
-  createdAt: Date;
-  authorId: string | null;
-  authorUsername: string | null;
-}
 
 interface ChatViewProps {
   groupId: string;
   currentUserId: string;
-  initialMessages: Message[];
+  initialMessages: ChatMessage[];
 }
 
 export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewProps) {
+  const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [isSending, startSending] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  // Handle incoming real-time WebSocket messages
+  const handleNewMessage = useCallback((msg: ChatMessage) => {
+    setRealtimeMessages((prev) => {
+      if (prev.some((m) => m.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+  }, []);
+
+  const { isConnected, sendWsMessage } = useGroupSocket({
+    groupId,
+    userId: currentUserId,
+    onNewMessage: handleNewMessage,
+  });
+
+  // Combine initialMessages with realtimeMessages, deduplicated by ID
+  const messageMap = new Map<string, ChatMessage>();
+  for (const m of initialMessages) messageMap.set(m.id, m);
+  for (const m of realtimeMessages) messageMap.set(m.id, m);
+  const messages = Array.from(messageMap.values());
+
   // Scroll to bottom on updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [initialMessages]);
+  }, [messages.length]);
 
-  // Polling for live chat and activity updates
+  // Fallback background sync (every 15s) in case socket reconnects
   useEffect(() => {
     const interval = setInterval(() => {
-      router.refresh();
-    }, 4000);
+      if (!isConnected) {
+        router.refresh();
+      }
+    }, 15000);
     return () => clearInterval(interval);
-  }, [router]);
+  }, [isConnected, router]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,31 +65,56 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
     const messageText = text.trim();
     setText("");
 
-    startSending(async () => {
-      const res = await sendMessageAction(groupId, messageText);
-      if (!res.success) {
-        toast.error(res.error || "Failed to send message");
-        setText(messageText); // Restore on error
-      } else {
-        router.refresh();
-      }
-    });
+    // Try sending over WebSocket first for instant delivery
+    const sentViaWs = sendWsMessage(messageText);
+
+    if (!sentViaWs) {
+      // Fallback to Server Action if socket is buffering / disconnected
+      startSending(async () => {
+        const res = await sendMessageAction(groupId, messageText);
+        if (!res.success) {
+          toast.error(res.error || "Failed to send message");
+          setText(messageText);
+        } else {
+          router.refresh();
+        }
+      });
+    }
   };
 
   return (
     <div className="flex flex-col h-[600px] rounded-xl border bg-card/40 shadow-xs overflow-hidden">
+      {/* Real-time Status Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30 text-xs text-muted-foreground">
+        <span className="font-medium">Group Discussion & Activity Feed</span>
+        <div className="flex items-center gap-1.5">
+          {isConnected ? (
+            <Badge variant="outline" className="text-[10px] gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <Wifi className="h-3 w-3" />
+              <span>WebSocket Live</span>
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+              <WifiOff className="h-3 w-3" />
+              <span>Connecting...</span>
+            </Badge>
+          )}
+        </div>
+      </div>
+
       {/* Messages Feed */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {initialMessages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground p-8">
             <Info className="h-8 w-8 mb-2 opacity-40" />
             <p className="text-sm font-medium">No messages yet</p>
             <p className="text-xs max-w-xs mt-1 opacity-75">
-              Chat and financial activity for this group will appear here in chronological order.
+              Chat and financial activity for this group will appear here in real-time over WebSockets.
             </p>
           </div>
         ) : (
-          initialMessages.map((msg) => {
+          messages.map((msg) => {
             const isSystem = msg.type === "system";
             const isMe = msg.authorId === currentUserId;
 
@@ -132,7 +173,7 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Send a message to group..."
+          placeholder="Send a real-time message..."
           className="flex-1 bg-card"
           maxLength={1000}
           disabled={isSending}

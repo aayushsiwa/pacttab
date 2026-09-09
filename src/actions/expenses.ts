@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { expenses, expenseSplits, settlements, messages, groupMembers, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { calculateEqualSplits } from "@/lib/balances";
+import { broadcastWsEvent } from "@/lib/ws-hub";
 
 const CreateExpenseSchema = z.object({
   groupId: z.string().uuid().or(z.string().min(1)),
@@ -75,6 +76,7 @@ export async function createExpenseAction(
   const splits = calculateEqualSplits(amount, participantUserIds);
 
   const expenseId = crypto.randomUUID();
+  const messageId = crypto.randomUUID();
   const dateObj = expenseDate ? new Date(expenseDate) : new Date();
 
   try {
@@ -102,12 +104,34 @@ export async function createExpenseAction(
 
       // Insert chat activity message
       await tx.insert(messages).values({
-        id: crypto.randomUUID(),
+        id: messageId,
         groupId,
         authorId: null,
         body: `${payerName} added expense "${description}" — ₹${amount.toFixed(2)}`,
         type: "system",
       });
+    });
+
+    // Real-time broadcast over WebSocket
+    await broadcastWsEvent({
+      type: "new_message",
+      groupId,
+      message: {
+        id: messageId,
+        body: `${payerName} added expense "${description}" — ₹${amount.toFixed(2)}`,
+        type: "system",
+        createdAt: new Date().toISOString(),
+        authorId: null,
+        authorUsername: null,
+      },
+    });
+
+    await broadcastWsEvent({
+      type: "expense_created",
+      groupId,
+      description,
+      amount,
+      payerUsername: payerName,
     });
 
     revalidatePath(`/group/${groupId}`);
@@ -166,13 +190,33 @@ export async function deleteExpenseAction(
       await tx.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
       await tx.delete(expenses).where(eq(expenses.id, expenseId));
 
+      const deleteMsgId = crypto.randomUUID();
       // Post activity message
       await tx.insert(messages).values({
-        id: crypto.randomUUID(),
+        id: deleteMsgId,
         groupId,
         authorId: null,
         body: `${user.username} deleted expense "${expenseItem.description}".`,
         type: "system",
+      });
+
+      await broadcastWsEvent({
+        type: "new_message",
+        groupId,
+        message: {
+          id: deleteMsgId,
+          body: `${user.username} deleted expense "${expenseItem.description}".`,
+          type: "system",
+          createdAt: new Date().toISOString(),
+          authorId: null,
+          authorUsername: null,
+        },
+      });
+
+      await broadcastWsEvent({
+        type: "expense_deleted",
+        groupId,
+        description: expenseItem.description,
       });
     });
 
@@ -250,13 +294,35 @@ export async function recordSettlementAction(
         settledAt: new Date(),
       });
 
+      const settleMsgId = crypto.randomUUID();
       // Post activity message
       await tx.insert(messages).values({
-        id: crypto.randomUUID(),
+        id: settleMsgId,
         groupId,
         authorId: null,
         body: `${payerName} recorded a settlement of ₹${amount.toFixed(2)} to ${recipientName}.`,
         type: "system",
+      });
+
+      await broadcastWsEvent({
+        type: "new_message",
+        groupId,
+        message: {
+          id: settleMsgId,
+          body: `${payerName} recorded a settlement of ₹${amount.toFixed(2)} to ${recipientName}.`,
+          type: "system",
+          createdAt: new Date().toISOString(),
+          authorId: null,
+          authorUsername: null,
+        },
+      });
+
+      await broadcastWsEvent({
+        type: "settlement_recorded",
+        groupId,
+        amount,
+        payerUsername: payerName,
+        recipientUsername: recipientName,
       });
     });
 

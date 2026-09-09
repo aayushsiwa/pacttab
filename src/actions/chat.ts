@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { messages, groupMembers, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { broadcastWsEvent } from "@/lib/ws-hub";
 
 export async function sendMessageAction(
   groupId: string,
@@ -35,13 +36,29 @@ export async function sendMessageAction(
     return { success: false, error: "You are not an active member of this group" };
   }
 
+  const messageId = crypto.randomUUID();
+
   try {
     await db.insert(messages).values({
-      id: crypto.randomUUID(),
+      id: messageId,
       groupId,
       authorId: user.id,
       body: trimmed,
       type: "user",
+    });
+
+    // Broadcast over WebSocket in real time
+    await broadcastWsEvent({
+      type: "new_message",
+      groupId,
+      message: {
+        id: messageId,
+        body: trimmed,
+        type: "user",
+        createdAt: new Date().toISOString(),
+        authorId: user.id,
+        authorUsername: user.username,
+      },
     });
 
     revalidatePath(`/group/${groupId}`);
