@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
-    "test:e2e": "tsx tests/e2e-flow.test.ts"
+    "test:e2e": "tsx tests/e2e-flow.test.ts",
+    "test:auth": "tsx tests/auth-invite-flow.test.ts",
+    "test": "tsx tests/e2e-flow.test.ts && tsx tests/auth-invite-flow.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

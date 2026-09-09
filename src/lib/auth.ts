@@ -28,25 +28,41 @@ export async function createSession(userId: string): Promise<string> {
     expiresAt,
   });
 
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: expiresAt,
-  });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      expires: expiresAt,
+    });
+  } catch (err) {
+    if ((err as Error)?.message?.includes("outside a request scope")) {
+      // Allow execution in test/script context
+    } else {
+      throw err;
+    }
+  }
 
   return sessionToken;
 }
 
 export async function deleteSession(): Promise<void> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
-  if (token) {
-    await db.delete(sessions).where(eq(sessions.id, token));
-    cookieStore.delete(SESSION_COOKIE_NAME);
+    if (token) {
+      await db.delete(sessions).where(eq(sessions.id, token));
+      cookieStore.delete(SESSION_COOKIE_NAME);
+    }
+  } catch (err) {
+    if ((err as Error)?.message?.includes("outside a request scope")) {
+      // Allow execution in test/script context
+    } else {
+      throw err;
+    }
   }
 }
 

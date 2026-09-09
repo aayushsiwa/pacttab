@@ -21,11 +21,15 @@ const AuthSchema = z.object({
 export type AuthActionState = {
   error?: string;
   success?: boolean;
+  username?: string;
 };
 
 export async function signUpAction(prevState: AuthActionState | null, formData: FormData): Promise<AuthActionState> {
   const rawUsername = formData.get("username");
   const rawPassword = formData.get("password");
+  const rawReturnTo = formData.get("returnTo");
+
+  const usernameStr = typeof rawUsername === "string" ? rawUsername : "";
 
   const validation = AuthSchema.safeParse({
     username: rawUsername,
@@ -33,7 +37,10 @@ export async function signUpAction(prevState: AuthActionState | null, formData: 
   });
 
   if (!validation.success) {
-    return { error: validation.error.issues[0]?.message || "Invalid input" };
+    return {
+      error: validation.error.issues[0]?.message || "Invalid input",
+      username: usernameStr,
+    };
   }
 
   const normalizedUsername = validation.data.username.toLowerCase();
@@ -46,7 +53,10 @@ export async function signUpAction(prevState: AuthActionState | null, formData: 
     .limit(1);
 
   if (existingUser.length > 0) {
-    return { error: "Username is already taken. Please choose another." };
+    return {
+      error: "Username is already taken. Please choose another.",
+      username: usernameStr,
+    };
   }
 
   const passwordHash = await hashPassword(validation.data.password);
@@ -62,15 +72,26 @@ export async function signUpAction(prevState: AuthActionState | null, formData: 
     await createSession(userId);
   } catch (error) {
     console.error("Sign up error:", error);
-    return { error: "Failed to create account. Please try again." };
+    return {
+      error: "Failed to create account. Please try again.",
+      username: usernameStr,
+    };
   }
 
-  redirect("/groups");
+  const returnToStr =
+    typeof rawReturnTo === "string" && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
+      ? rawReturnTo
+      : "/groups";
+
+  redirect(returnToStr);
 }
 
 export async function signInAction(prevState: AuthActionState | null, formData: FormData): Promise<AuthActionState> {
   const rawUsername = formData.get("username");
   const rawPassword = formData.get("password");
+  const rawReturnTo = formData.get("returnTo");
+
+  const usernameStr = typeof rawUsername === "string" ? rawUsername : "";
 
   const validation = AuthSchema.safeParse({
     username: rawUsername,
@@ -78,7 +99,10 @@ export async function signInAction(prevState: AuthActionState | null, formData: 
   });
 
   if (!validation.success) {
-    return { error: validation.error.issues[0]?.message || "Invalid input" };
+    return {
+      error: validation.error.issues[0]?.message || "Invalid input",
+      username: usernameStr,
+    };
   }
 
   const normalizedUsername = validation.data.username.toLowerCase();
@@ -93,24 +117,38 @@ export async function signInAction(prevState: AuthActionState | null, formData: 
     .limit(1);
 
   if (matchedUsers.length === 0) {
-    return { error: "Invalid username or password." };
+    return {
+      error: "Invalid username or password.",
+      username: usernameStr,
+    };
   }
 
   const user = matchedUsers[0];
   const isValid = await verifyPassword(validation.data.password, user.passwordHash);
 
   if (!isValid) {
-    return { error: "Invalid username or password." };
+    return {
+      error: "Invalid username or password.",
+      username: usernameStr,
+    };
   }
 
   try {
     await createSession(user.id);
   } catch (error) {
     console.error("Sign in error:", error);
-    return { error: "Failed to sign in. Please try again." };
+    return {
+      error: "Failed to sign in. Please try again.",
+      username: usernameStr,
+    };
   }
 
-  redirect("/groups");
+  const returnToStr =
+    typeof rawReturnTo === "string" && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
+      ? rawReturnTo
+      : "/groups";
+
+  redirect(returnToStr);
 }
 
 export async function signOutAction(): Promise<void> {
