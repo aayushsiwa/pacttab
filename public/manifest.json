@@ -1,21 +1,52 @@
 {
-  "name": "SplitGroup",
-  "short_name": "SplitGroup",
-  "description": "Privacy-first group expenses and chat",
+  "name": "PactTab — Private Group Expenses & Chat",
+  "short_name": "PactTab",
+  "description": "Privacy-first progressive web app for small groups to chat, track shared expenses, and settle balances without personal data.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
   "theme_color": "#0f172a",
+  "categories": ["finance", "social", "productivity"],
   "icons": [
     {
-      "src": "/file.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/file.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Your Groups",
+      "short_name": "Groups",
+      "description": "View your active groups and expense balances",
+      "url": "/groups",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

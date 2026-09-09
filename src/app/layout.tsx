@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PwaProvider } from "@/components/pwa-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { Navbar } from "@/components/navbar";
 import { Toaster } from "@/components/ui/sonner";
@@ -18,17 +19,40 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
   title: "PactTab — Private Group Expenses & Chat",
   description: "A privacy-first progressive web app for small groups to chat, track shared expenses, and settle balances without emails or phone numbers.",
   manifest: "/manifest.json",
+  applicationName: "PactTab",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "PactTab",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default async function RootLayout({
@@ -51,9 +75,11 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Navbar user={user} />
-          <main className="flex-1">{children}</main>
-          <Toaster position="top-center" richColors />
+          <PwaProvider>
+            <Navbar user={user} />
+            <main className="flex-1">{children}</main>
+            <Toaster position="top-center" richColors />
+          </PwaProvider>
         </ThemeProvider>
       </body>
     </html>

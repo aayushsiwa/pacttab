@@ -15,9 +15,10 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, ChevronDown, Users, Sun, Moon, Laptop, Check } from "lucide-react";
+import { LogOut, ChevronDown, Users, Sun, Moon, Laptop, Check, Download } from "lucide-react";
 import { useTransition, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
+import { usePwa } from "@/components/pwa-provider";
 
 const emptySubscribe = () => () => {};
 
@@ -31,6 +32,7 @@ interface NavbarProps {
 export function Navbar({ user }: NavbarProps) {
   const [isPending, startTransition] = useTransition();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const { isInstallable, install } = usePwa();
   const mounted = useSyncExternalStore(
     emptySubscribe,
     () => true,
@@ -171,6 +173,16 @@ export function Navbar({ user }: NavbarProps) {
 
                 <DropdownMenuSeparator className="my-1" />
 
+                {isInstallable && (
+                  <DropdownMenuItem
+                    onClick={install}
+                    className="cursor-pointer gap-2 py-2 px-2.5 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 focus:bg-emerald-500/10 focus:text-emerald-600 dark:focus:text-emerald-400"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Install App</span>
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuItem
                   onClick={handleSignOut}
                   variant="destructive"
@@ -184,6 +196,18 @@ export function Navbar({ user }: NavbarProps) {
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
+              {isInstallable && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={install}
+                  className="font-semibold text-xs h-9 px-3 gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Install</span>
+                </Button>
+              )}
+
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-card/80 hover:bg-muted/80 text-muted-foreground hover:text-foreground shadow-2xs transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
