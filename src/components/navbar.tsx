@@ -4,7 +4,7 @@ import Link from "next/link";
 import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, Users, Shield } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useTransition } from "react";
 
 interface NavbarProps {

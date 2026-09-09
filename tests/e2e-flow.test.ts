@@ -2,7 +2,7 @@ import { db } from "../src/db";
 import { users, groups, groupMembers, inviteLinks, messages, expenses, expenseSplits, settlements } from "../src/db/schema";
 import { hashPassword, verifyPassword } from "../src/lib/auth";
 import { calculateEqualSplits, calculateBalancesAndSettlements } from "../src/lib/balances";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
 async function runE2EFlowTest() {
@@ -147,14 +147,14 @@ async function runE2EFlowTest() {
 
   // 7. Balance Calculation & Suggested Settlements Verification
   console.log("7. Verifying Balances & Suggested Repayments...");
-  let expList = [{
+  const expList = [{
     id: expenseId,
     amount: amount,
     paidByUserId: userAId,
     splits: splits.map(s => ({ userId: s.userId, owedAmount: s.owedAmount }))
   }];
 
-  let { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+  const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
     [{ id: userAId, username: usernameA }, { id: userBId, username: usernameB }],
     expList,
     []

@@ -5,7 +5,7 @@ import { RecordSettlementDialog } from "@/components/group/record-settlement-dia
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeftRight, CheckCircle2, User, Clock } from "lucide-react";
+import { ArrowRight, ArrowLeftRight, CheckCircle2, Clock } from "lucide-react";
 import type { MemberBalance, SuggestedSettlement } from "@/lib/balances";
 
 interface SettlementItem {

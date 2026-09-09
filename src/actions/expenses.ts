@@ -19,7 +19,7 @@ const CreateExpenseSchema = z.object({
 });
 
 export async function createExpenseAction(
-  prevState: any,
+  prevState: unknown,
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   const user = await requireUser();
@@ -192,7 +192,7 @@ const RecordSettlementSchema = z.object({
 });
 
 export async function recordSettlementAction(
-  prevState: any,
+  prevState: unknown,
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   const user = await requireUser();

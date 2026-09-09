@@ -6,7 +6,7 @@ import { createInviteLinkAction, revokeInviteLinkAction } from "@/actions/groups
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Link2, Copy, Check, Shield, Trash2, Plus, Lock } from "lucide-react";
+import { Users, Link2, Copy, Check, Trash2, Plus, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 interface Member {

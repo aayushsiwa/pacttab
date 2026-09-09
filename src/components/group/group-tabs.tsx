@@ -7,18 +7,72 @@ import { ExpensesView } from "@/components/group/expenses-view";
 import { BalancesView } from "@/components/group/balances-view";
 import { MembersView } from "@/components/group/members-view";
 import { MessageSquare, Receipt, ArrowLeftRight, Users } from "lucide-react";
+import type { MemberBalance, SuggestedSettlement } from "@/lib/balances";
+
+interface GroupMemberItem {
+  id: string;
+  username: string;
+  role: string;
+  joinedAt: Date;
+}
+
+interface MessageItem {
+  id: string;
+  body: string;
+  type: string;
+  createdAt: Date;
+  authorId: string | null;
+  authorUsername: string | null;
+}
+
+interface ExpenseItem {
+  id: string;
+  description: string;
+  amount: string | number;
+  paidByUserId: string;
+  expenseDate: Date;
+  createdBy: string;
+  createdAt: Date;
+  payerUsername: string;
+  splits: {
+    id: string;
+    expenseId: string;
+    userId: string;
+    owedAmount: string | number;
+    username: string | null;
+  }[];
+}
+
+interface SettlementItem {
+  id: string;
+  amount: string | number;
+  paidByUserId: string;
+  receivedByUserId: string;
+  settledAt: Date;
+  createdAt: Date;
+  payerUsername: string;
+  recipientUsername: string;
+}
+
+interface InviteItem {
+  id: string;
+  token: string;
+  createdAt: Date;
+  useCount: number;
+  maxUses: number | null;
+}
 
 interface GroupTabsProps {
   groupId: string;
   currentUserId: string;
   currentUserRole: string;
-  members: any[];
-  messages: any[];
-  expenses: any[];
-  settlements: any[];
-  balances: any[];
-  suggestedSettlements: any[];
-  activeInvites: any[];
+  members: GroupMemberItem[];
+  messages: MessageItem[];
+  expenses: ExpenseItem[];
+  settlements: SettlementItem[];
+  balances: MemberBalance[];
+  suggestedSettlements: SuggestedSettlement[];
+  activeInvites: InviteItem[];
 }
 
 export function GroupTabs({

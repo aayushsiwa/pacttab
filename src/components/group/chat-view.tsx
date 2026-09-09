@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { sendMessageAction } from "@/actions/chat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, User, Info } from "lucide-react";
+import { Send, Sparkles, Info } from "lucide-react";
 import { toast } from "sonner";
 
 interface Message {
@@ -24,21 +24,15 @@ interface ChatViewProps {
 }
 
 export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [text, setText] = useState("");
   const [isSending, startSending] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Keep state in sync with server revalidations
-  useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages]);
-
   // Scroll to bottom on updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [initialMessages]);
 
   // Polling for live chat and activity updates
   useEffect(() => {
@@ -70,7 +64,7 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
     <div className="flex flex-col h-[600px] rounded-xl border bg-card/40 shadow-xs overflow-hidden">
       {/* Messages Feed */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 ? (
+        {initialMessages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground p-8">
             <Info className="h-8 w-8 mb-2 opacity-40" />
             <p className="text-sm font-medium">No messages yet</p>
@@ -79,7 +73,7 @@ export function ChatView({ groupId, currentUserId, initialMessages }: ChatViewPr
             </p>
           </div>
         ) : (
-          messages.map((msg) => {
+          initialMessages.map((msg) => {
             const isSystem = msg.type === "system";
             const isMe = msg.authorId === currentUserId;
 

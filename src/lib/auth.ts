@@ -83,8 +83,9 @@ export async function getCurrentUser(): Promise<{ id: string; username: string; 
       username: result[0].username,
       createdAt: result[0].createdAt,
     };
-  } catch (error: any) {
-    if (error?.digest?.startsWith("DYNAMIC_SERVER_USAGE") || error?.digest?.startsWith("NEXT_")) {
+  } catch (error: unknown) {
+    const digest = (error as { digest?: string })?.digest;
+    if (digest?.startsWith("DYNAMIC_SERVER_USAGE") || digest?.startsWith("NEXT_")) {
       throw error;
     }
     console.error("Failed to retrieve current user:", error);

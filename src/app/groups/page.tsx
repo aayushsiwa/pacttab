@@ -3,10 +3,9 @@ import { requireUser } from "@/lib/auth";
 import { getUserGroups } from "@/lib/queries";
 import { CreateGroupDialog } from "@/components/groups/create-group-dialog";
 import { JoinGroupDialog } from "@/components/groups/join-group-dialog";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Users, Shield, ArrowRight, FolderPlus } from "lucide-react";
+import { Users, ArrowRight, FolderPlus } from "lucide-react";
 
 export default async function GroupsPage() {
   const user = await requireUser();

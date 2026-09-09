@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getGroupDetails } from "@/lib/queries";
@@ -6,7 +6,7 @@ import { getGroupMessages } from "@/actions/chat";
 import { GroupTabs } from "@/components/group/group-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Shield, Lock } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 
 interface GroupPageProps {
   params: Promise<{

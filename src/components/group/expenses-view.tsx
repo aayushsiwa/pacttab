@@ -50,7 +50,6 @@ export function ExpensesView({
   members,
   expenses,
 }: ExpensesViewProps) {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();

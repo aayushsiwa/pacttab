@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, MessageSquare, Split, ArrowRight, UserCheck, Lock, Sparkles } from "lucide-react";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ShieldCheck, MessageSquare, Split, ArrowRight, Lock } from "lucide-react";
 
 export default async function HomePage() {
   const user = await getCurrentUser();

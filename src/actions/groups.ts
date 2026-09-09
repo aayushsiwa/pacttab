@@ -6,8 +6,8 @@ import { eq, and, isNull, or, gt, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { groups, groupMembers, inviteLinks, messages, users } from "@/db/schema";
-import { requireUser, getCurrentUser } from "@/lib/auth";
+import { groups, groupMembers, inviteLinks, messages } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
 
 const CreateGroupSchema = z.object({
   name: z.string().trim().min(1, "Group name is required").max(100, "Group name must be 100 characters or fewer"),

@@ -3,8 +3,8 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { joinGroupAction } from "@/actions/groups";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ShieldCheck, ArrowRight, AlertCircle } from "lucide-react";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, AlertCircle } from "lucide-react";
 
 interface JoinPageProps {
   params: Promise<{
