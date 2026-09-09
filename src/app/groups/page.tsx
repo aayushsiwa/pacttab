@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getUserGroups } from "@/lib/queries";
 import { CreateGroupDialog } from "@/components/groups/create-group-dialog";
 import { JoinGroupDialog } from "@/components/groups/join-group-dialog";
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Users, ArrowRight, FolderPlus } from "lucide-react";
+import { GroupCard } from "@/components/groups/group-card";
+import { FolderPlus } from "lucide-react";
 
 export default async function GroupsPage() {
   const user = await requireUser();
@@ -58,55 +56,12 @@ export default async function GroupsPage() {
               const gradient = gradients[idx % gradients.length];
 
               return (
-                <Link key={g.id} href={`/group/${g.id}`} className="group block">
-                  <Card className="h-full border border-border/80 bg-card/80 transition-all duration-200 hover:border-emerald-500/40 hover:shadow-md hover:-translate-y-0.5 rounded-2xl overflow-hidden flex flex-col justify-between">
-                    <CardHeader className="p-5 pb-3">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr ${gradient} text-white font-bold text-sm shadow-2xs`}>
-                            {g.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <CardTitle className="text-base font-bold group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
-                              {g.name}
-                            </CardTitle>
-                            <span className="text-[11px] text-muted-foreground">
-                              Created group
-                            </span>
-                          </div>
-                        </div>
-
-                        <Badge
-                          variant={g.role === "admin" ? "default" : "secondary"}
-                          className={`text-[10px] uppercase font-bold tracking-wider shrink-0 rounded-full px-2 py-0.5 ${
-                            g.role === "admin"
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20"
-                              : "bg-secondary text-secondary-foreground"
-                          }`}
-                        >
-                          {g.role}
-                        </Badge>
-                      </div>
-
-                      {g.description && (
-                        <CardDescription className="line-clamp-2 text-xs mt-1 text-muted-foreground leading-relaxed">
-                          {g.description}
-                        </CardDescription>
-                      )}
-                    </CardHeader>
-
-                    <CardFooter className="px-5 py-3 flex items-center justify-between text-xs text-muted-foreground border-t border-border/60 bg-muted/20">
-                      <div className="flex items-center gap-1.5 font-medium">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{g.memberCount} {g.memberCount === 1 ? "member" : "members"}</span>
-                      </div>
-
-                      <span className="flex items-center gap-1 font-bold text-xs text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all">
-                        Open Room <ArrowRight className="h-3 w-3" />
-                      </span>
-                    </CardFooter>
-                  </Card>
-                </Link>
+                <GroupCard
+                  key={g.id}
+                  group={g}
+                  currentUserId={user.id}
+                  gradient={gradient}
+                />
               );
             })}
           </div>

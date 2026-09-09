@@ -8,6 +8,7 @@ import {
   expenseSplits,
   settlements,
   inviteLinks,
+  messages,
 } from "@/db/schema";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
 
@@ -43,6 +44,19 @@ export async function getUserGroups(userId: string) {
   const countMap = new Map<string, number>();
   memberCounts.forEach((c) => countMap.set(c.groupId, c.count));
 
+  // Fetch timestamp of latest incoming message (authored by someone else or system)
+  const messageStats = await db
+    .select({
+      groupId: messages.groupId,
+      lastIncomingMessageAt: sql<Date | null>`max(${messages.createdAt}) filter (where ${messages.authorId} is null or ${messages.authorId} != ${userId})`,
+    })
+    .from(messages)
+    .where(inArray(messages.groupId, groupIds))
+    .groupBy(messages.groupId);
+
+  const messageMap = new Map<string, Date | null>();
+  messageStats.forEach((m) => messageMap.set(m.groupId, m.lastIncomingMessageAt));
+
   return memberships.map((m) => ({
     id: m.groupId,
     name: m.groupName,
@@ -51,6 +65,7 @@ export async function getUserGroups(userId: string) {
     joinedAt: m.joinedAt,
     createdAt: m.createdAt,
     memberCount: countMap.get(m.groupId) || 1,
+    lastIncomingMessageAt: messageMap.get(m.groupId) || null,
   }));
 }
 

@@ -58,13 +58,20 @@ export default async function HomePage() {
           {/* Mock Header */}
           <div className="flex items-center justify-between border-b border-border/60 pb-3 mb-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-2xs">
-                🌴
+              <div className="relative">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-2xs">
+                  🌴
+                </div>
+                <span className="absolute -top-1 -right-1 flex h-3 w-3" title="New unread activity">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 ring-2 ring-card shadow-xs" />
+                </span>
               </div>
               <div className="text-left">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-sm sm:text-base text-foreground">Goa Road Trip 2026</h3>
-                  <span className="rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 border border-emerald-500/20">
+                  <span className="rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 border border-emerald-500/20 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Live
                   </span>
                 </div>
