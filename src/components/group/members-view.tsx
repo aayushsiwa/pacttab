@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Link2, Copy, Check, Trash2, Plus, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { formatRelativeTime } from "@/lib/date";
 
 interface Member {
   id: string;
@@ -80,50 +81,62 @@ export function MembersView({
   return (
     <div className="space-y-6">
       {/* Member Directory */}
-      <Card className="border shadow-xs">
-        <CardHeader className="pb-3">
+      <Card className="border border-border/80 bg-card/80 shadow-2xs rounded-2xl">
+        <CardHeader className="p-5 pb-3">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Users className="h-4 w-4" />
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span>Group Members ({members.length})</span>
               </CardTitle>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-xs leading-relaxed">
                 Only active members can participate in chat, expenses, and settlements.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2.5">
-          {members.map((m) => {
+        <CardContent className="p-5 pt-0 space-y-2.5">
+          {members.map((m, idx) => {
             const isMe = m.id === currentUserId;
+            const gradients = [
+              "from-emerald-500 to-teal-600",
+              "from-indigo-500 to-purple-600",
+              "from-blue-500 to-cyan-600",
+              "from-amber-500 to-orange-600",
+            ];
+            const gradient = gradients[idx % gradients.length];
+
             return (
               <div
                 key={m.id}
-                className="flex items-center justify-between p-3 rounded-lg border bg-card/60"
+                className="flex items-center justify-between p-3 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground border">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr ${gradient} text-xs font-bold text-white shadow-2xs`}>
                     {m.username.charAt(0).toUpperCase()}
                   </span>
-                  <div>
-                    <div className="flex items-center gap-1.5 font-medium text-sm">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm truncate">
                       <span>@{m.username}</span>
                       {isMe && (
-                        <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal">
+                        <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-semibold">
                           You
                         </Badge>
                       )}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      Joined {new Date(m.joinedAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                      Joined {formatRelativeTime(m.joinedAt)}
                     </div>
                   </div>
                 </div>
 
                 <Badge
                   variant={m.role === "admin" ? "default" : "secondary"}
-                  className="text-[10px] uppercase font-semibold"
+                  className={`text-[10px] uppercase font-bold tracking-wider rounded-full px-2.5 py-0.5 ${
+                    m.role === "admin"
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                      : "bg-secondary text-secondary-foreground"
+                  }`}
                 >
                   {m.role}
                 </Badge>
@@ -135,15 +148,15 @@ export function MembersView({
 
       {/* Invite Management for Admins */}
       {isAdmin ? (
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <Card className="border border-border/80 bg-card/80 shadow-2xs rounded-2xl">
+          <CardHeader className="p-5 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Link2 className="h-4 w-4 text-primary" />
                   <span>Direct Invite Links</span>
                 </CardTitle>
-                <CardDescription className="text-xs">
+                <CardDescription className="text-xs leading-relaxed">
                   Anyone with an active invite link can join this group immediately without approval.
                 </CardDescription>
               </div>
@@ -152,7 +165,7 @@ export function MembersView({
                 size="sm"
                 onClick={handleCreateInvite}
                 disabled={isPending}
-                className="gap-1.5 shrink-0"
+                className="gap-1.5 shrink-0 font-bold rounded-xl h-9 px-3.5"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Create Invite Link</span>
@@ -160,12 +173,12 @@ export function MembersView({
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-3">
+          <CardContent className="p-5 pt-0 space-y-3">
             {invites.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-6 text-center text-muted-foreground border border-dashed rounded-lg">
-                <Link2 className="h-6 w-6 mb-2 opacity-50" />
-                <p className="text-xs font-medium">No active invite links</p>
-                <p className="text-[11px] mt-0.5">
+              <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed border-border/80 rounded-xl bg-card/30">
+                <Link2 className="h-6 w-6 mb-2 opacity-40 text-primary" />
+                <p className="text-xs font-bold text-foreground">No active invite links</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
                   Generate a link to invite new members to this group.
                 </p>
               </div>
@@ -175,36 +188,38 @@ export function MembersView({
                 return (
                   <div
                     key={inv.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border bg-card/60"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-border/60 bg-muted/20"
                   >
                     <div className="space-y-1 min-w-0 flex-1">
-                      <div className="font-mono text-xs text-foreground truncate bg-muted/50 px-2 py-1 rounded-sm border inline-block max-w-full">
+                      <div className="font-mono text-xs text-foreground truncate bg-card px-2.5 py-1 rounded-lg border border-border/60 inline-block max-w-full font-medium">
                         .../join/{inv.token}
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        Used {inv.useCount} {inv.useCount === 1 ? "time" : "times"} • Created {new Date(inv.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+                        Used {inv.useCount} {inv.useCount === 1 ? "time" : "times"} • Created {formatRelativeTime(inv.createdAt)}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                       <Button
-                        size="xs"
+                        size="sm"
                         variant="outline"
                         onClick={() => handleCopy(inv.token)}
-                        className="gap-1 text-xs"
+                        className={`gap-1.5 text-xs font-semibold rounded-lg h-8 px-3 ${
+                          isCopied ? "border-emerald-500 text-emerald-600 bg-emerald-500/10" : ""
+                        }`}
                       >
-                        {isCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                        {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                         <span>{isCopied ? "Copied" : "Copy Link"}</span>
                       </Button>
 
                       <Button
-                        size="xs"
+                        size="sm"
                         variant="ghost"
                         onClick={() => handleRevokeInvite(inv.id)}
                         disabled={isPending}
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs"
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs font-semibold rounded-lg h-8 px-2.5"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                         <span>Revoke</span>
                       </Button>
                     </div>
@@ -215,7 +230,7 @@ export function MembersView({
           </CardContent>
         </Card>
       ) : (
-        <Card className="border bg-muted/20">
+        <Card className="border border-border/80 bg-muted/20 rounded-2xl">
           <CardContent className="p-4 flex items-center gap-3 text-xs text-muted-foreground">
             <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span>

@@ -39,7 +39,7 @@ export function MentionAutocomplete({
 
   if (filtered.length === 0) {
     return (
-      <div className="absolute bottom-full left-3 mb-2 w-56 rounded-lg border bg-popover p-2 text-xs text-muted-foreground shadow-md">
+      <div className="absolute bottom-full left-2 right-2 sm:right-auto sm:left-3 mb-2 w-auto sm:w-64 max-w-sm rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md p-2.5 text-xs text-muted-foreground shadow-lg z-30">
         No matching members found
       </div>
     );
@@ -48,10 +48,10 @@ export function MentionAutocomplete({
   return (
     <div
       ref={listRef}
-      className="absolute bottom-full left-3 mb-2 w-64 max-h-48 overflow-y-auto rounded-lg border bg-popover p-1 shadow-lg z-30 divide-y divide-border/40"
+      className="absolute bottom-full left-2 right-2 sm:right-auto sm:left-3 mb-2 w-auto sm:w-72 max-w-sm max-h-48 overflow-y-auto rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md p-1.5 shadow-xl z-30 divide-y divide-border/40"
     >
-      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-        <AtSign className="h-3 w-3" />
+      <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        <AtSign className="h-3 w-3 text-primary" />
         <span>Mention member</span>
       </div>
       <div className="space-y-0.5 pt-1">

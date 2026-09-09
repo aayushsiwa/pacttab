@@ -18,23 +18,23 @@ export default async function JoinPage({ params }: JoinPageProps) {
 
   if (!user) {
     return (
-      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-md text-center">
-          <CardHeader>
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-2">
-              <Users className="h-6 w-6" />
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
+        <Card className="w-full max-w-md border-border/80 bg-card/90 shadow-xl backdrop-blur-sm rounded-2xl overflow-hidden text-center p-6">
+          <CardHeader className="p-0 pb-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-indigo-500/20 text-emerald-600 dark:text-emerald-400 mb-3 shadow-2xs ring-1 ring-border">
+              <Users className="h-7 w-7" />
             </div>
-            <CardTitle className="text-2xl font-bold">Group Invitation</CardTitle>
-            <CardDescription>
-              You&apos;ve received an invitation to join a private group. Sign in or create an account with just a username to enter.
+            <CardTitle className="text-2xl font-black tracking-tight text-foreground">Group Invitation</CardTitle>
+            <CardDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-1">
+              You&apos;ve received an invitation to enter a private group room. Sign in or create a handle to join the tab.
             </CardDescription>
           </CardHeader>
-          <CardFooter className="flex flex-col gap-3 pt-2">
+          <CardFooter className="flex flex-col gap-3 p-0 pt-3">
             <Link href={`/login?returnTo=/join/${token}`} className="w-full">
-              <Button className="w-full">Sign in to Join</Button>
+              <Button className="w-full h-11 rounded-xl font-bold shadow-sm">Sign in to Join</Button>
             </Link>
             <Link href={`/signup?returnTo=/join/${token}`} className="w-full">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full h-11 rounded-xl font-semibold border-border/80">
                 Create an Account (10 seconds)
               </Button>
             </Link>

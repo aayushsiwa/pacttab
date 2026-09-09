@@ -90,41 +90,62 @@ export function GroupTabs({
   activeInvites,
 }: GroupTabsProps) {
   const [activeTab, setActiveTab] = useState("chat");
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    if (val === "chat") {
+      setChatUnreadCount(0);
+    }
+  };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-      <div className="border-b">
-        <TabsList className="h-11 w-full justify-start rounded-none bg-transparent p-0 gap-6">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-6">
+      <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <TabsList className="h-12 min-w-max sm:w-full justify-start rounded-2xl bg-muted/50 p-1.5 gap-1 sm:gap-1.5 border border-border/80 shadow-2xs">
           <TabsTrigger
             value="chat"
-            className="relative h-11 rounded-none border-b-2 border-b-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none focus-visible:ring-0 data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none gap-2 text-sm"
+            className="relative h-9 rounded-xl px-3 sm:px-4 font-bold text-xs text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all gap-1.5 sm:gap-2 shrink-0"
           >
-            <MessageSquare className="h-4 w-4" />
-            <span>Chat & Activity</span>
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span>Chat</span>
+            <span className="hidden sm:inline">& Activity</span>
+            {chatUnreadCount > 0 && (
+              <span className="relative flex h-2 w-2 ml-0.5" title={`${chatUnreadCount} unread`}>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            )}
           </TabsTrigger>
 
           <TabsTrigger
             value="expenses"
-            className="relative h-11 rounded-none border-b-2 border-b-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none focus-visible:ring-0 data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none gap-2 text-sm"
+            className="h-9 rounded-xl px-3 sm:px-4 font-bold text-xs text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all gap-1.5 sm:gap-2 shrink-0"
           >
-            <Receipt className="h-4 w-4" />
-            <span>Expenses ({expenses.length})</span>
+            <Receipt className="h-3.5 w-3.5" />
+            <span>Expenses</span>
+            <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.2 text-[10px] font-bold">
+              {expenses.length}
+            </span>
           </TabsTrigger>
 
           <TabsTrigger
             value="balances"
-            className="relative h-11 rounded-none border-b-2 border-b-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none focus-visible:ring-0 data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none gap-2 text-sm"
+            className="h-9 rounded-xl px-3 sm:px-4 font-bold text-xs text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all gap-1.5 sm:gap-2 shrink-0"
           >
-            <ArrowLeftRight className="h-4 w-4" />
+            <ArrowLeftRight className="h-3.5 w-3.5" />
             <span>Balances</span>
           </TabsTrigger>
 
           <TabsTrigger
             value="members"
-            className="relative h-11 rounded-none border-b-2 border-b-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none focus-visible:ring-0 data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none gap-2 text-sm"
+            className="h-9 rounded-xl px-3 sm:px-4 font-bold text-xs text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all gap-1.5 sm:gap-2 shrink-0"
           >
-            <Users className="h-4 w-4" />
-            <span>Members ({members.length})</span>
+            <Users className="h-3.5 w-3.5" />
+            <span>Members</span>
+            <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.2 text-[10px] font-bold">
+              {members.length}
+            </span>
           </TabsTrigger>
         </TabsList>
       </div>
@@ -136,6 +157,7 @@ export function GroupTabs({
           currentUsername={currentUsername}
           members={members}
           initialMessages={messages}
+          onUnreadChange={setChatUnreadCount}
         />
       </TabsContent>
 
