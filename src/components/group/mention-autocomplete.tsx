@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { AtSign } from "lucide-react";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface Member {
   id: string;
@@ -74,15 +75,7 @@ export function MentionAutocomplete({
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold border ${
-                    isSelected
-                      ? "bg-primary-foreground/20 text-primary-foreground border-transparent"
-                      : "bg-secondary text-secondary-foreground"
-                  }`}
-                >
-                  {member.username.charAt(0).toUpperCase()}
-                </span>
+                <UserAvatar username={member.username} size="xs" />
                 <span className="truncate">@{member.username}</span>
               </div>
               {isMe && (

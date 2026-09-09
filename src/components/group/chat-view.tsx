@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Sparkles, Info, Wifi, WifiOff, AtSign, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime, formatTime } from "@/lib/date";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface Member {
   id: string;
@@ -52,7 +53,9 @@ export function ChatView({
   useEffect(() => {
     let timerId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const stored = localStorage.getItem(`splitgroup_read_${groupId}_${currentUserId}`);
+      const stored =
+        localStorage.getItem(`pacttab_read_${groupId}_${currentUserId}`) ||
+        localStorage.getItem(`splitgroup_read_${groupId}_${currentUserId}`);
       const val = stored ? Number(stored) : Date.now() - 1000 * 60 * 60;
       timerId = setTimeout(() => {
         setLastReadTimestamp(val);
@@ -103,6 +106,7 @@ export function ChatView({
     setHasMarkedRead(true);
     onUnreadChangeRef.current?.(0);
     try {
+      localStorage.setItem(`pacttab_read_${groupId}_${currentUserId}`, String(now));
       localStorage.setItem(`splitgroup_read_${groupId}_${currentUserId}`, String(now));
     } catch {}
   }, [groupId, currentUserId]);
@@ -341,6 +345,7 @@ export function ChatView({
                   <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                     {!isMe && (
                       <div className="flex items-center gap-1.5 ml-1 mb-1">
+                        <UserAvatar username={msg.authorUsername || "member"} size="xs" />
                         <span className="text-[11px] font-bold text-muted-foreground">
                           @{msg.authorUsername || "member"}
                         </span>

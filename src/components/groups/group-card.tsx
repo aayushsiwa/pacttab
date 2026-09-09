@@ -34,7 +34,9 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
       }
 
       try {
-        const stored = localStorage.getItem(`splitgroup_read_${group.id}_${currentUserId}`);
+        const stored =
+          localStorage.getItem(`pacttab_read_${group.id}_${currentUserId}`) ||
+          localStorage.getItem(`splitgroup_read_${group.id}_${currentUserId}`);
         const incomingTime = new Date(group.lastIncomingMessageAt).getTime();
 
         if (stored) {

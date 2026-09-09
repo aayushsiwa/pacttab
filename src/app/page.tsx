@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { MessageSquare, Split, ArrowRight, Lock } from "lucide-react";
 
 export default async function HomePage() {
@@ -75,7 +76,14 @@ export default async function HomePage() {
                     Live
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">3 members • @maya (admin), @arjun, @rohit</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="flex -space-x-1.5 overflow-hidden">
+                    <UserAvatar username="maya" size="xs" className="h-4 w-4 border-background" />
+                    <UserAvatar username="arjun" size="xs" className="h-4 w-4 border-background" />
+                    <UserAvatar username="rohit" size="xs" className="h-4 w-4 border-background" />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">3 members • @maya (admin), @arjun, @rohit</p>
+                </div>
               </div>
             </div>
 

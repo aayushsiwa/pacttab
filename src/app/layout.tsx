@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "SplitGroup — Private Group Expenses & Chat",
+  title: "PactTab — Private Group Expenses & Chat",
   description: "A privacy-first progressive web app for small groups to chat, track shared expenses, and settle balances without emails or phone numbers.",
   manifest: "/manifest.json",
 };

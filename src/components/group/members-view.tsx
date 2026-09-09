@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Users, Link2, Copy, Check, Trash2, Plus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/date";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface Member {
   id: string;
@@ -96,15 +97,8 @@ export function MembersView({
           </div>
         </CardHeader>
         <CardContent className="p-5 pt-0 space-y-2.5">
-          {members.map((m, idx) => {
+          {members.map((m) => {
             const isMe = m.id === currentUserId;
-            const gradients = [
-              "from-emerald-500 to-teal-600",
-              "from-indigo-500 to-purple-600",
-              "from-blue-500 to-cyan-600",
-              "from-amber-500 to-orange-600",
-            ];
-            const gradient = gradients[idx % gradients.length];
 
             return (
               <div
@@ -112,9 +106,7 @@ export function MembersView({
                 className="flex items-center justify-between p-3 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr ${gradient} text-xs font-bold text-white shadow-2xs`}>
-                    {m.username.charAt(0).toUpperCase()}
-                  </span>
+                  <UserAvatar username={m.username} size="md" />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm truncate">
                       <span>@{m.username}</span>

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, ArrowLeftRight, CheckCircle2, Clock } from "lucide-react";
 import type { MemberBalance, SuggestedSettlement } from "@/lib/balances";
 import { formatRelativeTime, formatDate } from "@/lib/date";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface SettlementItem {
   id: string;
@@ -142,9 +143,7 @@ export function BalancesView({
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground border">
-                      {b.username.charAt(0).toUpperCase()}
-                    </span>
+                    <UserAvatar username={b.username} size="default" />
                     <div className="space-y-0.5 min-w-0">
                       <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm truncate">
                         <span>@{b.username}</span>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { LogOut } from "lucide-react";
 import { useTransition } from "react";
 
@@ -33,7 +34,7 @@ export function Navbar({ user }: NavbarProps) {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/80 bg-clip-text">
-                SplitGroup
+                PactTab
               </span>
               <Badge
                 variant="outline"
@@ -59,10 +60,8 @@ export function Navbar({ user }: NavbarProps) {
         <div className="flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-2.5">
-              <div className="flex items-center gap-2 rounded-full border bg-card/80 px-2.5 py-1 shadow-2xs">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-emerald-500 text-[11px] font-bold text-white shadow-2xs">
-                  {user.username.charAt(0).toUpperCase()}
-                </span>
+              <div className="flex items-center gap-2 rounded-full border bg-card/80 pl-1 pr-3 py-1 shadow-2xs">
+                <UserAvatar username={user.username} size="sm" className="h-6 w-6" />
                 <span className="text-xs font-semibold text-foreground/90 max-w-[120px] truncate">
                   @{user.username}
                 </span>

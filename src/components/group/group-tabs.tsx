@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Receipt, ArrowLeftRight, Users } from "lucide-react";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "cn";
 import type { MemberBalance, SuggestedSettlement } from "@/lib/balances";
 
@@ -147,15 +148,24 @@ export function GroupTabs({
               <button
                 type="button"
                 onClick={() => setIsMembersModalOpen(true)}
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 bg-emerald-500/12 hover:bg-emerald-500/20 border border-emerald-500/25 px-2.5 py-1 rounded-xl transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-95"
+                className="inline-flex items-center gap-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 bg-emerald-500/12 hover:bg-emerald-500/20 border border-emerald-500/25 pl-1.5 pr-2.5 py-1 rounded-xl transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-95"
                 title="Click to view all members and invite links"
               >
-                <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 transition-transform group-hover:scale-110" />
+                <div className="flex -space-x-1.5 overflow-hidden">
+                  {members.slice(0, 3).map((m) => (
+                    <UserAvatar
+                      key={m.id}
+                      username={m.username}
+                      size="xs"
+                      className="h-4.5 w-4.5 ring-1 ring-background"
+                    />
+                  ))}
+                </div>
                 <span>
                   {members.length} {members.length === 1 ? "member" : "members"}
                 </span>
                 <span className="text-[10px] text-muted-foreground font-medium hidden sm:inline">
-                  • Click to manage
+                  • Manage & Invites
                 </span>
               </button>
 
