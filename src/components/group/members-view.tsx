@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Users,
@@ -88,6 +89,7 @@ export function MembersView({
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [customSlug, setCustomSlug] = useState("");
   const [expiresInHours, setExpiresInHours] = useState<number | null>(null);
   const [maxUses, setMaxUses] = useState<number | null>(null);
   const [requiresApproval, setRequiresApproval] = useState(false);
@@ -109,10 +111,12 @@ export function MembersView({
         expiresInHours,
         maxUses,
         requiresApproval,
+        customSlug: customSlug.trim() || undefined,
       });
       if (res.success && res.token) {
         toast.success("Generated new invite link!");
         setIsCreateModalOpen(false);
+        setCustomSlug("");
         handleCopy(res.token);
         router.refresh();
       } else {
@@ -358,6 +362,12 @@ export function MembersView({
                           .../join/{inv.token}
                         </span>
 
+                        {!/^[0-9a-f]{32}$/.test(inv.token) && (
+                          <Badge variant="outline" className="text-[10px] font-semibold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                            Custom Code
+                          </Badge>
+                        )}
+
                         {inv.requiresApproval && (
                           <Badge variant="outline" className="text-[10px] font-semibold border-indigo-500/40 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10">
                             Approval Required
@@ -458,6 +468,37 @@ export function MembersView({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Custom Link Slug / Code */}
+            <div className="space-y-1.5">
+              <Label htmlFor="custom-slug-input" className="text-xs font-semibold flex items-center justify-between">
+                <span>Custom Invite Code (Optional)</span>
+                <span className="text-[10px] text-muted-foreground font-normal">3–50 chars</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono select-none pointer-events-none">
+                  /join/
+                </span>
+                <Input
+                  id="custom-slug-input"
+                  value={customSlug}
+                  onChange={(e) =>
+                    setCustomSlug(
+                      e.target.value
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")
+                        .replace(/[^a-z0-9_-]/g, "")
+                    )
+                  }
+                  placeholder="e.g. goa-trip-2026"
+                  maxLength={50}
+                  className="pl-14 text-xs font-mono rounded-xl bg-card"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Letters, numbers, hyphens (-), and underscores (_). Leave blank to generate a random code.
+              </p>
+            </div>
+
             {/* Expiration */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Expiration Window</Label>
