@@ -15,6 +15,9 @@ export interface GroupCardItem {
   createdAt: Date | string;
   memberCount: number;
   lastIncomingMessageAt: Date | string | null;
+  pendingJoinRequestsCount?: number;
+  pendingSettlementsCount?: number;
+  pendingActionCount?: number;
 }
 
 interface GroupCardProps {
@@ -25,6 +28,8 @@ interface GroupCardProps {
 
 export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
   const [isUnread, setIsUnread] = useState(false);
+  const hasJoinRequests = group.role === "admin" && (group.pendingJoinRequestsCount ?? 0) > 0;
+  const hasPendingAction = (group.pendingActionCount ?? 0) > 0 || hasJoinRequests;
 
   useEffect(() => {
     const checkUnread = () => {
@@ -64,7 +69,9 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
     <Link href={`/group/${group.id}`} className="group block">
       <Card
         className={`h-full border transition-all duration-200 hover:border-emerald-500/40 hover:shadow-md hover:-translate-y-0.5 rounded-2xl overflow-hidden flex flex-col justify-between ${
-          isUnread
+          hasPendingAction
+            ? "border-amber-500/40 bg-card shadow-2xs ring-1 ring-amber-500/20"
+            : isUnread
             ? "border-emerald-500/40 bg-card shadow-2xs ring-1 ring-emerald-500/20"
             : "border-border/80 bg-card/80"
         }`}
@@ -72,7 +79,7 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
         <CardHeader className="p-5 pb-3">
           <div className="flex items-start justify-between gap-3 mb-2">
             <div className="flex items-center gap-3 min-w-0">
-              {/* Avatar with unread notification dot */}
+              {/* Avatar with unread / pending action notification dot */}
               <div className="relative shrink-0">
                 <div
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr ${gradient} text-white font-bold text-sm shadow-2xs`}
@@ -80,7 +87,19 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
                   {group.name.charAt(0).toUpperCase()}
                 </div>
 
-                {isUnread && (
+                {hasPendingAction ? (
+                  <span
+                    className="absolute -top-1 -right-1 flex h-3.5 w-3.5"
+                    title={
+                      hasJoinRequests
+                        ? `${group.pendingJoinRequestsCount} join request(s) awaiting admin approval`
+                        : "Action awaiting confirmation"
+                    }
+                  >
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500 ring-2 ring-card shadow-xs" />
+                  </span>
+                ) : isUnread ? (
                   <span
                     className="absolute -top-1 -right-1 flex h-3.5 w-3.5"
                     title="Unread messages in group"
@@ -88,7 +107,7 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 ring-2 ring-card shadow-xs" />
                   </span>
-                )}
+                ) : null}
               </div>
 
               <div className="min-w-0">
@@ -103,9 +122,27 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
               </div>
             </div>
 
-            {/* Badges: Unread notification pill + Admin/Member badge */}
+            {/* Badges: Action Required / Unread notification pill + Admin/Member badge */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {isUnread && (
+              {hasPendingAction && (
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 rounded-full px-2 py-0.5 shadow-2xs"
+                  title={
+                    hasJoinRequests
+                      ? `${group.pendingJoinRequestsCount} join request(s) awaiting approval`
+                      : "Action required"
+                  }
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>
+                    {hasJoinRequests
+                      ? `${group.pendingJoinRequestsCount} REQUEST${(group.pendingJoinRequestsCount || 0) > 1 ? "S" : ""}`
+                      : "ACTION"}
+                  </span>
+                </span>
+              )}
+
+              {isUnread && !hasPendingAction && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-2 py-0.5 shadow-2xs">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   <span>NEW</span>
@@ -140,7 +177,17 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
             </span>
           </div>
 
-          {isUnread ? (
+          {hasPendingAction ? (
+            <span className="flex items-center gap-1.5 font-bold text-xs text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-all">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse inline-block" />
+              <span>
+                {hasJoinRequests
+                  ? `${group.pendingJoinRequestsCount} request${(group.pendingJoinRequestsCount || 0) > 1 ? "s" : ""} pending`
+                  : "Action needed"}
+              </span>
+              <ArrowRight className="h-3 w-3" />
+            </span>
+          ) : isUnread ? (
             <span className="flex items-center gap-1.5 font-bold text-xs text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-all">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
               <span>Unread messages</span>
