@@ -12,7 +12,7 @@ export function MessageContent({ body, currentUsername, isMe }: MessageContentPr
   const parts = body.split(mentionRegex);
 
   return (
-    <p className="break-words whitespace-pre-wrap leading-relaxed">
+    <p className="leading-relaxed break-words whitespace-pre-wrap">
       {parts.map((part, index) => {
         if (part.startsWith("@") && part.length > 1) {
           const mentionedName = part.slice(1).toLowerCase();
@@ -22,10 +22,10 @@ export function MessageContent({ body, currentUsername, isMe }: MessageContentPr
             return (
               <span
                 key={index}
-                className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-bold transition-colors ${
+                className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold transition-colors ${
                   isMe
                     ? "bg-white/20 text-white underline underline-offset-2"
-                    : "bg-amber-500/20 text-amber-900 dark:text-amber-200 ring-1 ring-amber-500/40"
+                    : "bg-amber-500/20 text-amber-900 ring-1 ring-amber-500/40 dark:text-amber-200"
                 }`}
               >
                 {part}
@@ -36,7 +36,7 @@ export function MessageContent({ body, currentUsername, isMe }: MessageContentPr
           return (
             <span
               key={index}
-              className={`inline-flex items-center px-1 py-0.2 rounded-md font-semibold text-xs ${
+              className={`py-0.2 inline-flex items-center rounded-md px-1 text-xs font-semibold ${
                 isMe
                   ? "bg-white/15 text-white/95"
                   : "bg-primary/15 text-primary dark:text-primary-foreground font-semibold"

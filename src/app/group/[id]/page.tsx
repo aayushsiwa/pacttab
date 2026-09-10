@@ -29,12 +29,16 @@ export default async function GroupPage({ params }: GroupPageProps) {
       {/* Back button & Breadcrumb */}
       <div className="mb-5 flex items-center justify-between">
         <Link href="/groups">
-          <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold rounded-lg h-8 px-2.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground h-8 gap-1.5 rounded-lg px-2.5 text-xs font-semibold"
+          >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>All Groups</span>
           </Button>
         </Link>
-        <span className="text-xs text-muted-foreground hidden sm:inline-block">
+        <span className="text-muted-foreground hidden text-xs sm:inline-block">
           Private Room • Real-time Sync
         </span>
       </div>

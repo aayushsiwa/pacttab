@@ -11,7 +11,16 @@ import { RecordSettlementDialog } from "@/components/group/record-settlement-dia
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeftRight, CheckCircle2, Clock, Check, X, AlertCircle, Loader2 } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowLeftRight,
+  CheckCircle2,
+  Clock,
+  Check,
+  X,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import type { MemberBalance, SuggestedSettlement } from "@/lib/balances";
 import { formatRelativeTime, formatDate } from "@/lib/date";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -49,11 +58,14 @@ export function BalancesView({
   suggestedSettlements,
   settlements,
 }: BalancesViewProps) {
-  const [activePrefill, setActivePrefill] = useState<{
-    payerId?: string;
-    recipientId?: string;
-    amount?: number;
-  } | undefined>(undefined);
+  const [activePrefill, setActivePrefill] = useState<
+    | {
+        payerId?: string;
+        recipientId?: string;
+        amount?: number;
+      }
+    | undefined
+  >(undefined);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleSettleSuggestion = (s: SuggestedSettlement) => {
@@ -137,17 +149,17 @@ export function BalancesView({
     <div className="space-y-6">
       {/* Pending Affirmations Queue */}
       {pendingSettlements.length > 0 && (
-        <Card className="border border-amber-500/30 bg-amber-500/5 shadow-2xs rounded-2xl">
+        <Card className="rounded-2xl border border-amber-500/30 bg-amber-500/5 shadow-2xs">
           <CardHeader className="p-5 pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2 text-amber-900 dark:text-amber-300">
-              <AlertCircle className="h-5 w-5 text-amber-500 shrink-0" />
+            <CardTitle className="flex items-center gap-2 text-base font-bold text-amber-900 dark:text-amber-300">
+              <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
               <span>Pending Settlements ({pendingSettlements.length})</span>
             </CardTitle>
             <CardDescription className="text-xs text-amber-800/80 dark:text-amber-300/70">
               Settlements require confirmation from the other member before net balances update.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-5 pt-0 space-y-3">
+          <CardContent className="space-y-3 p-5 pt-0">
             {pendingSettlements.map((set) => {
               const counterpartyUserId =
                 set.createdByUserId === set.paidByUserId ? set.receivedByUserId : set.paidByUserId;
@@ -160,41 +172,47 @@ export function BalancesView({
               return (
                 <div
                   key={set.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-amber-500/20 bg-background/80"
+                  className="bg-background/80 flex flex-col justify-between gap-3 rounded-xl border border-amber-500/20 p-3.5 sm:flex-row sm:items-center"
                 >
                   <div className="space-y-1">
-                    <div className="text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold sm:text-sm">
                       {isAwaitingMyConfirmation ? (
-                        <span className="text-amber-600 dark:text-amber-400 font-extrabold">
+                        <span className="font-extrabold text-amber-600 dark:text-amber-400">
                           Action Required: Affirm payment
                         </span>
                       ) : (
                         <span className="text-muted-foreground">Pending Confirmation</span>
                       )}
                     </div>
-                    <div className="text-xs text-foreground font-medium">
+                    <div className="text-foreground text-xs font-medium">
                       @{set.payerUsername} ➔ @{set.recipientUsername}:{" "}
-                      <strong className="font-bold text-sm">₹{Number(set.amount).toFixed(2)}</strong>
+                      <strong className="text-sm font-bold">
+                        ₹{Number(set.amount).toFixed(2)}
+                      </strong>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-muted-foreground text-[11px]">
                       {isAwaitingMyConfirmation
                         ? `Recorded by @${set.creatorUsername || set.payerUsername}. Please confirm if you sent/received this.`
                         : isMyPendingSubmission
-                        ? `Waiting for @${counterpartyUsername} to affirm.`
-                        : `Recorded by @${set.creatorUsername || set.payerUsername}. Waiting for @${counterpartyUsername}.`}
+                          ? `Waiting for @${counterpartyUsername} to affirm.`
+                          : `Recorded by @${set.creatorUsername || set.payerUsername}. Waiting for @${counterpartyUsername}.`}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex shrink-0 items-center gap-2">
                     {isAwaitingMyConfirmation && (
                       <>
                         <Button
                           size="sm"
                           onClick={() => handleConfirm(set.id)}
                           disabled={isWorking}
-                          className="h-8 px-3 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs"
+                          className="h-8 gap-1 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
                         >
-                          {isWorking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          {isWorking ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" />
+                          )}
                           <span>Confirm</span>
                         </Button>
                         <Button
@@ -202,7 +220,7 @@ export function BalancesView({
                           variant="outline"
                           onClick={() => handleReject(set.id)}
                           disabled={isWorking}
-                          className="h-8 px-3 text-xs font-semibold gap-1 text-destructive hover:bg-destructive/10 border-destructive/30 rounded-lg"
+                          className="text-destructive hover:bg-destructive/10 border-destructive/30 h-8 gap-1 rounded-lg px-3 text-xs font-semibold"
                         >
                           <X className="h-3.5 w-3.5" />
                           <span>Reject</span>
@@ -216,9 +234,13 @@ export function BalancesView({
                         variant="outline"
                         onClick={() => handleCancel(set.id)}
                         disabled={isWorking}
-                        className="h-8 px-3 text-xs font-semibold gap-1 text-muted-foreground hover:text-foreground rounded-lg"
+                        className="text-muted-foreground hover:text-foreground h-8 gap-1 rounded-lg px-3 text-xs font-semibold"
                       >
-                        {isWorking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                        {isWorking ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <X className="h-3.5 w-3.5" />
+                        )}
                         <span>Cancel</span>
                       </Button>
                     )}
@@ -231,45 +253,52 @@ export function BalancesView({
       )}
 
       {/* Personal Net Position Spotlight Banner */}
-      <div className={`p-5 rounded-2xl border shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-        myNet > 0.009
-          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200"
-          : myNet < -0.009
-          ? "bg-amber-500/10 border-amber-500/30 text-amber-950 dark:text-amber-200"
-          : "bg-muted/40 border-border/80 text-foreground"
-      }`}>
+      <div
+        className={`flex flex-col justify-between gap-4 rounded-2xl border p-5 shadow-2xs sm:flex-row sm:items-center ${
+          myNet > 0.009
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200"
+            : myNet < -0.009
+              ? "border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-200"
+              : "bg-muted/40 border-border/80 text-foreground"
+        }`}
+      >
         <div className="flex items-center gap-3.5">
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-black text-lg shadow-2xs ${
-            myNet > 0.009
-              ? "bg-emerald-500 text-white"
-              : myNet < -0.009
-              ? "bg-amber-500 text-white"
-              : "bg-muted text-muted-foreground"
-          }`}>
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black shadow-2xs ${
+              myNet > 0.009
+                ? "bg-emerald-500 text-white"
+                : myNet < -0.009
+                  ? "bg-amber-500 text-white"
+                  : "bg-muted text-muted-foreground"
+            }`}
+          >
             {myNet > 0.009 ? "+" : myNet < -0.009 ? "-" : "✓"}
           </div>
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider opacity-80">
+            <div className="text-xs font-bold tracking-wider uppercase opacity-80">
               Your Net Position
             </div>
-            <div className="text-2xl sm:text-3xl font-black tracking-tight">
+            <div className="text-2xl font-black tracking-tight sm:text-3xl">
               {myNet > 0.009
                 ? `You are owed ₹${myNet.toFixed(2)}`
                 : myNet < -0.009
-                ? `You owe ₹${Math.abs(myNet).toFixed(2)}`
-                : "You are all settled up! 🎉"}
+                  ? `You owe ₹${Math.abs(myNet).toFixed(2)}`
+                  : "You are all settled up! 🎉"}
             </div>
-            <p className="text-xs opacity-75 mt-0.5">
+            <p className="mt-0.5 text-xs opacity-75">
               {myNet > 0.009
                 ? "Other members will repay you based on the suggested transfers below."
                 : myNet < -0.009
-                ? "Pay your share using UPI or cash, then record it to balance the sheet."
-                : "You have no outstanding debts or receivables in this group."}
+                  ? "Pay your share using UPI or cash, then record it to balance the sheet."
+                  : "You have no outstanding debts or receivables in this group."}
             </p>
           </div>
         </div>
 
-        <Button onClick={handleOpenGeneralDialog} className="gap-2 shadow-xs font-bold shrink-0 self-start sm:self-center h-10 px-4 rounded-xl">
+        <Button
+          onClick={handleOpenGeneralDialog}
+          className="h-10 shrink-0 gap-2 self-start rounded-xl px-4 font-bold shadow-xs sm:self-center"
+        >
           <ArrowLeftRight className="h-4 w-4" />
           <span>Record Settlement</span>
         </Button>
@@ -284,16 +313,16 @@ export function BalancesView({
         onOpenChange={setDialogOpen}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Member Net Balances */}
-        <Card className="border border-border/80 bg-card/80 shadow-2xs rounded-2xl">
+        <Card className="border-border/80 bg-card/80 rounded-2xl border shadow-2xs">
           <CardHeader className="p-5 pb-3">
             <CardTitle className="text-base font-bold">Net Balances</CardTitle>
             <CardDescription className="text-xs leading-relaxed">
               Positive means owed money; negative means owes money to group.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-5 pt-0 space-y-2.5">
+          <CardContent className="space-y-2.5 p-5 pt-0">
             {balances.map((b) => {
               const isOwed = b.netBalance > 0.009;
               const owes = b.netBalance < -0.009;
@@ -303,42 +332,45 @@ export function BalancesView({
               return (
                 <div
                   key={b.userId}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                  className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
                     isMe
                       ? "bg-primary/5 border-primary/25 shadow-2xs"
                       : "bg-muted/20 border-border/60 hover:bg-muted/40"
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex min-w-0 items-center gap-3">
                     <UserAvatar username={b.username} size="default" />
-                    <div className="space-y-0.5 min-w-0">
-                      <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm truncate">
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5 truncate text-xs font-bold sm:text-sm">
                         <span>@{b.username}</span>
                         {isMe && (
-                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-semibold">
+                          <Badge
+                            variant="secondary"
+                            className="px-1.5 py-0 text-[10px] font-semibold"
+                          >
                             You
                           </Badge>
                         )}
                       </div>
-                      <div className="text-[11px] text-muted-foreground truncate">
+                      <div className="text-muted-foreground truncate text-[11px]">
                         Paid ₹{b.totalPaid.toFixed(2)} • Share ₹{b.totalOwed.toFixed(2)}
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
+                  <div className="shrink-0 text-right">
                     {isOwed && (
-                      <span className="inline-flex items-center font-black text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                      <span className="inline-flex items-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-black text-emerald-600 sm:text-sm dark:text-emerald-400">
                         +₹{b.netBalance.toFixed(2)}
                       </span>
                     )}
                     {owes && (
-                      <span className="inline-flex items-center font-black text-xs sm:text-sm text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                      <span className="inline-flex items-center rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-black text-amber-600 sm:text-sm dark:text-amber-400">
                         -₹{Math.abs(b.netBalance).toFixed(2)}
                       </span>
                     )}
                     {isSettled && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-lg">
+                      <span className="text-muted-foreground bg-muted/60 inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Settled
                       </span>
                     )}
@@ -350,21 +382,21 @@ export function BalancesView({
         </Card>
 
         {/* Suggested Repayments */}
-        <Card className="border border-border/80 bg-card/80 shadow-2xs rounded-2xl">
+        <Card className="border-border/80 bg-card/80 rounded-2xl border shadow-2xs">
           <CardHeader className="p-5 pb-3">
             <CardTitle className="text-base font-bold">Suggested Repayments</CardTitle>
             <CardDescription className="text-xs leading-relaxed">
               Minimum transfers computed to settle all debts with zero leftovers.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-5 pt-0 space-y-2.5">
+          <CardContent className="space-y-2.5 p-5 pt-0">
             {suggestedSettlements.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 mb-2.5">
+              <div className="text-muted-foreground flex flex-col items-center justify-center py-10 text-center">
+                <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <p className="text-sm font-bold text-foreground">All settled up!</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs leading-relaxed">
+                <p className="text-foreground text-sm font-bold">All settled up!</p>
+                <p className="text-muted-foreground mt-1 max-w-xs text-xs leading-relaxed">
                   No debts currently need to be paid in this group.
                 </p>
               </div>
@@ -376,26 +408,41 @@ export function BalancesView({
                 return (
                   <div
                     key={idx}
-                    className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                    className={`flex items-center justify-between rounded-xl border p-3.5 transition-all ${
                       isMyDebt
-                        ? "bg-amber-500/5 border-amber-500/30 shadow-2xs"
+                        ? "border-amber-500/30 bg-amber-500/5 shadow-2xs"
                         : isOwedToMe
-                        ? "bg-emerald-500/5 border-emerald-500/30 shadow-2xs"
-                        : "bg-muted/20 border-border/60 hover:border-foreground/20"
+                          ? "border-emerald-500/30 bg-emerald-500/5 shadow-2xs"
+                          : "bg-muted/20 border-border/60 hover:border-foreground/20"
                     }`}
                   >
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold">
-                        <span className={isMyDebt ? "font-bold text-amber-600 dark:text-amber-400 underline underline-offset-2" : ""}>
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 text-xs font-semibold sm:text-sm">
+                        <span
+                          className={
+                            isMyDebt
+                              ? "font-bold text-amber-600 underline underline-offset-2 dark:text-amber-400"
+                              : ""
+                          }
+                        >
                           {isMyDebt ? "You" : `@${s.fromUsername}`}
                         </span>
-                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className={isOwedToMe ? "font-bold text-emerald-600 dark:text-emerald-400 underline underline-offset-2" : ""}>
+                        <ArrowRight className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+                        <span
+                          className={
+                            isOwedToMe
+                              ? "font-bold text-emerald-600 underline underline-offset-2 dark:text-emerald-400"
+                              : ""
+                          }
+                        >
                           {isOwedToMe ? "You" : `@${s.toUsername}`}
                         </span>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Amount: <strong className="text-foreground font-black text-sm">₹{s.amount.toFixed(2)}</strong>
+                      <div className="text-muted-foreground text-xs">
+                        Amount:{" "}
+                        <strong className="text-foreground text-sm font-black">
+                          ₹{s.amount.toFixed(2)}
+                        </strong>
                       </div>
                     </div>
 
@@ -403,8 +450,8 @@ export function BalancesView({
                       size="sm"
                       variant={isMyDebt ? "default" : "outline"}
                       onClick={() => handleSettleSuggestion(s)}
-                      className={`gap-1 text-xs font-bold h-8 px-3 rounded-lg ${
-                        isMyDebt ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs" : ""
+                      className={`h-8 gap-1 rounded-lg px-3 text-xs font-bold ${
+                        isMyDebt ? "bg-amber-600 text-white shadow-xs hover:bg-amber-700" : ""
                       }`}
                     >
                       <ArrowLeftRight className="h-3.5 w-3.5" />
@@ -420,51 +467,66 @@ export function BalancesView({
 
       {/* Settlement History */}
       {settlements.length > 0 && (
-        <Card className="border border-border/80 bg-card/80 shadow-2xs rounded-2xl">
+        <Card className="border-border/80 bg-card/80 rounded-2xl border shadow-2xs">
           <CardHeader className="p-5 pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="flex items-center gap-2 text-base font-bold">
+              <Clock className="text-muted-foreground h-4 w-4" />
               <span>Settlement History</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-5 pt-0 space-y-2">
+          <CardContent className="space-y-2 p-5 pt-0">
             {settlements.map((set) => (
               <div
                 key={set.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors text-xs border border-border/60"
+                className="bg-muted/20 hover:bg-muted/40 border-border/60 flex items-center justify-between rounded-xl border p-3 text-xs transition-colors"
               >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">
+                    <span className="text-foreground font-semibold">
                       @{set.payerUsername} paid @{set.recipientUsername}
                     </span>
                     {set.status === "confirmed" && (
-                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] py-0 px-1.5">
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0 text-[10px] text-emerald-600 dark:text-emerald-400"
+                      >
                         Confirmed
                       </Badge>
                     )}
                     {set.status === "pending" && (
-                      <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] py-0 px-1.5">
+                      <Badge
+                        variant="outline"
+                        className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[10px] text-amber-600 dark:text-amber-400"
+                      >
                         Pending
                       </Badge>
                     )}
                     {set.status === "rejected" && (
-                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] py-0 px-1.5">
+                      <Badge
+                        variant="outline"
+                        className="bg-destructive/10 text-destructive border-destructive/30 px-1.5 py-0 text-[10px]"
+                      >
                         Rejected
                       </Badge>
                     )}
                     {set.status === "cancelled" && (
-                      <Badge variant="outline" className="bg-muted text-muted-foreground border-border text-[10px] py-0 px-1.5">
+                      <Badge
+                        variant="outline"
+                        className="bg-muted text-muted-foreground border-border px-1.5 py-0 text-[10px]"
+                      >
                         Cancelled
                       </Badge>
                     )}
                   </div>
-                  <div className="text-[11px] text-muted-foreground" title={formatDate(set.settledAt)}>
+                  <div
+                    className="text-muted-foreground text-[11px]"
+                    title={formatDate(set.settledAt)}
+                  >
                     {formatRelativeTime(set.settledAt)}
                   </div>
                 </div>
 
-                <span className="font-black text-sm text-foreground">
+                <span className="text-foreground text-sm font-black">
                   ₹{Number(set.amount).toFixed(2)}
                 </span>
               </div>

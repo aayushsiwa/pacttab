@@ -3,7 +3,15 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import { db } from "../src/db";
-import { users, groups, groupMembers, expenses, expenseSplits, settlements, messages } from "../src/db/schema";
+import {
+  users,
+  groups,
+  groupMembers,
+  expenses,
+  expenseSplits,
+  settlements,
+  messages,
+} from "../src/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { calculateEqualSplits, calculateBalancesAndSettlements } from "../src/lib/balances";
@@ -106,7 +114,10 @@ describe("Settlement Affirmation Lifecycle Flow", () => {
       settledAt: new Date(),
     });
 
-    const [savedSettlement] = await db.select().from(settlements).where(eq(settlements.id, settlementId));
+    const [savedSettlement] = await db
+      .select()
+      .from(settlements)
+      .where(eq(settlements.id, settlementId));
     expect(savedSettlement.status).toBe("pending");
 
     const pendingResult = calculateBalancesAndSettlements(membersList, expList, [
@@ -135,7 +146,10 @@ describe("Settlement Affirmation Lifecycle Flow", () => {
       })
       .where(eq(settlements.id, settlementId));
 
-    const [confirmedSettlement] = await db.select().from(settlements).where(eq(settlements.id, settlementId));
+    const [confirmedSettlement] = await db
+      .select()
+      .from(settlements)
+      .where(eq(settlements.id, settlementId));
     expect(confirmedSettlement.status).toBe("confirmed");
     expect(confirmedSettlement.confirmedAt).toBeDefined();
 

@@ -74,16 +74,34 @@ export async function createExpenseAction(
   });
 
   if (!validation.success) {
-    return { success: false, error: validation.error.issues[0]?.message || "Invalid expense details" };
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message || "Invalid expense details",
+    };
   }
 
-  const { groupId, description, amount, paidByUserId, participantUserIds, splitType, customSplits, expenseDate } = validation.data;
+  const {
+    groupId,
+    description,
+    amount,
+    paidByUserId,
+    participantUserIds,
+    splitType,
+    customSplits,
+    expenseDate,
+  } = validation.data;
 
   // 1. Verify that current user is an active member
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id), eq(groupMembers.status, "active")))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (membership.length === 0) {
@@ -190,7 +208,13 @@ export async function deleteExpenseAction(
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id), eq(groupMembers.status, "active")))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (membership.length === 0) {
@@ -307,16 +331,35 @@ export async function updateExpenseAction(
   });
 
   if (!validation.success) {
-    return { success: false, error: validation.error.issues[0]?.message || "Invalid expense details" };
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message || "Invalid expense details",
+    };
   }
 
-  const { groupId, expenseId, description, amount, paidByUserId, participantUserIds, splitType, customSplits, expenseDate } = validation.data;
+  const {
+    groupId,
+    expenseId,
+    description,
+    amount,
+    paidByUserId,
+    participantUserIds,
+    splitType,
+    customSplits,
+    expenseDate,
+  } = validation.data;
 
   // 1. Verify membership
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id), eq(groupMembers.status, "active")))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (membership.length === 0) {
@@ -453,7 +496,10 @@ export async function recordSettlementAction(
   });
 
   if (!validation.success) {
-    return { success: false, error: validation.error.issues[0]?.message || "Invalid settlement details" };
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message || "Invalid settlement details",
+    };
   }
 
   const { groupId, paidByUserId, receivedByUserId, amount } = validation.data;
@@ -466,7 +512,13 @@ export async function recordSettlementAction(
   const membership = await db
     .select({ id: groupMembers.id })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id), eq(groupMembers.status, "active")))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (membership.length === 0) {
@@ -480,7 +532,8 @@ export async function recordSettlementAction(
     .where(inArray(users.id, [paidByUserId, receivedByUserId]));
 
   const payerName = memberRecords.find((m) => m.userId === paidByUserId)?.username || "Member";
-  const recipientName = memberRecords.find((m) => m.userId === receivedByUserId)?.username || "Member";
+  const recipientName =
+    memberRecords.find((m) => m.userId === receivedByUserId)?.username || "Member";
 
   // Counterparty is the other user involved who must confirm
   const counterpartyUserId = user.id === paidByUserId ? receivedByUserId : paidByUserId;
@@ -559,7 +612,13 @@ export async function confirmSettlementAction(
   const membership = await db
     .select({ id: groupMembers.id })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id), eq(groupMembers.status, "active")))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (membership.length === 0) {
@@ -581,13 +640,18 @@ export async function confirmSettlementAction(
   }
 
   // Counterparty verification
-  const counterpartyUserId = settlement.createdByUserId === settlement.paidByUserId
-    ? settlement.receivedByUserId
-    : settlement.paidByUserId;
+  const counterpartyUserId =
+    settlement.createdByUserId === settlement.paidByUserId
+      ? settlement.receivedByUserId
+      : settlement.paidByUserId;
 
   if (settlement.createdByUserId && user.id !== counterpartyUserId) {
     return { success: false, error: "Only the other member involved can affirm this settlement" };
-  } else if (!settlement.createdByUserId && user.id !== settlement.paidByUserId && user.id !== settlement.receivedByUserId) {
+  } else if (
+    !settlement.createdByUserId &&
+    user.id !== settlement.paidByUserId &&
+    user.id !== settlement.receivedByUserId
+  ) {
     return { success: false, error: "Only a participant of this settlement can affirm it" };
   }
 
@@ -596,8 +660,10 @@ export async function confirmSettlementAction(
     .from(users)
     .where(inArray(users.id, [settlement.paidByUserId, settlement.receivedByUserId]));
 
-  const payerName = memberRecords.find((m) => m.userId === settlement.paidByUserId)?.username || "Member";
-  const recipientName = memberRecords.find((m) => m.userId === settlement.receivedByUserId)?.username || "Member";
+  const payerName =
+    memberRecords.find((m) => m.userId === settlement.paidByUserId)?.username || "Member";
+  const recipientName =
+    memberRecords.find((m) => m.userId === settlement.receivedByUserId)?.username || "Member";
 
   try {
     await db.transaction(async (tx) => {
@@ -675,9 +741,10 @@ export async function rejectSettlementAction(
     return { success: false, error: `Settlement is already ${settlement.status}` };
   }
 
-  const counterpartyUserId = settlement.createdByUserId === settlement.paidByUserId
-    ? settlement.receivedByUserId
-    : settlement.paidByUserId;
+  const counterpartyUserId =
+    settlement.createdByUserId === settlement.paidByUserId
+      ? settlement.receivedByUserId
+      : settlement.paidByUserId;
 
   if (settlement.createdByUserId && user.id !== counterpartyUserId) {
     return { success: false, error: "Only the other member involved can reject this settlement" };
@@ -688,7 +755,8 @@ export async function rejectSettlementAction(
     .from(users)
     .where(inArray(users.id, [settlement.paidByUserId, settlement.receivedByUserId]));
 
-  const payerName = memberRecords.find((m) => m.userId === settlement.paidByUserId)?.username || "Member";
+  const payerName =
+    memberRecords.find((m) => m.userId === settlement.paidByUserId)?.username || "Member";
 
   try {
     await db.transaction(async (tx) => {

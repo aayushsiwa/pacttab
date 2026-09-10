@@ -49,9 +49,7 @@ export function UserAvatar({
     "from-amber-500/20 to-orange-600/25 border-amber-500/30",
     "from-rose-500/20 to-pink-600/25 border-rose-500/30",
   ];
-  const charCodeSum = cleanName
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const charCodeSum = cleanName.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const gradientClass = gradients[charCodeSum % gradients.length];
 
   const roboUrl = getRobohashUrl(cleanName, pixelSizes[size] || 120);
@@ -59,7 +57,7 @@ export function UserAvatar({
   return (
     <div
       className={cn(
-        "relative shrink-0 overflow-hidden rounded-full border bg-gradient-to-tr shadow-2xs flex items-center justify-center select-none bg-muted/60",
+        "bg-muted/60 relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border bg-gradient-to-tr shadow-2xs select-none",
         sizeClasses[size],
         gradientClass,
         className
@@ -82,13 +80,13 @@ export function UserAvatar({
             )}
           />
           {!isLoaded && (
-            <span className="absolute inset-0 flex items-center justify-center font-bold text-foreground/70 animate-pulse">
+            <span className="text-foreground/70 absolute inset-0 flex animate-pulse items-center justify-center font-bold">
               {initial}
             </span>
           )}
         </>
       ) : (
-        <span className="font-bold text-foreground/80">{initial}</span>
+        <span className="text-foreground/80 font-bold">{initial}</span>
       )}
     </div>
   );

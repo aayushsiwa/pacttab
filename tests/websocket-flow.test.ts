@@ -45,8 +45,12 @@ describe("WebSocket Real-time Broadcast & Event Delivery", () => {
 
     await new Promise<void>((resolve) => server.listen(testPort, resolve));
 
-    clientA = new WebSocket(`ws://localhost:${testPort}/api/ws?groupId=${testGroupId}&userId=${userAId}`);
-    clientB = new WebSocket(`ws://localhost:${testPort}/api/ws?groupId=${testGroupId}&userId=${userBId}`);
+    clientA = new WebSocket(
+      `ws://localhost:${testPort}/api/ws?groupId=${testGroupId}&userId=${userAId}`
+    );
+    clientB = new WebSocket(
+      `ws://localhost:${testPort}/api/ws?groupId=${testGroupId}&userId=${userBId}`
+    );
 
     await Promise.all([
       new Promise<void>((resolve, reject) => {
@@ -93,7 +97,9 @@ describe("WebSocket Real-time Broadcast & Event Delivery", () => {
     });
 
     await new Promise((r) => setTimeout(r, 150));
-    const chatMsg = receivedByB.find((m) => m.type === "new_message" && m.message?.id === chatMessageId);
+    const chatMsg = receivedByB.find(
+      (m) => m.type === "new_message" && m.message?.id === chatMessageId
+    );
     expect(chatMsg).toBeDefined();
     expect(chatMsg?.message?.body).toBe("Hello from Maya in real-time!");
   });
@@ -108,7 +114,9 @@ describe("WebSocket Real-time Broadcast & Event Delivery", () => {
     });
 
     await new Promise((r) => setTimeout(r, 150));
-    const expEvent = receivedByB.find((m) => m.type === "expense_created" && m.description === "Dinner at Bistro");
+    const expEvent = receivedByB.find(
+      (m) => m.type === "expense_created" && m.description === "Dinner at Bistro"
+    );
     expect(expEvent).toBeDefined();
     expect(expEvent?.amount).toBe(1500);
   });

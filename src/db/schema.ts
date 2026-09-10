@@ -1,4 +1,13 @@
-import { pgTable, text, varchar, timestamp, integer, numeric, uniqueIndex, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  timestamp,
+  integer,
+  numeric,
+  uniqueIndex,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -10,7 +19,9 @@ export const users = pgTable("users", {
 
 export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -19,26 +30,38 @@ export const groups = pgTable("groups", {
   id: text("id").primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   description: text("description"),
-  createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const groupMembers = pgTable("group_members", {
-  id: text("id").primaryKey(),
-  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  role: varchar("role", { length: 20 }).notNull().default("member"), // "admin" | "member"
-  status: varchar("status", { length: 20 }).notNull().default("active"), // "active" | "inactive"
-  joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  uniqueIndex("group_member_unique_idx").on(table.groupId, table.userId),
-]);
+export const groupMembers = pgTable(
+  "group_members",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 20 }).notNull().default("member"), // "admin" | "member"
+    status: varchar("status", { length: 20 }).notNull().default("active"), // "active" | "inactive"
+    joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("group_member_unique_idx").on(table.groupId, table.userId)]
+);
 
 export const inviteLinks = pgTable("invite_links", {
   id: text("id").primaryKey(),
-  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  groupId: text("group_id")
+    .notNull()
+    .references(() => groups.id, { onDelete: "cascade" }),
   token: varchar("token", { length: 64 }).notNull().unique(),
-  createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   maxUses: integer("max_uses"),
   useCount: integer("use_count").notNull().default(0),
@@ -49,8 +72,12 @@ export const inviteLinks = pgTable("invite_links", {
 
 export const joinRequests = pgTable("join_requests", {
   id: text("id").primaryKey(),
-  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  groupId: text("group_id")
+    .notNull()
+    .references(() => groups.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   status: varchar("status", { length: 20 }).notNull().default("pending"), // "pending" | "approved" | "declined"
   reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "set null" }),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
@@ -59,7 +86,9 @@ export const joinRequests = pgTable("join_requests", {
 
 export const messages = pgTable("messages", {
   id: text("id").primaryKey(),
-  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  groupId: text("group_id")
+    .notNull()
+    .references(() => groups.id, { onDelete: "cascade" }),
   authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
   body: text("body").notNull(),
   type: varchar("type", { length: 20 }).notNull().default("user"), // "user" | "system"
@@ -68,29 +97,47 @@ export const messages = pgTable("messages", {
 
 export const expenses = pgTable("expenses", {
   id: text("id").primaryKey(),
-  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  groupId: text("group_id")
+    .notNull()
+    .references(() => groups.id, { onDelete: "cascade" }),
   description: varchar("description", { length: 255 }).notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
-  paidByUserId: text("paid_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  paidByUserId: text("paid_by_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   expenseDate: timestamp("expense_date", { withTimezone: true }).defaultNow().notNull(),
-  createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const expenseSplits = pgTable("expense_splits", {
-  id: text("id").primaryKey(),
-  expenseId: text("expense_id").notNull().references(() => expenses.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  owedAmount: numeric("owed_amount", { precision: 12, scale: 2 }).notNull(),
-}, (table) => [
-  uniqueIndex("expense_split_unique_idx").on(table.expenseId, table.userId),
-]);
+export const expenseSplits = pgTable(
+  "expense_splits",
+  {
+    id: text("id").primaryKey(),
+    expenseId: text("expense_id")
+      .notNull()
+      .references(() => expenses.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    owedAmount: numeric("owed_amount", { precision: 12, scale: 2 }).notNull(),
+  },
+  (table) => [uniqueIndex("expense_split_unique_idx").on(table.expenseId, table.userId)]
+);
 
 export const settlements = pgTable("settlements", {
   id: text("id").primaryKey(),
-  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
-  paidByUserId: text("paid_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  receivedByUserId: text("received_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  groupId: text("group_id")
+    .notNull()
+    .references(() => groups.id, { onDelete: "cascade" }),
+  paidByUserId: text("paid_by_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  receivedByUserId: text("received_by_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("confirmed"), // "pending" | "confirmed" | "rejected" | "cancelled"
   createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "cascade" }),

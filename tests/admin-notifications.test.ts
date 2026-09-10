@@ -3,13 +3,7 @@ import "dotenv/config";
 import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
-import {
-  users,
-  groups,
-  groupMembers,
-  joinRequests,
-  settlements,
-} from "../src/db/schema";
+import { users, groups, groupMembers, joinRequests, settlements } from "../src/db/schema";
 import { hashPassword } from "../src/lib/auth";
 import { getUserGroups, getUserPendingAdminActionsCount } from "../src/lib/queries";
 

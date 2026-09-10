@@ -6,7 +6,13 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { hashPassword, verifyPassword, createSession, deleteSession, requireUser } from "@/lib/auth";
+import {
+  hashPassword,
+  verifyPassword,
+  createSession,
+  deleteSession,
+  requireUser,
+} from "@/lib/auth";
 
 const AuthSchema = z.object({
   username: z
@@ -24,7 +30,10 @@ export type AuthActionState = {
   username?: string;
 };
 
-export async function signUpAction(prevState: AuthActionState | null, formData: FormData): Promise<AuthActionState> {
+export async function signUpAction(
+  prevState: AuthActionState | null,
+  formData: FormData
+): Promise<AuthActionState> {
   const rawUsername = formData.get("username");
   const rawPassword = formData.get("password");
   const rawConfirmPassword = formData.get("confirmPassword");
@@ -103,7 +112,10 @@ export async function signUpAction(prevState: AuthActionState | null, formData: 
   redirect(returnToStr);
 }
 
-export async function signInAction(prevState: AuthActionState | null, formData: FormData): Promise<AuthActionState> {
+export async function signInAction(
+  prevState: AuthActionState | null,
+  formData: FormData
+): Promise<AuthActionState> {
   const rawUsername = formData.get("username");
   const rawPassword = formData.get("password");
   const rawReturnTo = formData.get("returnTo");

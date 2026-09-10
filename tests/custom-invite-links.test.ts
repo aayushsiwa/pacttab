@@ -65,10 +65,7 @@ describe("Custom Invite Links Workflow", () => {
     expect(createRes.success).toBe(true);
     expect(createRes.token).toBe(customSlug);
 
-    const [dbInvite] = await db
-      .select()
-      .from(inviteLinks)
-      .where(eq(inviteLinks.token, customSlug));
+    const [dbInvite] = await db.select().from(inviteLinks).where(eq(inviteLinks.token, customSlug));
 
     expect(dbInvite).toBeDefined();
     expect(dbInvite.groupId).toBe(groupId);
@@ -92,7 +89,9 @@ describe("Custom Invite Links Workflow", () => {
     const tooShortRes = await createInviteLinkAction(groupId, { customSlug: "ab" });
     expect(tooShortRes.success).toBe(false);
 
-    const invalidCharRes = await createInviteLinkAction(groupId, { customSlug: "bad slug with spaces!" });
+    const invalidCharRes = await createInviteLinkAction(groupId, {
+      customSlug: "bad slug with spaces!",
+    });
     expect(invalidCharRes.success).toBe(false);
   });
 

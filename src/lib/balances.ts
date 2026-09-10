@@ -179,7 +179,10 @@ export function calculateBalancesAndSettlements(
   balances: MemberBalance[];
   suggestedSettlements: SuggestedSettlement[];
 } {
-  const memberMap = new Map<string, { username: string; totalPaid: number; totalOwed: number; netBalance: number }>();
+  const memberMap = new Map<
+    string,
+    { username: string; totalPaid: number; totalOwed: number; netBalance: number }
+  >();
 
   for (const m of members) {
     memberMap.set(m.id, {

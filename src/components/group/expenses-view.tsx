@@ -90,55 +90,56 @@ export function ExpensesView({
   return (
     <div className="space-y-6">
       {/* Top Banner: Total Spent + Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-emerald-500/5 p-6 shadow-xs">
+      <div className="border-border/80 from-card via-card flex flex-col gap-5 rounded-2xl border bg-gradient-to-br to-emerald-500/5 p-6 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
               Total Group Spending
             </span>
-            <span className="rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.2 border border-emerald-500/20">
+            <span className="py-0.2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
               Active Tab
             </span>
           </div>
-          <div className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">
-            ₹{totalSpent.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div className="text-foreground text-3xl font-black tracking-tight sm:text-4xl">
+            ₹
+            {totalSpent.toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Cumulative across {expenses.length} {expenses.length === 1 ? "expense" : "expenses"}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           {expenses.length > 0 && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleExportCsv}
-              className="gap-1.5 text-xs font-semibold rounded-xl h-10 px-3.5 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
+              className="border-border/80 hover:bg-muted/80 h-10 cursor-pointer gap-1.5 rounded-xl px-3.5 text-xs font-semibold shadow-2xs"
             >
-              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+              <Download className="text-muted-foreground h-3.5 w-3.5" />
               <span>Export CSV</span>
             </Button>
           )}
 
-          <AddExpenseDialog
-            groupId={groupId}
-            currentUserId={currentUserId}
-            members={members}
-          />
+          <AddExpenseDialog groupId={groupId} currentUserId={currentUserId} members={members} />
         </div>
       </div>
 
       {/* Expenses List */}
       <div className="space-y-3">
         {expenses.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-card/40 p-12 text-center shadow-2xs">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/70 text-muted-foreground mb-3 ring-1 ring-border shadow-2xs">
+          <div className="border-border/80 bg-card/40 flex flex-col items-center justify-center rounded-2xl border border-dashed p-12 text-center shadow-2xs">
+            <div className="bg-muted/70 text-muted-foreground ring-border mb-3 flex h-14 w-14 items-center justify-center rounded-2xl shadow-2xs ring-1">
               <Receipt className="h-7 w-7 opacity-60" />
             </div>
-            <p className="text-base font-bold text-foreground">No expenses recorded yet</p>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-sm leading-relaxed">
-              Keep track of meals, tickets, rents, and shared bills. Tap &ldquo;Add Expense&rdquo; above to split your first bill.
+            <p className="text-foreground text-base font-bold">No expenses recorded yet</p>
+            <p className="text-muted-foreground mt-1 max-w-sm text-xs leading-relaxed sm:text-sm">
+              Keep track of meals, tickets, rents, and shared bills. Tap &ldquo;Add Expense&rdquo;
+              above to split your first bill.
             </p>
           </div>
         ) : (
@@ -151,28 +152,36 @@ export function ExpensesView({
             const isPayer = exp.paidByUserId === currentUserId;
 
             return (
-              <Card key={exp.id} className="border border-border/80 bg-card/80 shadow-2xs hover:border-emerald-500/30 hover:shadow-sm transition-all rounded-2xl overflow-hidden">
-                <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shadow-2xs ring-1 ring-emerald-500/20 mt-0.5">
+              <Card
+                key={exp.id}
+                className="border-border/80 bg-card/80 overflow-hidden rounded-2xl border shadow-2xs transition-all hover:border-emerald-500/30 hover:shadow-sm"
+              >
+                <CardContent className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
+                  <div className="flex min-w-0 flex-1 items-start gap-3.5">
+                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 font-bold text-emerald-600 shadow-2xs ring-1 ring-emerald-500/20 dark:text-emerald-400">
                       <Receipt className="h-5 w-5" />
                     </div>
 
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-bold text-base text-foreground truncate">{exp.description}</h4>
-                        <Badge variant="outline" className="text-[10px] font-semibold tracking-wider rounded-full px-2 py-0">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-foreground truncate text-base font-bold">
+                          {exp.description}
+                        </h4>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full px-2 py-0 text-[10px] font-semibold tracking-wider"
+                        >
                           {exp.splits.length} {exp.splits.length === 1 ? "person" : "people"}
                         </Badge>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                         <span className="flex items-center gap-1.5">
-                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          <User className="text-muted-foreground h-3.5 w-3.5" />
                           <span>
                             Paid by{" "}
                             {isPayer ? (
-                              <span className="font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded-md border border-emerald-500/20">
+                              <span className="py-0.2 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-1.5 font-bold text-emerald-600 dark:text-emerald-400">
                                 You
                               </span>
                             ) : (
@@ -181,23 +190,24 @@ export function ExpensesView({
                           </span>
                         </span>
 
-                        <span className="flex items-center gap-1.5" title={formatDate(exp.expenseDate)}>
-                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>
-                            {formatRelativeTime(exp.createdAt)}
-                          </span>
+                        <span
+                          className="flex items-center gap-1.5"
+                          title={formatDate(exp.expenseDate)}
+                        >
+                          <Calendar className="text-muted-foreground h-3.5 w-3.5" />
+                          <span>{formatRelativeTime(exp.createdAt)}</span>
                         </span>
                       </div>
 
                       {/* Participant split breakdown preview */}
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1 mr-0.5">
+                        <span className="text-muted-foreground mr-0.5 flex items-center gap-1 text-[11px] font-medium">
                           <Users className="h-3 w-3" /> Split with:
                         </span>
                         {exp.splits.map((s) => (
                           <span
                             key={s.id}
-                            className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-medium border ${
+                            className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-[10px] font-medium ${
                               s.userId === currentUserId
                                 ? "bg-primary/10 text-primary border-primary/20 font-bold"
                                 : "bg-muted/60 text-muted-foreground border-border/50"
@@ -211,12 +221,12 @@ export function ExpensesView({
                   </div>
 
                   {/* Right side: Amount & Delete button */}
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-border/60">
+                  <div className="border-border/60 flex shrink-0 items-center justify-between gap-2 border-t pt-3 sm:flex-col sm:items-end sm:justify-center sm:border-t-0 sm:pt-0">
                     <div className="text-left sm:text-right">
-                      <div className="text-xl font-black text-foreground tracking-tight">
+                      <div className="text-foreground text-xl font-black tracking-tight">
                         ₹{Number(exp.amount).toFixed(2)}
                       </div>
-                      <div className="text-[11px] font-medium text-muted-foreground">
+                      <div className="text-muted-foreground text-[11px] font-medium">
                         ₹{(Number(exp.amount) / exp.splits.length).toFixed(2)} / person
                       </div>
                     </div>
@@ -226,7 +236,7 @@ export function ExpensesView({
                         <Button
                           variant="ghost"
                           size="icon-xs"
-                          className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg h-7 w-7"
+                          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-lg"
                           onClick={() => setExpenseToEdit(exp)}
                         >
                           <Edit3 className="h-3.5 w-3.5" />
@@ -237,7 +247,7 @@ export function ExpensesView({
                         <Button
                           variant="ghost"
                           size="icon-xs"
-                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg h-7 w-7"
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-lg"
                           onClick={() => setExpenseToDelete(exp)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -260,10 +270,11 @@ export function ExpensesView({
             <DialogTitle>Delete Expense</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete &ldquo;{expenseToDelete?.description}&rdquo; (₹
-              {Number(expenseToDelete?.amount || 0).toFixed(2)})? This will remove the split debt for all members.
+              {Number(expenseToDelete?.amount || 0).toFixed(2)})? This will remove the split debt
+              for all members.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="gap-2 pt-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"

@@ -41,7 +41,8 @@ describe("Custom Splits Calculation Engine", () => {
       { userId: "u2", percentage: 25 },
       { userId: "u3", percentage: 15 },
     ]);
-    const percentSum = Math.round(percentSplits.reduce((acc, s) => acc + s.owedAmount, 0) * 100) / 100;
+    const percentSum =
+      Math.round(percentSplits.reduce((acc, s) => acc + s.owedAmount, 0) * 100) / 100;
 
     expect(percentSum).toBe(1000);
     expect(percentSplits[0].owedAmount).toBe(600);
@@ -54,7 +55,8 @@ describe("Custom Splits Calculation Engine", () => {
       { userId: "u2", percentage: 33.33 },
       { userId: "u3", percentage: 33.34 },
     ]);
-    const oddPercentSum = Math.round(oddPercentSplits.reduce((acc, s) => acc + s.owedAmount, 0) * 100) / 100;
+    const oddPercentSum =
+      Math.round(oddPercentSplits.reduce((acc, s) => acc + s.owedAmount, 0) * 100) / 100;
     expect(oddPercentSum).toBe(10);
 
     // Invalid percentage total should throw

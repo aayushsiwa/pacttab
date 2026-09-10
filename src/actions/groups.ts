@@ -22,7 +22,11 @@ import { calculateBalancesAndSettlements } from "@/lib/balances";
 import { broadcastWsEvent } from "@/lib/ws-hub";
 
 const CreateGroupSchema = z.object({
-  name: z.string().trim().min(1, "Group name is required").max(100, "Group name must be 100 characters or fewer"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Group name is required")
+    .max(100, "Group name must be 100 characters or fewer"),
   description: z.string().trim().max(500, "Description must be 500 characters or fewer").optional(),
 });
 
@@ -56,7 +60,10 @@ export type GroupActionState = {
   success?: boolean;
 };
 
-export async function createGroupAction(prevState: GroupActionState | null, formData: FormData): Promise<GroupActionState> {
+export async function createGroupAction(
+  prevState: GroupActionState | null,
+  formData: FormData
+): Promise<GroupActionState> {
   const user = await requireUser();
 
   const rawName = formData.get("name");
@@ -153,7 +160,8 @@ export async function createInviteLinkAction(
     if (!/^[a-z0-9_-]{3,50}$/.test(slug)) {
       return {
         success: false,
-        error: "Custom invite code must be 3–50 characters and contain only letters, numbers, hyphens, and underscores.",
+        error:
+          "Custom invite code must be 3–50 characters and contain only letters, numbers, hyphens, and underscores.",
       };
     }
 
@@ -251,7 +259,10 @@ export async function rotateInviteLinkAction(
   }
 }
 
-export async function revokeInviteLinkAction(groupId: string, inviteId: string): Promise<{ success: boolean; error?: string }> {
+export async function revokeInviteLinkAction(
+  groupId: string,
+  inviteId: string
+): Promise<{ success: boolean; error?: string }> {
   const user = await requireUser();
 
   const membership = await db
@@ -422,7 +433,8 @@ export async function joinGroupAction(token: string): Promise<{
       pendingApproval: true,
       groupId: invite.groupId,
       groupName: invite.groupName,
-      error: "This group requires admin approval. Your join request has been submitted to the admin.",
+      error:
+        "This group requires admin approval. Your join request has been submitted to the admin.",
     };
   }
 
@@ -482,7 +494,9 @@ export async function joinGroupAction(token: string): Promise<{
   }
 }
 
-export async function createJoinRequestAction(groupId: string): Promise<{ success: boolean; error?: string }> {
+export async function createJoinRequestAction(
+  groupId: string
+): Promise<{ success: boolean; error?: string }> {
   const user = await requireUser();
 
   // Check if already active member
@@ -761,7 +775,13 @@ export async function transferAdminAction(
     .select({ id: groupMembers.id, username: users.username })
     .from(groupMembers)
     .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, newAdminUserId), eq(groupMembers.status, "active")))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, newAdminUserId),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (!targetMember) {
@@ -819,14 +839,22 @@ export async function transferAdminAction(
   }
 }
 
-export async function leaveGroupAction(groupId: string): Promise<{ success: boolean; error?: string }> {
+export async function leaveGroupAction(
+  groupId: string
+): Promise<{ success: boolean; error?: string }> {
   const user = await requireUser();
 
   // 1. Verify membership
   const [membership] = await db
     .select({ id: groupMembers.id, role: groupMembers.role })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id), eq(groupMembers.status, "active")))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (!membership) {
@@ -850,16 +878,17 @@ export async function leaveGroupAction(groupId: string): Promise<{ success: bool
     .where(eq(expenses.groupId, groupId));
 
   const expIds = rawExpenses.map((e) => e.id);
-  const splits = expIds.length > 0
-    ? await db
-        .select({
-          expenseId: expenseSplits.expenseId,
-          userId: expenseSplits.userId,
-          owedAmount: expenseSplits.owedAmount,
-        })
-        .from(expenseSplits)
-        .where(inArray(expenseSplits.expenseId, expIds))
-    : [];
+  const splits =
+    expIds.length > 0
+      ? await db
+          .select({
+            expenseId: expenseSplits.expenseId,
+            userId: expenseSplits.userId,
+            owedAmount: expenseSplits.owedAmount,
+          })
+          .from(expenseSplits)
+          .where(inArray(expenseSplits.expenseId, expIds))
+      : [];
 
   const rawSettlements = await db
     .select({
@@ -912,7 +941,8 @@ export async function leaveGroupAction(groupId: string): Promise<{ success: bool
     if (otherActiveMembers.length > 0) {
       return {
         success: false,
-        error: "As the group admin, you must transfer your admin role to another member before leaving.",
+        error:
+          "As the group admin, you must transfer your admin role to another member before leaving.",
       };
     }
   }
@@ -957,7 +987,9 @@ export async function leaveGroupAction(groupId: string): Promise<{ success: bool
   return { success: true };
 }
 
-export async function deleteGroupAction(groupId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteGroupAction(
+  groupId: string
+): Promise<{ success: boolean; error?: string }> {
   const user = await requireUser();
 
   const [membership] = await db

@@ -25,11 +25,7 @@ interface UserSettingsDialogProps {
   };
 }
 
-export function UserSettingsDialog({
-  isOpen,
-  onOpenChange,
-  user,
-}: UserSettingsDialogProps) {
+export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsDialogProps) {
   const [password, setPassword] = useState("");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -54,36 +50,37 @@ export function UserSettingsDialog({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-background border-border/80 shadow-xl">
+        <DialogContent className="bg-background border-border/80 rounded-2xl p-6 shadow-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Settings className="h-5 w-5 text-foreground" />
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <Settings className="text-foreground h-5 w-5" />
               <span>Account Settings</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-muted-foreground text-xs">
               Manage your personal profile and account credentials.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 pt-2">
             {/* User Profile Card */}
-            <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-border/60 bg-muted/20">
+            <div className="border-border/60 bg-muted/20 flex items-center gap-3.5 rounded-xl border p-3.5">
               <UserAvatar username={user.username} size="lg" />
               <div>
-                <p className="text-sm font-bold text-foreground">@{user.username}</p>
-                <p className="text-[11px] text-muted-foreground">Zero-Data Architecture Account</p>
+                <p className="text-foreground text-sm font-bold">@{user.username}</p>
+                <p className="text-muted-foreground text-[11px]">Zero-Data Architecture Account</p>
               </div>
             </div>
 
             {/* Danger Zone */}
-            <div className="space-y-3 pt-4 border-t border-destructive/20">
+            <div className="border-destructive/20 space-y-3 border-t pt-4">
               <div>
-                <h3 className="text-xs font-bold flex items-center gap-1.5 text-destructive">
+                <h3 className="text-destructive flex items-center gap-1.5 text-xs font-bold">
                   <Trash2 className="h-4 w-4" />
                   <span>Delete Account Permanently</span>
                 </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                  Permanently erase your account and all associated sessions and memberships. This action cannot be undone.
+                <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+                  Permanently erase your account and all associated sessions and memberships. This
+                  action cannot be undone.
                 </p>
               </div>
 
@@ -92,7 +89,7 @@ export function UserSettingsDialog({
                 variant="destructive"
                 size="sm"
                 onClick={() => setIsConfirmOpen(true)}
-                className="rounded-xl text-xs font-bold gap-1.5"
+                className="gap-1.5 rounded-xl text-xs font-bold"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Delete Account</span>
@@ -104,14 +101,15 @@ export function UserSettingsDialog({
 
       {/* Re-authentication & Confirmation Dialog */}
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-background border-destructive/40 shadow-xl">
+        <DialogContent className="bg-background border-destructive/40 rounded-2xl p-6 shadow-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-destructive flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-destructive" />
+            <DialogTitle className="text-destructive flex items-center gap-2 text-base font-bold">
+              <ShieldAlert className="text-destructive h-4 w-4" />
               <span>Confirm Account Deletion</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              To permanently delete your account, please enter your password. This action cannot be reversed.
+            <DialogDescription className="text-muted-foreground text-xs">
+              To permanently delete your account, please enter your password. This action cannot be
+              reversed.
             </DialogDescription>
           </DialogHeader>
 
@@ -126,7 +124,7 @@ export function UserSettingsDialog({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your current password"
-                className="text-xs rounded-xl"
+                className="rounded-xl text-xs"
                 autoComplete="current-password"
                 required
               />

@@ -125,7 +125,13 @@ describe("Release 2 End-to-End Flow Verification", () => {
     const [activeJoiner] = await db
       .select()
       .from(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, joinerId), eq(groupMembers.status, "active")));
+      .where(
+        and(
+          eq(groupMembers.groupId, groupId),
+          eq(groupMembers.userId, joinerId),
+          eq(groupMembers.status, "active")
+        )
+      );
 
     expect(activeJoiner).toBeDefined();
   });
@@ -170,10 +176,7 @@ describe("Release 2 End-to-End Flow Verification", () => {
       type: "system",
     });
 
-    const [auditMsg] = await db
-      .select()
-      .from(messages)
-      .where(eq(messages.id, auditMessageId));
+    const [auditMsg] = await db.select().from(messages).where(eq(messages.id, auditMessageId));
 
     expect(auditMsg).toBeDefined();
     expect(auditMsg.body).toContain("updated expense");
@@ -203,7 +206,15 @@ describe("Release 2 End-to-End Flow Verification", () => {
     const { balances: balPending } = calculateBalancesAndSettlements(
       allMembers,
       [{ id: expenseId, amount: updatedAmount, paidByUserId: adminId, splits: currentSplits }],
-      [{ id: settleId, paidByUserId: memberId, receivedByUserId: adminId, amount: "600.00", status: "pending" }]
+      [
+        {
+          id: settleId,
+          paidByUserId: memberId,
+          receivedByUserId: adminId,
+          amount: "600.00",
+          status: "pending",
+        },
+      ]
     );
     const memberBalPending = balPending.find((b) => b.userId === memberId)?.netBalance || 0;
     expect(memberBalPending).toBe(-600);
@@ -217,7 +228,15 @@ describe("Release 2 End-to-End Flow Verification", () => {
     const { balances: balConfirmed } = calculateBalancesAndSettlements(
       allMembers,
       [{ id: expenseId, amount: updatedAmount, paidByUserId: adminId, splits: currentSplits }],
-      [{ id: settleId, paidByUserId: memberId, receivedByUserId: adminId, amount: "600.00", status: "confirmed" }]
+      [
+        {
+          id: settleId,
+          paidByUserId: memberId,
+          receivedByUserId: adminId,
+          amount: "600.00",
+          status: "confirmed",
+        },
+      ]
     );
     const memberBalConfirmed = balConfirmed.find((b) => b.userId === memberId)?.netBalance || 0;
     expect(memberBalConfirmed).toBe(0);
@@ -238,8 +257,14 @@ describe("Release 2 End-to-End Flow Verification", () => {
 
   it("transfers admin role to another member", async () => {
     await db.transaction(async (tx) => {
-      await tx.update(groupMembers).set({ role: "member" }).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, adminId)));
-      await tx.update(groupMembers).set({ role: "admin" }).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, joinerId)));
+      await tx
+        .update(groupMembers)
+        .set({ role: "member" })
+        .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, adminId)));
+      await tx
+        .update(groupMembers)
+        .set({ role: "admin" })
+        .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, joinerId)));
     });
 
     const [newAdmin] = await db
@@ -254,11 +279,26 @@ describe("Release 2 End-to-End Flow Verification", () => {
     await db.delete(groups).where(eq(groups.id, groupId));
 
     const checkExpenses = await db.select().from(expenses).where(eq(expenses.groupId, groupId));
-    const checkSplits = await db.select().from(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-    const checkSettlements = await db.select().from(settlements).where(eq(settlements.groupId, groupId));
-    const checkMembers = await db.select().from(groupMembers).where(eq(groupMembers.groupId, groupId));
-    const checkInvites = await db.select().from(inviteLinks).where(eq(inviteLinks.groupId, groupId));
-    const checkRequests = await db.select().from(joinRequests).where(eq(joinRequests.groupId, groupId));
+    const checkSplits = await db
+      .select()
+      .from(expenseSplits)
+      .where(eq(expenseSplits.expenseId, expenseId));
+    const checkSettlements = await db
+      .select()
+      .from(settlements)
+      .where(eq(settlements.groupId, groupId));
+    const checkMembers = await db
+      .select()
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+    const checkInvites = await db
+      .select()
+      .from(inviteLinks)
+      .where(eq(inviteLinks.groupId, groupId));
+    const checkRequests = await db
+      .select()
+      .from(joinRequests)
+      .where(eq(joinRequests.groupId, groupId));
 
     expect(checkExpenses).toHaveLength(0);
     expect(checkSplits).toHaveLength(0);

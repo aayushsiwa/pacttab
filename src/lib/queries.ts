@@ -59,25 +59,21 @@ export async function getUserGroups(userId: string) {
   messageStats.forEach((m) => messageMap.set(m.groupId, m.lastIncomingMessageAt));
 
   // Count pending join requests for groups where user is admin
-  const adminGroupIds = memberships
-    .filter((m) => m.role === "admin")
-    .map((m) => m.groupId);
+  const adminGroupIds = memberships.filter((m) => m.role === "admin").map((m) => m.groupId);
 
-  const pendingJoinCounts = adminGroupIds.length > 0
-    ? await db
-        .select({
-          groupId: joinRequests.groupId,
-          count: sql<number>`count(${joinRequests.id})::int`,
-        })
-        .from(joinRequests)
-        .where(
-          and(
-            inArray(joinRequests.groupId, adminGroupIds),
-            eq(joinRequests.status, "pending")
+  const pendingJoinCounts =
+    adminGroupIds.length > 0
+      ? await db
+          .select({
+            groupId: joinRequests.groupId,
+            count: sql<number>`count(${joinRequests.id})::int`,
+          })
+          .from(joinRequests)
+          .where(
+            and(inArray(joinRequests.groupId, adminGroupIds), eq(joinRequests.status, "pending"))
           )
-        )
-        .groupBy(joinRequests.groupId)
-    : [];
+          .groupBy(joinRequests.groupId)
+      : [];
 
   const pendingJoinMap = new Map<string, number>();
   pendingJoinCounts.forEach((c) => pendingJoinMap.set(c.groupId, c.count));
@@ -138,11 +134,7 @@ export async function getGroupDetails(groupId: string, userId: string) {
   const currentUserRole = membership[0].role;
 
   // 2. Fetch group
-  const group = await db
-    .select()
-    .from(groups)
-    .where(eq(groups.id, groupId))
-    .limit(1);
+  const group = await db.select().from(groups).where(eq(groups.id, groupId)).limit(1);
 
   if (group.length === 0) return null;
 
@@ -176,19 +168,20 @@ export async function getGroupDetails(groupId: string, userId: string) {
     .orderBy(desc(expenses.expenseDate), desc(expenses.createdAt));
 
   const expenseIds = rawExpenses.map((e) => e.id);
-  const splits = expenseIds.length > 0
-    ? await db
-        .select({
-          id: expenseSplits.id,
-          expenseId: expenseSplits.expenseId,
-          userId: expenseSplits.userId,
-          owedAmount: expenseSplits.owedAmount,
-          username: users.username,
-        })
-        .from(expenseSplits)
-        .innerJoin(users, eq(expenseSplits.userId, users.id))
-        .where(inArray(expenseSplits.expenseId, expenseIds))
-    : [];
+  const splits =
+    expenseIds.length > 0
+      ? await db
+          .select({
+            id: expenseSplits.id,
+            expenseId: expenseSplits.expenseId,
+            userId: expenseSplits.userId,
+            owedAmount: expenseSplits.owedAmount,
+            username: users.username,
+          })
+          .from(expenseSplits)
+          .innerJoin(users, eq(expenseSplits.userId, users.id))
+          .where(inArray(expenseSplits.expenseId, expenseIds))
+      : [];
 
   const splitsByExpenseId = new Map<string, typeof splits>();
   for (const s of splits) {
@@ -339,4 +332,3 @@ export async function getUserPendingAdminActionsCount(userId: string): Promise<n
 
   return result[0]?.count || 0;
 }
-

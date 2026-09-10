@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-4">
-      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading...</div>}>
+      <Suspense fallback={<div className="text-muted-foreground text-sm">Loading...</div>}>
         <LoginForm returnTo={returnTo} />
       </Suspense>
     </div>

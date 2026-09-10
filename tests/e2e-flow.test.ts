@@ -1,6 +1,15 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { db } from "../src/db";
-import { users, groups, groupMembers, inviteLinks, messages, expenses, expenseSplits, settlements } from "../src/db/schema";
+import {
+  users,
+  groups,
+  groupMembers,
+  inviteLinks,
+  messages,
+  expenses,
+  expenseSplits,
+  settlements,
+} from "../src/db/schema";
 import { hashPassword, verifyPassword } from "../src/lib/auth";
 import { calculateEqualSplits, calculateBalancesAndSettlements } from "../src/lib/balances";
 import { eq } from "drizzle-orm";
