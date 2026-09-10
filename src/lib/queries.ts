@@ -254,3 +254,18 @@ export async function getGroupDetails(groupId: string, userId: string) {
     pendingJoinRequests,
   };
 }
+
+export async function getUserPendingJoinRequests(userId: string) {
+  return db
+    .select({
+      id: joinRequests.id,
+      groupId: joinRequests.groupId,
+      groupName: groups.name,
+      groupDescription: groups.description,
+      createdAt: joinRequests.createdAt,
+    })
+    .from(joinRequests)
+    .innerJoin(groups, eq(joinRequests.groupId, groups.id))
+    .where(and(eq(joinRequests.userId, userId), eq(joinRequests.status, "pending")))
+    .orderBy(desc(joinRequests.createdAt));
+}
