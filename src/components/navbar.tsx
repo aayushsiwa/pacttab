@@ -28,9 +28,10 @@ interface NavbarProps {
     id: string;
     username: string;
   } | null;
+  pendingAdminActionsCount?: number;
 }
 
-export function Navbar({ user }: NavbarProps) {
+export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
   const [isPending, startTransition] = useTransition();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -72,9 +73,18 @@ export function Navbar({ user }: NavbarProps) {
             <nav className="hidden sm:flex items-center gap-1">
               <Link
                 href="/groups"
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg text-foreground hover:bg-muted/80 transition-colors"
+                className="relative text-xs font-semibold px-3 py-1.5 rounded-lg text-foreground hover:bg-muted/80 transition-colors flex items-center gap-1.5"
               >
-                Groups
+                <span>Groups</span>
+                {pendingAdminActionsCount > 0 && (
+                  <span
+                    className="relative flex h-2 w-2"
+                    title={`${pendingAdminActionsCount} pending request(s) awaiting your approval`}
+                  >
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 ring-1 ring-background" />
+                  </span>
+                )}
               </Link>
             </nav>
           )}
@@ -88,7 +98,15 @@ export function Navbar({ user }: NavbarProps) {
                 disabled={isPending}
                 className="flex items-center gap-2 rounded-full border border-border/80 bg-card/80 hover:bg-muted/80 pl-1 pr-2.5 py-1 shadow-2xs transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring select-none"
               >
-                <UserAvatar username={user.username} size="sm" className="h-6 w-6" />
+                <div className="relative">
+                  <UserAvatar username={user.username} size="sm" className="h-6 w-6" />
+                  {pendingAdminActionsCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 ring-1 ring-card" />
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs font-semibold text-foreground/90 max-w-[120px] truncate">
                   @{user.username}
                 </span>
@@ -112,9 +130,16 @@ export function Navbar({ user }: NavbarProps) {
                 </div>
 
                 <Link href="/groups" className="block sm:hidden">
-                  <DropdownMenuItem className="cursor-pointer gap-2 py-2 px-2.5 rounded-lg text-xs font-medium">
-                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>Your Groups</span>
+                  <DropdownMenuItem className="cursor-pointer flex items-center justify-between py-2 px-2.5 rounded-lg text-xs font-medium">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Your Groups</span>
+                    </div>
+                    {pendingAdminActionsCount > 0 && (
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 rounded-full px-1.5 py-0.2">
+                        {pendingAdminActionsCount}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 </Link>
 
