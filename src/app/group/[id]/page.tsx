@@ -53,6 +53,7 @@ export default async function GroupPage({ params }: GroupPageProps) {
         balances={details.balances}
         suggestedSettlements={details.suggestedSettlements}
         activeInvites={details.activeInvites}
+        pendingJoinRequests={details.pendingJoinRequests}
       />
     </div>
   );

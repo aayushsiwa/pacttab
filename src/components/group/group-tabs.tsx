@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChatView } from "@/components/group/chat-view";
 import { ExpensesView } from "@/components/group/expenses-view";
-import { BalancesView } from "@/components/group/balances-view";
+import { BalancesView, type SettlementItem } from "@/components/group/balances-view";
 import { MembersView } from "@/components/group/members-view";
 import {
   Dialog,
@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Receipt, ArrowLeftRight, Users } from "lucide-react";
+import { MessageSquare, Receipt, ArrowLeftRight, Users, Settings } from "lucide-react";
+import { GroupSettingsDialog } from "@/components/group/group-settings-dialog";
 import { cn } from "cn";
 import type { MemberBalance, SuggestedSettlement } from "@/lib/balances";
 
@@ -58,16 +59,7 @@ interface ExpenseItem {
   }[];
 }
 
-interface SettlementItem {
-  id: string;
-  amount: string | number;
-  paidByUserId: string;
-  receivedByUserId: string;
-  settledAt: Date;
-  createdAt: Date;
-  payerUsername: string;
-  recipientUsername: string;
-}
+
 
 interface InviteItem {
   id: string;
@@ -75,6 +67,15 @@ interface InviteItem {
   createdAt: Date;
   useCount: number;
   maxUses: number | null;
+  expiresAt: Date | null;
+  requiresApproval: boolean;
+}
+
+interface PendingJoinRequestItem {
+  id: string;
+  userId: string;
+  username: string;
+  createdAt: Date;
 }
 
 interface GroupTabsProps {
@@ -90,6 +91,7 @@ interface GroupTabsProps {
   balances: MemberBalance[];
   suggestedSettlements: SuggestedSettlement[];
   activeInvites: InviteItem[];
+  pendingJoinRequests?: PendingJoinRequestItem[];
 }
 
 export function GroupTabs({
@@ -105,10 +107,23 @@ export function GroupTabs({
   balances,
   suggestedSettlements,
   activeInvites,
+  pendingJoinRequests = [],
 }: GroupTabsProps) {
-  const [activeTab, setActiveTab] = useState<"chat" | "expenses" | "balances">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "expenses" | "balances">(
+    "chat",
+  );
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  const myBalance = balances.find((b) => b.userId === currentUserId)?.netBalance || 0;
+
+  const pendingSettlementConfirmations = settlements.filter((s) => {
+    if (s.status !== "pending") return false;
+    const counterpartyUserId =
+      s.createdByUserId === s.paidByUserId ? s.receivedByUserId : s.paidByUserId;
+    return counterpartyUserId === currentUserId;
+  });
 
   const handleTabChange = (val: "chat" | "expenses" | "balances") => {
     setActiveTab(val);
@@ -118,10 +133,50 @@ export function GroupTabs({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
+      {/* Group Settings Modal */}
+      <GroupSettingsDialog
+        isOpen={isSettingsModalOpen}
+        onOpenChange={setIsSettingsModalOpen}
+        groupId={groupId}
+        groupName={group.name}
+        groupDescription={group.description}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        members={members}
+        userNetBalance={myBalance}
+      />
+
+      {/* Members & Invites Modal */}
+      <Dialog open={isMembersModalOpen} onOpenChange={setIsMembersModalOpen}>
+        <DialogContent className="sm:max-w-xl md:max-w-fit max-h-[85vh] overflow-y-auto p-0 gap-0 border-border/80 bg-background shadow-xl rounded-2xl">
+          <DialogHeader className="p-2 md:p-5 md:pb-4 border-b border-border/70 sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <span>Group Members & Invites</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Active members and invite links for{" "}
+              <strong className="text-foreground">{group.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-5 w-full">
+            <MembersView
+              groupId={groupId}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              members={members}
+              invites={activeInvites}
+              pendingJoinRequests={pendingJoinRequests}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Group Room Header with Clickable Members Trigger */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-border/80">
-        <div className="flex items-start gap-3.5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/80">
+        <div className="flex items-center gap-3.5">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 text-white font-black text-xl shadow-sm">
             {group.name.charAt(0).toUpperCase()}
           </div>
@@ -142,13 +197,9 @@ export function GroupTabs({
               </Badge>
             </div>
 
-            {group.description ? (
+            {group.description && (
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl leading-relaxed">
                 {group.description}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground mt-1">
-                Private expense & activity room
               </p>
             )}
           </div>
@@ -159,38 +210,35 @@ export function GroupTabs({
             variant="outline"
             size="sm"
             onClick={() => setIsMembersModalOpen(true)}
-            className="gap-2 text-xs font-bold rounded-xl h-9 px-3.5 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
+            className="relative gap-2 text-xs font-bold rounded-xl h-9 px-3.5 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
           >
             <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>{members.length} {members.length === 1 ? "Member" : "Members"}</span>
+            <span>
+              {members.length} {members.length === 1 ? "Member" : "Members"}
+            </span>
+            {currentUserRole === "admin" && pendingJoinRequests.length > 0 && (
+              <span
+                className="relative flex h-2.5 w-2.5 ml-0.5"
+                title={`${pendingJoinRequests.length} join request(s) awaiting your approval`}
+              >
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500 ring-2 ring-background" />
+              </span>
+            )}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="gap-2 text-xs font-bold rounded-xl h-9 px-3 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
+            title="Group Settings"
+          >
+            <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="hidden sm:inline">Settings</span>
           </Button>
         </div>
       </div>
-
-      {/* Members & Invites Modal */}
-      <Dialog open={isMembersModalOpen} onOpenChange={setIsMembersModalOpen}>
-        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto p-0 gap-0 border-border/80 bg-background shadow-xl rounded-2xl">
-          <DialogHeader className="p-5 pb-4 border-b border-border/70 sticky top-0 bg-background/95 backdrop-blur-sm z-10">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <span>Group Members & Invites</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Active members and invite links for <strong className="text-foreground">{group.name}</strong>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="p-5">
-            <MembersView
-              groupId={groupId}
-              currentUserId={currentUserId}
-              currentUserRole={currentUserRole}
-              members={members}
-              invites={activeInvites}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Interactive Tabs Strip (Chat, Expenses, Balances) */}
       <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
@@ -211,14 +259,17 @@ export function GroupTabs({
               "relative h-9 rounded-xl px-3 sm:px-4 font-bold text-xs transition-all gap-1.5 sm:gap-2 shrink-0 flex items-center cursor-pointer select-none",
               activeTab === "chat"
                 ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/40",
             )}
           >
             <MessageSquare className="h-3.5 w-3.5" />
             <span>Chat</span>
             <span className="hidden sm:inline">& Activity</span>
             {chatUnreadCount > 0 && activeTab !== "chat" && (
-              <span className="relative flex h-2 w-2 ml-0.5" title={`${chatUnreadCount} unread`}>
+              <span
+                className="relative flex h-2 w-2 ml-0.5"
+                title={`${chatUnreadCount} unread`}
+              >
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
@@ -237,7 +288,7 @@ export function GroupTabs({
               "relative h-9 rounded-xl px-3 sm:px-4 font-bold text-xs transition-all gap-1.5 sm:gap-2 shrink-0 flex items-center cursor-pointer select-none",
               activeTab === "expenses"
                 ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/40",
             )}
           >
             <Receipt className="h-3.5 w-3.5" />
@@ -259,11 +310,20 @@ export function GroupTabs({
               "relative h-9 rounded-xl px-3 sm:px-4 font-bold text-xs transition-all gap-1.5 sm:gap-2 shrink-0 flex items-center cursor-pointer select-none",
               activeTab === "balances"
                 ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/40",
             )}
           >
             <ArrowLeftRight className="h-3.5 w-3.5" />
             <span>Balances</span>
+            {pendingSettlementConfirmations.length > 0 && activeTab !== "balances" && (
+              <span
+                className="relative flex h-2 w-2 ml-0.5"
+                title={`${pendingSettlementConfirmations.length} settlement(s) awaiting your affirmation`}
+              >
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -293,6 +353,7 @@ export function GroupTabs({
       >
         <ExpensesView
           groupId={groupId}
+          groupName={group.name}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
           members={members}
@@ -318,4 +379,3 @@ export function GroupTabs({
     </div>
   );
 }
-

@@ -24,7 +24,6 @@ async function testRedisWsFlow() {
   const subscriber = getDuplicateRedis()!;
 
   const instanceAId = crypto.randomUUID();
-  const instanceBId = crypto.randomUUID();
 
   let receivedOnInstanceB: unknown = null;
 

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteExpenseAction } from "@/actions/expenses";
 import { AddExpenseDialog } from "@/components/group/add-expense-dialog";
+import { EditExpenseDialog } from "@/components/group/edit-expense-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,9 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Receipt, Trash2, Calendar, User, Users } from "lucide-react";
+import { Receipt, Trash2, Calendar, User, Users, Edit3, Download } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime, formatDate } from "@/lib/date";
+import { exportExpensesToCsv } from "@/lib/export-csv";
 
 interface ExpenseItem {
   id: string;
@@ -38,6 +40,7 @@ interface ExpenseItem {
 
 interface ExpensesViewProps {
   groupId: string;
+  groupName?: string;
   currentUserId: string;
   currentUserRole: string;
   members: { id: string; username: string }[];
@@ -46,16 +49,28 @@ interface ExpensesViewProps {
 
 export function ExpensesView({
   groupId,
+  groupName = "Group",
   currentUserId,
   currentUserRole,
   members,
   expenses,
 }: ExpensesViewProps) {
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
+  const [expenseToEdit, setExpenseToEdit] = useState<ExpenseItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   const totalSpent = expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
+
+  const handleExportCsv = () => {
+    try {
+      exportExpensesToCsv(groupName, expenses);
+      toast.success("Expenses exported to CSV!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export expenses");
+    }
+  };
 
   const confirmDelete = () => {
     if (!expenseToDelete) return;
@@ -93,7 +108,19 @@ export function ExpensesView({
           </p>
         </div>
 
-        <div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {expenses.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              className="gap-1.5 text-xs font-semibold rounded-xl h-10 px-3.5 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Export CSV</span>
+            </Button>
+          )}
+
           <AddExpenseDialog
             groupId={groupId}
             currentUserId={currentUserId}
@@ -194,17 +221,30 @@ export function ExpensesView({
                       </div>
                     </div>
 
-                    {canDelete && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg h-7 w-7"
-                        onClick={() => setExpenseToDelete(exp)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg h-7 w-7"
+                          onClick={() => setExpenseToEdit(exp)}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg h-7 w-7"
+                          onClick={() => setExpenseToDelete(exp)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -243,6 +283,16 @@ export function ExpensesView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Expense Dialog */}
+      <EditExpenseDialog
+        groupId={groupId}
+        currentUserId={currentUserId}
+        members={members}
+        expense={expenseToEdit}
+        open={!!expenseToEdit}
+        onOpenChange={(open) => !open && setExpenseToEdit(null)}
+      />
     </div>
   );
 }
