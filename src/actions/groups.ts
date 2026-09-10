@@ -43,6 +43,14 @@ const RESERVED_SLUGS = new Set([
   "about",
 ]);
 
+function safeRevalidatePath(path: string) {
+  try {
+    revalidatePath(path);
+  } catch {
+    // Ignore when executed outside Next.js request scope (e.g. tests)
+  }
+}
+
 export type GroupActionState = {
   error?: string;
   success?: boolean;
@@ -190,7 +198,7 @@ export async function createInviteLinkAction(
       requiresApproval: options?.requiresApproval ?? false,
     });
 
-    revalidatePath(`/group/${groupId}`);
+    safeRevalidatePath(`/group/${groupId}`);
     return { success: true, token };
   } catch (error) {
     console.error("Failed to create invite link:", error);
@@ -235,7 +243,7 @@ export async function rotateInviteLinkAction(
       createdBy: user.id,
     });
 
-    revalidatePath(`/group/${groupId}`);
+    safeRevalidatePath(`/group/${groupId}`);
     return { success: true, token };
   } catch (error) {
     console.error("Failed to rotate invite link:", error);
@@ -262,7 +270,7 @@ export async function revokeInviteLinkAction(groupId: string, inviteId: string):
       .set({ revokedAt: new Date() })
       .where(and(eq(inviteLinks.id, inviteId), eq(inviteLinks.groupId, groupId)));
 
-    revalidatePath(`/group/${groupId}`);
+    safeRevalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to revoke invite link:", error);
@@ -323,7 +331,7 @@ export async function joinGroupAction(token: string): Promise<{
       .set({ status: "active" })
       .where(eq(groupMembers.id, existingMember[0].id));
 
-    revalidatePath(`/group/${invite.groupId}`);
+    safeRevalidatePath(`/group/${invite.groupId}`);
     return { success: true, groupId: invite.groupId };
   }
 
@@ -452,7 +460,7 @@ export async function joinGroupAction(token: string): Promise<{
       });
     });
 
-    revalidatePath(`/group/${invite.groupId}`);
+    safeRevalidatePath(`/group/${invite.groupId}`);
     return { success: true, groupId: invite.groupId };
   } catch (error) {
     console.error("Failed to join group:", error);
@@ -627,7 +635,7 @@ export async function reviewJoinRequestAction(
       }
     });
 
-    revalidatePath(`/group/${groupId}`);
+    safeRevalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to review join request:", error);
@@ -696,8 +704,8 @@ export async function updateGroupAction(
       });
     });
 
-    revalidatePath(`/group/${groupId}`);
-    revalidatePath("/groups");
+    safeRevalidatePath(`/group/${groupId}`);
+    safeRevalidatePath("/groups");
     return { success: true };
   } catch (error) {
     console.error("Failed to update group:", error);
@@ -775,7 +783,7 @@ export async function transferAdminAction(
       });
     });
 
-    revalidatePath(`/group/${groupId}`);
+    safeRevalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to transfer admin rights:", error);
@@ -936,7 +944,7 @@ export async function deleteGroupAction(groupId: string): Promise<{ success: boo
 
   try {
     await db.delete(groups).where(eq(groups.id, groupId));
-    revalidatePath("/groups");
+    safeRevalidatePath("/groups");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete group:", error);

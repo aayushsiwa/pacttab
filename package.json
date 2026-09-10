@@ -19,7 +19,8 @@
     "test:affirmation": "tsx tests/settlement-affirmation.test.ts",
     "test:splits": "tsx tests/custom-splits.test.ts",
     "test:release2": "tsx tests/release-2-flow.test.ts",
-    "test": "tsx tests/e2e-flow.test.ts && tsx tests/auth-invite-flow.test.ts && tsx tests/websocket-flow.test.ts && tsx tests/redis-ws-flow.test.ts && tsx tests/mention-flow.test.ts && tsx tests/settlement-affirmation.test.ts && tsx tests/custom-splits.test.ts && tsx tests/release-2-flow.test.ts"
+    "test:custom-invites": "tsx tests/custom-invite-links.test.ts",
+    "test": "tsx tests/e2e-flow.test.ts && tsx tests/auth-invite-flow.test.ts && tsx tests/websocket-flow.test.ts && tsx tests/redis-ws-flow.test.ts && tsx tests/mention-flow.test.ts && tsx tests/settlement-affirmation.test.ts && tsx tests/custom-splits.test.ts && tsx tests/release-2-flow.test.ts && tsx tests/custom-invite-links.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
