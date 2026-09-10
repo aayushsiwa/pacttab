@@ -3,8 +3,9 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { joinGroupAction } from "@/actions/groups";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, AlertCircle } from "lucide-react";
+import { Users, AlertCircle, Clock } from "lucide-react";
 
 interface JoinPageProps {
   params: Promise<{
@@ -63,23 +64,40 @@ export default async function JoinPage({ params }: JoinPageProps) {
               : "bg-destructive/10 text-destructive ring-destructive/20"
           }`}>
             {result.pendingApproval ? (
-              <Users className="h-7 w-7" />
+              <Clock className="h-7 w-7 text-amber-500" />
             ) : result.canRequestJoin ? (
               <Users className="h-7 w-7" />
             ) : (
               <AlertCircle className="h-7 w-7" />
             )}
           </div>
-          <CardTitle className="text-xl font-bold text-foreground">
-            {result.pendingApproval
-              ? "Request Pending Approval"
-              : result.canRequestJoin
-              ? "Invite Expired or Capped"
-              : "Invite Unavailable"}
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {result.error || "This invite link is either expired, revoked, or invalid."}
-          </CardDescription>
+          {result.pendingApproval ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <CardTitle className="text-2xl font-black text-foreground">
+                  {result.groupName || "Group"}
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] uppercase font-bold tracking-wider rounded-full px-2.5 py-0.5 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/15 shadow-2xs"
+                >
+                  Pending
+                </Badge>
+              </div>
+              <CardDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
+                {result.error || "Your request to join this group has been submitted and is awaiting admin approval."}
+              </CardDescription>
+            </div>
+          ) : (
+            <>
+              <CardTitle className="text-xl font-bold text-foreground">
+                {result.canRequestJoin ? "Invite Expired or Capped" : "Invite Unavailable"}
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
+                {result.error || "This invite link is either expired, revoked, or invalid."}
+              </CardDescription>
+            </>
+          )}
         </CardHeader>
         <CardFooter className="flex flex-col gap-3 p-0 pt-3">
           {result.canRequestJoin && result.groupId && (

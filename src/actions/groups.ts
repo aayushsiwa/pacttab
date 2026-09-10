@@ -217,6 +217,7 @@ export async function revokeInviteLinkAction(groupId: string, inviteId: string):
 export async function joinGroupAction(token: string): Promise<{
   success: boolean;
   groupId?: string;
+  groupName?: string;
   canRequestJoin?: boolean;
   pendingApproval?: boolean;
   error?: string;
@@ -259,7 +260,7 @@ export async function joinGroupAction(token: string): Promise<{
 
   if (existingMember.length > 0) {
     if (existingMember[0].status === "active") {
-      return { success: true, groupId: invite.groupId };
+      return { success: true, groupId: invite.groupId, groupName: invite.groupName };
     }
     // Re-activate if inactive
     await db
@@ -268,7 +269,7 @@ export async function joinGroupAction(token: string): Promise<{
       .where(eq(groupMembers.id, existingMember[0].id));
 
     revalidatePath(`/group/${invite.groupId}`);
-    return { success: true, groupId: invite.groupId };
+    return { success: true, groupId: invite.groupId, groupName: invite.groupName };
   }
 
   const isExpired = invite.expiresAt !== null && invite.expiresAt < now;
@@ -279,6 +280,7 @@ export async function joinGroupAction(token: string): Promise<{
       success: false,
       canRequestJoin: true,
       groupId: invite.groupId,
+      groupName: invite.groupName,
       error: isExpired
         ? "This invite link has expired. You may request to join instead."
         : "This invite link has reached its maximum uses. You may request to join instead.",
@@ -299,12 +301,15 @@ export async function joinGroupAction(token: string): Promise<{
           success: false,
           pendingApproval: true,
           groupId: invite.groupId,
+          groupName: invite.groupName,
           error: "Your request to join this group is pending admin approval.",
         };
       }
       if (existingReq.status === "declined") {
         return {
           success: false,
+          groupId: invite.groupId,
+          groupName: invite.groupName,
           error: "Your previous request to join this group was declined.",
         };
       }
@@ -344,6 +349,7 @@ export async function joinGroupAction(token: string): Promise<{
       success: false,
       pendingApproval: true,
       groupId: invite.groupId,
+      groupName: invite.groupName,
       error: "This group requires admin approval. Your join request has been submitted to the admin.",
     };
   }
