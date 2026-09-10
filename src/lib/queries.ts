@@ -8,6 +8,7 @@ import {
   expenseSplits,
   settlements,
   inviteLinks,
+  joinRequests,
   messages,
 } from "@/db/schema";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
@@ -158,6 +159,10 @@ export async function getGroupDetails(groupId: string, userId: string) {
       amount: settlements.amount,
       paidByUserId: settlements.paidByUserId,
       receivedByUserId: settlements.receivedByUserId,
+      status: settlements.status,
+      createdByUserId: settlements.createdByUserId,
+      confirmedAt: settlements.confirmedAt,
+      rejectedAt: settlements.rejectedAt,
       settledAt: settlements.settledAt,
       createdAt: settlements.createdAt,
     })
@@ -171,9 +176,10 @@ export async function getGroupDetails(groupId: string, userId: string) {
     ...s,
     payerUsername: memberNameMap.get(s.paidByUserId) || "Unknown",
     recipientUsername: memberNameMap.get(s.receivedByUserId) || "Unknown",
+    creatorUsername: memberNameMap.get(s.createdByUserId || "") || "Unknown",
   }));
 
-  // 6. Compute balances and settlements
+  // 6. Compute balances and settlements (only confirmed settlements count towards net balances)
   const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
     members.map((m) => ({ id: m.id, username: m.username })),
     detailedExpenses.map((e) => ({
@@ -187,11 +193,27 @@ export async function getGroupDetails(groupId: string, userId: string) {
       amount: s.amount,
       paidByUserId: s.paidByUserId,
       receivedByUserId: s.receivedByUserId,
+      status: s.status,
     }))
   );
 
-  // 7. If admin, fetch active invite links
-  let activeInvites: { id: string; token: string; createdAt: Date; useCount: number; maxUses: number | null }[] = [];
+  // 7. If admin, fetch active invite links & pending join requests
+  let activeInvites: {
+    id: string;
+    token: string;
+    createdAt: Date;
+    useCount: number;
+    maxUses: number | null;
+    expiresAt: Date | null;
+    requiresApproval: boolean;
+  }[] = [];
+  let pendingJoinRequests: {
+    id: string;
+    userId: string;
+    username: string;
+    createdAt: Date;
+  }[] = [];
+
   if (currentUserRole === "admin") {
     activeInvites = await db
       .select({
@@ -200,10 +222,24 @@ export async function getGroupDetails(groupId: string, userId: string) {
         createdAt: inviteLinks.createdAt,
         useCount: inviteLinks.useCount,
         maxUses: inviteLinks.maxUses,
+        expiresAt: inviteLinks.expiresAt,
+        requiresApproval: inviteLinks.requiresApproval,
       })
       .from(inviteLinks)
       .where(and(eq(inviteLinks.groupId, groupId), sql`${inviteLinks.revokedAt} IS NULL`))
       .orderBy(desc(inviteLinks.createdAt));
+
+    pendingJoinRequests = await db
+      .select({
+        id: joinRequests.id,
+        userId: joinRequests.userId,
+        username: users.username,
+        createdAt: joinRequests.createdAt,
+      })
+      .from(joinRequests)
+      .innerJoin(users, eq(joinRequests.userId, users.id))
+      .where(and(eq(joinRequests.groupId, groupId), eq(joinRequests.status, "pending")))
+      .orderBy(desc(joinRequests.createdAt));
   }
 
   return {
@@ -215,5 +251,6 @@ export async function getGroupDetails(groupId: string, userId: string) {
     balances,
     suggestedSettlements,
     activeInvites,
+    pendingJoinRequests,
   };
 }

@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, timestamp, integer, numeric, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, numeric, uniqueIndex, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -42,6 +42,7 @@ export const inviteLinks = pgTable("invite_links", {
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   maxUses: integer("max_uses"),
   useCount: integer("use_count").notNull().default(0),
+  requiresApproval: boolean("requires_approval").notNull().default(false),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -91,6 +92,10 @@ export const settlements = pgTable("settlements", {
   paidByUserId: text("paid_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   receivedByUserId: text("received_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("confirmed"), // "pending" | "confirmed" | "rejected" | "cancelled"
+  createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "cascade" }),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
   settledAt: timestamp("settled_at", { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -105,6 +110,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   splits: many(expenseSplits),
   paidSettlements: many(settlements, { relationName: "payer" }),
   receivedSettlements: many(settlements, { relationName: "recipient" }),
+  createdSettlements: many(settlements, { relationName: "settlementCreator" }),
+  joinRequests: many(joinRequests, { relationName: "joinRequester" }),
+  reviewedJoinRequests: many(joinRequests, { relationName: "joinReviewer" }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -121,6 +129,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   }),
   members: many(groupMembers),
   inviteLinks: many(inviteLinks),
+  joinRequests: many(joinRequests),
   messages: many(messages),
   expenses: many(expenses),
   settlements: many(settlements),
@@ -200,5 +209,27 @@ export const settlementsRelations = relations(settlements, ({ one }) => ({
     fields: [settlements.receivedByUserId],
     references: [users.id],
     relationName: "recipient",
+  }),
+  createdBy: one(users, {
+    fields: [settlements.createdByUserId],
+    references: [users.id],
+    relationName: "settlementCreator",
+  }),
+}));
+
+export const joinRequestsRelations = relations(joinRequests, ({ one }) => ({
+  group: one(groups, {
+    fields: [joinRequests.groupId],
+    references: [groups.id],
+  }),
+  user: one(users, {
+    fields: [joinRequests.userId],
+    references: [users.id],
+    relationName: "joinRequester",
+  }),
+  reviewer: one(users, {
+    fields: [joinRequests.reviewedBy],
+    references: [users.id],
+    relationName: "joinReviewer",
   }),
 }));

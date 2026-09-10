@@ -90,7 +90,8 @@ function SettlementForm({
       if (res.success) {
         const payerName = members.find((m) => m.id === paidByUserId)?.username || "Member";
         const recipientName = members.find((m) => m.id === receivedByUserId)?.username || "Member";
-        toast.success(`Recorded ₹${numAmount.toFixed(2)} settlement from @${payerName} to @${recipientName}`);
+        const counterpartyName = currentUserId === paidByUserId ? recipientName : payerName;
+        toast.success(`Settlement recorded! Waiting for @${counterpartyName} to confirm.`);
         onClose();
         router.refresh();
       } else {
@@ -101,6 +102,10 @@ function SettlementForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground leading-relaxed">
+        💡 <strong>Mutual Affirmation:</strong> Once recorded, the other member will be prompted to confirm this payment. Net balances will update as soon as they confirm.
+      </div>
+
       {error && (
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0" />

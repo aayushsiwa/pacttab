@@ -23,6 +23,12 @@ export type WSEvent =
       payerUsername: string;
     }
   | {
+      type: "expense_updated";
+      groupId: string;
+      description: string;
+      amount: number;
+    }
+  | {
       type: "expense_deleted";
       groupId: string;
       description: string;
@@ -33,6 +39,22 @@ export type WSEvent =
       amount: number;
       payerUsername: string;
       recipientUsername: string;
+    }
+  | {
+      type: "settlement_confirmed";
+      groupId: string;
+      settlementId: string;
+      amount?: number;
+    }
+  | {
+      type: "settlement_rejected";
+      groupId: string;
+      settlementId: string;
+    }
+  | {
+      type: "settlement_cancelled";
+      groupId: string;
+      settlementId: string;
     }
   | {
       type: "member_joined";

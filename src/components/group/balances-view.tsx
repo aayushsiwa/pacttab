@@ -1,23 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  confirmSettlementAction,
+  rejectSettlementAction,
+  cancelSettlementAction,
+} from "@/actions/expenses";
 import { RecordSettlementDialog } from "@/components/group/record-settlement-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeftRight, CheckCircle2, Clock } from "lucide-react";
+import { ArrowRight, ArrowLeftRight, CheckCircle2, Clock, Check, X, AlertCircle, Loader2 } from "lucide-react";
 import type { MemberBalance, SuggestedSettlement } from "@/lib/balances";
 import { formatRelativeTime, formatDate } from "@/lib/date";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { toast } from "sonner";
 
-interface SettlementItem {
+export interface SettlementItem {
   id: string;
   amount: string | number;
   paidByUserId: string;
   receivedByUserId: string;
+  status: string;
+  createdByUserId?: string | null;
+  confirmedAt?: Date | null;
+  rejectedAt?: Date | null;
   settledAt: Date;
   payerUsername: string;
   recipientUsername: string;
+  creatorUsername?: string;
 }
 
 interface BalancesViewProps {
@@ -58,11 +70,166 @@ export function BalancesView({
     setDialogOpen(true);
   };
 
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const handleConfirm = (settlementId: string) => {
+    setProcessingId(settlementId);
+    const formData = new FormData();
+    formData.append("groupId", groupId);
+    formData.append("settlementId", settlementId);
+
+    startTransition(async () => {
+      const res = await confirmSettlementAction(null, formData);
+      setProcessingId(null);
+      if (res.success) {
+        toast.success("Settlement confirmed! Balances updated.");
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to confirm settlement");
+      }
+    });
+  };
+
+  const handleReject = (settlementId: string) => {
+    setProcessingId(settlementId);
+    const formData = new FormData();
+    formData.append("groupId", groupId);
+    formData.append("settlementId", settlementId);
+
+    startTransition(async () => {
+      const res = await rejectSettlementAction(null, formData);
+      setProcessingId(null);
+      if (res.success) {
+        toast.info("Settlement claim rejected.");
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to reject settlement");
+      }
+    });
+  };
+
+  const handleCancel = (settlementId: string) => {
+    setProcessingId(settlementId);
+    const formData = new FormData();
+    formData.append("groupId", groupId);
+    formData.append("settlementId", settlementId);
+
+    startTransition(async () => {
+      const res = await cancelSettlementAction(null, formData);
+      setProcessingId(null);
+      if (res.success) {
+        toast.info("Settlement cancelled.");
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to cancel settlement");
+      }
+    });
+  };
+
+  const pendingSettlements = settlements.filter((s) => s.status === "pending");
+
   const myBalance = balances.find((b) => b.userId === currentUserId);
   const myNet = myBalance ? myBalance.netBalance : 0;
 
   return (
     <div className="space-y-6">
+      {/* Pending Affirmations Queue */}
+      {pendingSettlements.length > 0 && (
+        <Card className="border border-amber-500/30 bg-amber-500/5 shadow-2xs rounded-2xl">
+          <CardHeader className="p-5 pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2 text-amber-900 dark:text-amber-300">
+              <AlertCircle className="h-5 w-5 text-amber-500 shrink-0" />
+              <span>Pending Settlements ({pendingSettlements.length})</span>
+            </CardTitle>
+            <CardDescription className="text-xs text-amber-800/80 dark:text-amber-300/70">
+              Settlements require confirmation from the other member before net balances update.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-5 pt-0 space-y-3">
+            {pendingSettlements.map((set) => {
+              const counterpartyUserId =
+                set.createdByUserId === set.paidByUserId ? set.receivedByUserId : set.paidByUserId;
+              const isAwaitingMyConfirmation = counterpartyUserId === currentUserId;
+              const isMyPendingSubmission = set.createdByUserId === currentUserId;
+              const counterpartyUsername =
+                counterpartyUserId === set.paidByUserId ? set.payerUsername : set.recipientUsername;
+              const isWorking = isPending && processingId === set.id;
+
+              return (
+                <div
+                  key={set.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-amber-500/20 bg-background/80"
+                >
+                  <div className="space-y-1">
+                    <div className="text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                      {isAwaitingMyConfirmation ? (
+                        <span className="text-amber-600 dark:text-amber-400 font-extrabold">
+                          Action Required: Affirm payment
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Pending Confirmation</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-foreground font-medium">
+                      @{set.payerUsername} ➔ @{set.recipientUsername}:{" "}
+                      <strong className="font-bold text-sm">₹{Number(set.amount).toFixed(2)}</strong>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {isAwaitingMyConfirmation
+                        ? `Recorded by @${set.creatorUsername || set.payerUsername}. Please confirm if you sent/received this.`
+                        : isMyPendingSubmission
+                        ? `Waiting for @${counterpartyUsername} to affirm.`
+                        : `Recorded by @${set.creatorUsername || set.payerUsername}. Waiting for @${counterpartyUsername}.`}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isAwaitingMyConfirmation && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => handleConfirm(set.id)}
+                          disabled={isWorking}
+                          className="h-8 px-3 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs"
+                        >
+                          {isWorking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          <span>Confirm</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleReject(set.id)}
+                          disabled={isWorking}
+                          className="h-8 px-3 text-xs font-semibold gap-1 text-destructive hover:bg-destructive/10 border-destructive/30 rounded-lg"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          <span>Reject</span>
+                        </Button>
+                      </>
+                    )}
+
+                    {isMyPendingSubmission && !isAwaitingMyConfirmation && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCancel(set.id)}
+                        disabled={isWorking}
+                        className="h-8 px-3 text-xs font-semibold gap-1 text-muted-foreground hover:text-foreground rounded-lg"
+                      >
+                        {isWorking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                        <span>Cancel</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Personal Net Position Spotlight Banner */}
       <div className={`p-5 rounded-2xl border shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
         myNet > 0.009
@@ -266,11 +433,33 @@ export function BalancesView({
                 key={set.id}
                 className="flex items-center justify-between p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors text-xs border border-border/60"
               >
-                <div>
-                  <div className="font-semibold text-foreground">
-                    @{set.payerUsername} paid @{set.recipientUsername}
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-foreground">
+                      @{set.payerUsername} paid @{set.recipientUsername}
+                    </span>
+                    {set.status === "confirmed" && (
+                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] py-0 px-1.5">
+                        Confirmed
+                      </Badge>
+                    )}
+                    {set.status === "pending" && (
+                      <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] py-0 px-1.5">
+                        Pending
+                      </Badge>
+                    )}
+                    {set.status === "rejected" && (
+                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] py-0 px-1.5">
+                        Rejected
+                      </Badge>
+                    )}
+                    {set.status === "cancelled" && (
+                      <Badge variant="outline" className="bg-muted text-muted-foreground border-border text-[10px] py-0 px-1.5">
+                        Cancelled
+                      </Badge>
+                    )}
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5" title={formatDate(set.settledAt)}>
+                  <div className="text-[11px] text-muted-foreground" title={formatDate(set.settledAt)}>
                     {formatRelativeTime(set.settledAt)}
                   </div>
                 </div>

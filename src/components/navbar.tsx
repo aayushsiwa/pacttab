@@ -15,10 +15,11 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, ChevronDown, Users, Sun, Moon, Laptop, Check, Download } from "lucide-react";
-import { useTransition, useSyncExternalStore } from "react";
+import { LogOut, ChevronDown, Users, Sun, Moon, Laptop, Check, Download, Settings } from "lucide-react";
+import { useState, useTransition, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { usePwa } from "@/components/pwa-provider";
+import { UserSettingsDialog } from "@/components/user-settings-dialog";
 
 const emptySubscribe = () => () => {};
 
@@ -31,6 +32,7 @@ interface NavbarProps {
 
 export function Navbar({ user }: NavbarProps) {
   const [isPending, startTransition] = useTransition();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
   const { isInstallable, install } = usePwa();
   const mounted = useSyncExternalStore(
@@ -80,6 +82,7 @@ export function Navbar({ user }: NavbarProps) {
 
         <div className="flex items-center gap-3">
           {user ? (
+            <>
             <DropdownMenu>
               <DropdownMenuTrigger
                 disabled={isPending}
@@ -184,6 +187,16 @@ export function Navbar({ user }: NavbarProps) {
                 )}
 
                 <DropdownMenuItem
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="cursor-pointer gap-2 py-2 px-2.5 rounded-lg text-xs font-medium"
+                >
+                  <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Account Settings</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator className="my-1" />
+
+                <DropdownMenuItem
                   onClick={handleSignOut}
                   variant="destructive"
                   disabled={isPending}
@@ -194,6 +207,15 @@ export function Navbar({ user }: NavbarProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {user && (
+              <UserSettingsDialog
+                isOpen={isSettingsOpen}
+                onOpenChange={setIsSettingsOpen}
+                user={user}
+              />
+            )}
+            </>
           ) : (
             <div className="flex items-center gap-2">
               {isInstallable && (

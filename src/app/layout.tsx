@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PwaProvider } from "@/components/pwa-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { Navbar } from "@/components/navbar";
+import { OfflineBanner } from "@/components/offline-banner";
 import { Toaster } from "@/components/ui/sonner";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -76,6 +77,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <PwaProvider>
+            <OfflineBanner />
             <Navbar user={user} />
             <main className="flex-1">{children}</main>
             <Toaster position="top-center" richColors />
