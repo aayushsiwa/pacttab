@@ -24,7 +24,8 @@
     "test:splits": "vitest run tests/custom-splits.test.ts",
     "test:release2": "vitest run tests/release-2-flow.test.ts",
     "test:custom-invites": "vitest run tests/custom-invite-links.test.ts",
-    "test:admin-notifications": "vitest run tests/admin-notifications.test.ts"
+    "test:admin-notifications": "vitest run tests/admin-notifications.test.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -59,6 +60,8 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.0",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
