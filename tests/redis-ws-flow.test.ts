@@ -1,94 +1,68 @@
+import { describe, it, expect } from "vitest";
 import * as dotenv from "dotenv";
 dotenv.config();
 
 import { redis, getDuplicateRedis } from "../src/lib/redis";
 import crypto from "crypto";
 
-async function testRedisWsFlow() {
-  console.log("🚀 Testing Redis Pub/Sub Cross-Instance Real-Time Event Sync...\n");
-
-  if (!redis) {
-    throw new Error("REDIS_URL is not configured or failed to initialize");
-  }
-
-  // 1. Verify Redis connectivity
-  const pong = await redis.ping();
-  if (pong !== "PONG") {
-    throw new Error(`Expected PONG, got ${pong}`);
-  }
-  console.log("1. Redis PING test successful (PONG)");
-
-  // 2. Setup simulated cross-instance Pub/Sub
-  console.log("2. Simulating Instance A and Instance B...");
-  const channel = `pacttab:test:events:${Date.now()}`;
-  const subscriber = getDuplicateRedis()!;
-
-  const instanceAId = crypto.randomUUID();
-
-  let receivedOnInstanceB: unknown = null;
-
-  await subscriber.subscribe(channel);
-  subscriber.on("message", (ch, msg) => {
-    if (ch === channel) {
-      try {
-        const payload = JSON.parse(msg);
-        // Instance B receives event from Instance A
-        if (payload.originInstanceId === instanceAId) {
-          receivedOnInstanceB = payload.event;
-        }
-      } catch (err) {
-        console.error("Parse error:", err);
-      }
-    }
+describe("Redis Pub/Sub Cross-Instance Real-Time Event Sync", () => {
+  it("connects to Redis and responds to PING", async () => {
+    expect(redis).toBeDefined();
+    const pong = await redis!.ping();
+    expect(pong).toBe("PONG");
   });
 
-  console.log("   ✓ Instance B subscribed to channel:", channel);
+  it("syncs real-time events across simulated instances via Redis Pub/Sub", async () => {
+    const channel = `pacttab:test:events:${Date.now()}`;
+    const subscriber = getDuplicateRedis()!;
+    const instanceAId = crypto.randomUUID();
 
-  // 3. Publish event from Instance A
-  console.log("3. Publishing real-time message event from Instance A...");
-  const testEvent = {
-    type: "new_message",
-    groupId: "grp_test_redis_123",
-    message: {
-      id: crypto.randomUUID(),
-      body: "Hello from Instance A via Redis!",
-      type: "user",
-      createdAt: new Date().toISOString(),
-      authorId: "user_a_123",
-      authorUsername: "maya",
-    },
-  };
+    let receivedOnInstanceB: { message?: { body: string } } | null = null;
 
-  await redis.publish(
-    channel,
-    JSON.stringify({
-      originInstanceId: instanceAId,
-      event: testEvent,
-    })
-  );
+    await subscriber.subscribe(channel);
+    subscriber.on("message", (ch, msg) => {
+      if (ch === channel) {
+        try {
+          const payload = JSON.parse(msg);
+          if (payload.originInstanceId === instanceAId) {
+            receivedOnInstanceB = payload.event;
+          }
+        } catch {}
+      }
+    });
 
-  // Wait for delivery
-  let attempts = 0;
-  while (!receivedOnInstanceB && attempts < 30) {
-    await new Promise((r) => setTimeout(r, 100));
-    attempts++;
-  }
+    const testEvent = {
+      type: "new_message",
+      groupId: "grp_test_redis_123",
+      message: {
+        id: crypto.randomUUID(),
+        body: "Hello from Instance A via Redis!",
+        type: "user",
+        createdAt: new Date().toISOString(),
+        authorId: "user_a_123",
+        authorUsername: "maya",
+      },
+    };
 
-  if (!receivedOnInstanceB) {
-    throw new Error("Instance B did not receive event published by Instance A within 3 seconds");
-  }
+    await redis!.publish(
+      channel,
+      JSON.stringify({
+        originInstanceId: instanceAId,
+        event: testEvent,
+      })
+    );
 
-  console.log("   ✓ Instance B successfully received cross-instance event:", (receivedOnInstanceB as typeof testEvent).message.body);
+    let attempts = 0;
+    while (!receivedOnInstanceB && attempts < 30) {
+      await new Promise((r) => setTimeout(r, 100));
+      attempts++;
+    }
 
-  // Cleanup
-  await subscriber.unsubscribe(channel);
-  await subscriber.quit();
+    const received = receivedOnInstanceB as { message?: { body: string } } | null;
+    expect(received).toBeDefined();
+    expect(received?.message?.body).toBe("Hello from Instance A via Redis!");
 
-  console.log("\n🎉 ALL REDIS REAL-TIME SYNC TESTS PASSED SUCCESSFULLY!\n");
-  process.exit(0);
-}
-
-testRedisWsFlow().catch((err) => {
-  console.error("❌ Redis test failed:", err);
-  process.exit(1);
+    await subscriber.unsubscribe(channel);
+    await subscriber.quit();
+  });
 });
