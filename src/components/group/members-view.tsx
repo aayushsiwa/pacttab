@@ -8,13 +8,7 @@ import {
   rotateInviteLinkAction,
   reviewJoinRequestAction,
 } from "@/actions/groups";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -155,9 +149,7 @@ export function MembersView({
       const res = await reviewJoinRequestAction(groupId, requestId, decision);
       if (res.success) {
         toast.success(
-          decision === "approved"
-            ? "Member approved and added to group!"
-            : "Join request declined."
+          decision === "approved" ? "Member approved and added to group!" : "Join request declined."
         );
         router.refresh();
       } else {
@@ -167,14 +159,14 @@ export function MembersView({
   };
 
   return (
-    <div className="space-y-6 w-fit md:min-w-2xl">
+    <div className="w-fit space-y-6 md:min-w-2xl">
       {/* Pending Join Requests Queue for Admins */}
       {isAdmin && pendingJoinRequests.length > 0 && (
-        <Card className="border border-amber-500/30 bg-amber-500/5 shadow-2xs rounded-2xl pt-2 md:pt-5">
-          <CardHeader className="pt-0 md:p-5 pb-1 md:pb-3">
+        <Card className="rounded-2xl border border-amber-500/30 bg-amber-500/5 pt-2 shadow-2xs md:pt-5">
+          <CardHeader className="pt-0 pb-1 md:p-5 md:pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                <CardTitle className="flex items-center gap-2 text-base font-bold text-amber-700 dark:text-amber-300">
                   <ShieldCheck className="h-4 w-4" />
                   <span>Pending Join Requests ({pendingJoinRequests.length})</span>
                 </CardTitle>
@@ -182,36 +174,37 @@ export function MembersView({
                   These users clicked an invite link that requires admin approval.
                 </CardDescription>
               </div>
-              <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 flex items-center gap-1.5 font-bold text-[10px]">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <Badge
+                variant="outline"
+                className="flex items-center gap-1.5 border-amber-500/40 bg-amber-500/10 text-[10px] font-bold text-amber-600 dark:text-amber-400"
+              >
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
                 <span>Action Required</span>
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="p-0 md:p-5 pt-0 space-y-2">
+          <CardContent className="space-y-2 p-0 pt-0 md:p-5">
             {pendingJoinRequests.map((req) => (
               <div
                 key={req.id}
-                className="flex items-center justify-between p-3 rounded-xl border border-amber-500/20 bg-background/80 hover:bg-background transition-colors gap-3"
+                className="bg-background/80 hover:bg-background flex items-center justify-between gap-3 rounded-xl border border-amber-500/20 p-3 transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
                   <UserAvatar username={req.username} size="md" />
                   <div className="min-w-0">
-                    <p className="font-bold text-xs sm:text-sm truncate">
-                      @{req.username}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="truncate text-xs font-bold sm:text-sm">@{req.username}</p>
+                    <p className="text-muted-foreground text-[11px]">
                       Requested {formatRelativeTime(req.createdAt)}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
                   <Button
                     size="sm"
                     disabled={isPending}
                     onClick={() => handleReviewRequest(req.id, "approved")}
-                    className="h-8 px-3 text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-2xs"
+                    className="h-8 gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700"
                   >
                     <UserCheck className="h-3.5 w-3.5" />
                     <span>Approve</span>
@@ -221,7 +214,7 @@ export function MembersView({
                     variant="outline"
                     disabled={isPending}
                     onClick={() => handleReviewRequest(req.id, "declined")}
-                    className="h-8 px-2.5 text-xs font-semibold gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 gap-1.5 rounded-lg px-2.5 text-xs font-semibold"
                   >
                     <UserX className="h-3.5 w-3.5" />
                     <span>Decline</span>
@@ -234,45 +227,44 @@ export function MembersView({
       )}
 
       {/* Member Directory */}
-      <Card className="border border-border/80 bg-card/80 shadow-2xs rounded-2xl pt-2 md:pt-5">
-        <CardHeader className="pt-0 md:p-5 pb-1 md:pb-3">
+      <Card className="border-border/80 bg-card/80 rounded-2xl border pt-2 shadow-2xs md:pt-5">
+        <CardHeader className="pt-0 pb-1 md:p-5 md:pb-3">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
                 <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span>Group Members ({members.length})</span>
               </CardTitle>
               <CardDescription className="text-xs leading-relaxed">
-                Only active members can participate in chat, expenses, and
-                settlements.
+                Only active members can participate in chat, expenses, and settlements.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0 md:p-5 pt-0 space-y-1 md:space-y-2.5">
+        <CardContent className="space-y-1 p-0 pt-0 md:space-y-2.5 md:p-5">
           {members.map((m) => {
             const isMe = m.id === currentUserId;
 
             return (
               <div
                 key={m.id}
-                className="flex items-center justify-between p-3 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors"
+                className="border-border/60 bg-muted/20 hover:bg-muted/40 flex items-center justify-between rounded-xl border p-3 transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
                   <UserAvatar username={m.username} size="md" />
                   <div className="min-w-0">
-                    <div className="flex items-center gap-0.5 md:gap-1.5 font-bold text-xs sm:text-sm truncate">
+                    <div className="flex items-center gap-0.5 truncate text-xs font-bold sm:text-sm md:gap-1.5">
                       <span>@{m.username}</span>
                       {isMe && (
                         <Badge
                           variant="secondary"
-                          className="text-[10px] py-0 px-1.5 font-semibold"
+                          className="px-1.5 py-0 text-[10px] font-semibold"
                         >
                           You
                         </Badge>
                       )}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-muted-foreground text-[11px]">
                       Joined {formatRelativeTime(m.joinedAt)}
                     </div>
                   </div>
@@ -280,9 +272,9 @@ export function MembersView({
 
                 <Badge
                   variant={m.role === "admin" ? "default" : "secondary"}
-                  className={`text-[10px] uppercase font-bold tracking-wider rounded-full px-2.5 py-0.5 ${
+                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${
                     m.role === "admin"
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                      ? "border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                       : "bg-secondary text-secondary-foreground"
                   }`}
                 >
@@ -296,12 +288,12 @@ export function MembersView({
 
       {/* Invite Management for Admins */}
       {isAdmin ? (
-        <Card className="border border-border/80 bg-card/80 shadow-2xs rounded-2xl pt-2 md:pt-5">
-          <CardHeader className="pt-0 md:p-5 pb-1 md:pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <Card className="border-border/80 bg-card/80 rounded-2xl border pt-2 shadow-2xs md:pt-5">
+          <CardHeader className="pt-0 pb-1 md:p-5 md:pb-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-primary" />
+                <CardTitle className="flex items-center gap-2 text-base font-bold">
+                  <Link2 className="text-primary h-4 w-4" />
                   <span>Invite Links</span>
                 </CardTitle>
                 <CardDescription className="text-xs leading-relaxed">
@@ -315,7 +307,7 @@ export function MembersView({
                   variant="outline"
                   onClick={handleRotateInvite}
                   disabled={isPending}
-                  className="gap-1.5 shrink-0 text-xs font-semibold rounded-xl h-9 px-3 border-border/80"
+                  className="border-border/80 h-9 shrink-0 gap-1.5 rounded-xl px-3 text-xs font-semibold"
                   title="Revoke active invites and generate a fresh one immediately"
                 >
                   <RotateCw className="h-3.5 w-3.5" />
@@ -326,7 +318,7 @@ export function MembersView({
                   size="sm"
                   onClick={() => setIsCreateModalOpen(true)}
                   disabled={isPending}
-                  className="gap-1.5 shrink-0 font-bold rounded-xl h-9 px-3.5"
+                  className="h-9 shrink-0 gap-1.5 rounded-xl px-3.5 font-bold"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>New Link</span>
@@ -335,14 +327,12 @@ export function MembersView({
             </div>
           </CardHeader>
 
-          <CardContent className="p-0 md:p-5 pt-0 space-y-1 md:space-y-3 ">
+          <CardContent className="space-y-1 p-0 pt-0 md:space-y-3 md:p-5">
             {invites.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground border border-dashed border-border/80 rounded-xl bg-card/30">
-                <Link2 className="h-6 w-6 mb-2 opacity-40 text-primary" />
-                <p className="text-xs font-bold text-foreground">
-                  No active invite links
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+              <div className="text-muted-foreground border-border/80 bg-card/30 flex flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center">
+                <Link2 className="text-primary mb-2 h-6 w-6 opacity-40" />
+                <p className="text-foreground text-xs font-bold">No active invite links</p>
+                <p className="text-muted-foreground mt-0.5 text-[11px]">
                   Generate a link to invite new members to this group.
                 </p>
               </div>
@@ -355,22 +345,28 @@ export function MembersView({
                 return (
                   <div
                     key={inv.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-border/60 bg-muted/20"
+                    className="border-border/60 bg-muted/20 flex flex-col justify-between gap-3 rounded-xl border p-3.5 sm:flex-row sm:items-center"
                   >
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-xs text-foreground truncate bg-card px-2.5 py-1 rounded-lg border border-border/60 inline-block max-w-full font-medium">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-foreground bg-card border-border/60 inline-block max-w-full truncate rounded-lg border px-2.5 py-1 font-mono text-xs font-medium">
                           .../join/{inv.token}
                         </span>
 
                         {!/^[0-9a-f]{32}$/.test(inv.token) && (
-                          <Badge variant="outline" className="text-[10px] font-semibold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-500/40 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                          >
                             Custom Code
                           </Badge>
                         )}
 
                         {inv.requiresApproval && (
-                          <Badge variant="outline" className="text-[10px] font-semibold border-indigo-500/40 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10">
+                          <Badge
+                            variant="outline"
+                            className="border-indigo-500/40 bg-indigo-500/10 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400"
+                          >
                             Approval Required
                           </Badge>
                         )}
@@ -388,7 +384,7 @@ export function MembersView({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+                      <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-[11px]">
                         <span>
                           {inv.maxUses !== null
                             ? `${inv.useCount} of ${inv.maxUses} uses`
@@ -408,15 +404,13 @@ export function MembersView({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex shrink-0 items-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleCopy(inv.token)}
-                        className={`gap-1.5 text-xs font-semibold rounded-lg h-8 px-3 ${
-                          isCopied
-                            ? "border-emerald-500 text-emerald-600 bg-emerald-500/10"
-                            : ""
+                        className={`h-8 gap-1.5 rounded-lg px-3 text-xs font-semibold ${
+                          isCopied ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : ""
                         }`}
                       >
                         {isCopied ? (
@@ -432,7 +426,7 @@ export function MembersView({
                         variant="ghost"
                         onClick={() => handleRevokeInvite(inv.id)}
                         disabled={isPending}
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs font-semibold rounded-lg h-8 px-2.5"
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 rounded-lg px-2.5 text-xs font-semibold"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         <span>Revoke</span>
@@ -445,25 +439,23 @@ export function MembersView({
           </CardContent>
         </Card>
       ) : (
-        <Card className="border border-border/80 bg-muted/20 rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3 text-xs text-muted-foreground">
-            <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span>
-              Invite links and group settings are managed by the group admin.
-            </span>
+        <Card className="border-border/80 bg-muted/20 rounded-2xl border">
+          <CardContent className="text-muted-foreground flex items-center gap-3 p-4 text-xs">
+            <Lock className="text-muted-foreground h-4 w-4 shrink-0" />
+            <span>Invite links and group settings are managed by the group admin.</span>
           </CardContent>
         </Card>
       )}
 
       {/* Custom Invite Link Creation Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-background border-border/80 shadow-xl">
+        <DialogContent className="bg-background border-border/80 rounded-2xl p-6 shadow-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Link2 className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <Link2 className="text-primary h-5 w-5" />
               <span>Create Invite Link</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-muted-foreground text-xs">
               Customize link expiration, usage limits, and approval requirements.
             </DialogDescription>
           </DialogHeader>
@@ -471,12 +463,15 @@ export function MembersView({
           <div className="space-y-4 py-2">
             {/* Custom Link Slug / Code */}
             <div className="space-y-1.5">
-              <Label htmlFor="custom-slug-input" className="text-xs font-semibold flex items-center justify-between">
+              <Label
+                htmlFor="custom-slug-input"
+                className="flex items-center justify-between text-xs font-semibold"
+              >
                 <span>Custom Invite Code (Optional)</span>
-                <span className="text-[10px] text-muted-foreground font-normal">3–50 chars</span>
+                <span className="text-muted-foreground text-[10px] font-normal">3–50 chars</span>
               </Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono select-none pointer-events-none">
+                <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 font-mono text-xs select-none">
                   /join/
                 </span>
                 <Input
@@ -492,11 +487,12 @@ export function MembersView({
                   }
                   placeholder="e.g. goa-trip-2026"
                   maxLength={50}
-                  className="pl-14 text-xs font-mono rounded-xl bg-card"
+                  className="bg-card rounded-xl pl-14 font-mono text-xs"
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                Letters, numbers, hyphens (-), and underscores (_). Leave blank to generate a random code.
+              <p className="text-muted-foreground text-[10px]">
+                Letters, numbers, hyphens (-), and underscores (_). Leave blank to generate a random
+                code.
               </p>
             </div>
 
@@ -506,11 +502,9 @@ export function MembersView({
               <select
                 value={expiresInHours ?? "never"}
                 onChange={(e) =>
-                  setExpiresInHours(
-                    e.target.value === "never" ? null : Number(e.target.value)
-                  )
+                  setExpiresInHours(e.target.value === "never" ? null : Number(e.target.value))
                 }
-                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="border-border bg-card text-foreground focus:ring-ring w-full rounded-xl border px-3 py-2 text-xs focus:ring-2 focus:outline-none"
               >
                 <option value="never">Never expires</option>
                 <option value="24">24 Hours</option>
@@ -525,11 +519,9 @@ export function MembersView({
               <select
                 value={maxUses ?? "unlimited"}
                 onChange={(e) =>
-                  setMaxUses(
-                    e.target.value === "unlimited" ? null : Number(e.target.value)
-                  )
+                  setMaxUses(e.target.value === "unlimited" ? null : Number(e.target.value))
                 }
-                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="border-border bg-card text-foreground focus:ring-ring w-full rounded-xl border px-3 py-2 text-xs focus:ring-2 focus:outline-none"
               >
                 <option value="unlimited">Unlimited uses</option>
                 <option value="1">1 use (Single use)</option>
@@ -540,23 +532,22 @@ export function MembersView({
             </div>
 
             {/* Requires Approval */}
-            <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div className="border-border/60 bg-muted/20 flex items-start gap-3 rounded-xl border p-3">
               <input
                 id="require-approval-check"
                 type="checkbox"
                 checked={requiresApproval}
                 onChange={(e) => setRequiresApproval(e.target.checked)}
-                className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500 mt-0.5"
+                className="border-border mt-0.5 h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
               />
               <label
                 htmlFor="require-approval-check"
-                className="text-xs cursor-pointer select-none"
+                className="cursor-pointer text-xs select-none"
               >
-                <span className="font-bold text-foreground block">
-                  Require Admin Approval
-                </span>
-                <span className="text-muted-foreground block text-[11px] mt-0.5 leading-relaxed">
-                  Anyone who visits this link must submit a join request for you to approve before gaining access.
+                <span className="text-foreground block font-bold">Require Admin Approval</span>
+                <span className="text-muted-foreground mt-0.5 block text-[11px] leading-relaxed">
+                  Anyone who visits this link must submit a join request for you to approve before
+                  gaining access.
                 </span>
               </label>
             </div>

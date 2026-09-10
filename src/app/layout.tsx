@@ -34,7 +34,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "PactTab — Private Group Expenses & Chat",
-  description: "A privacy-first progressive web app for small groups to chat, track shared expenses, and settle balances without emails or phone numbers.",
+  description:
+    "A privacy-first progressive web app for small groups to chat, track shared expenses, and settle balances without emails or phone numbers.",
   manifest: "/manifest.json",
   applicationName: "PactTab",
   appleWebApp: {
@@ -51,17 +52,11 @@ export const metadata: Metadata = {
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   const pendingAdminActionsCount = user ? await getUserPendingAdminActionsCount(user.id) : 0;
 
@@ -71,7 +66,7 @@ export default async function RootLayout({
       suppressHydrationWarning
       className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="bg-background text-foreground flex min-h-full flex-col">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

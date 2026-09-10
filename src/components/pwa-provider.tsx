@@ -95,21 +95,21 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       {showBanner && deferredPrompt && (
         <aside
           aria-label="Install PactTab"
-          className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md animate-in fade-in slide-in-from-bottom-4 duration-200"
+          className="animate-in fade-in slide-in-from-bottom-4 fixed right-4 bottom-4 left-4 z-50 mx-auto max-w-md duration-200"
         >
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card/95 p-3.5 shadow-2xl backdrop-blur-md">
+          <div className="border-border/80 bg-card/95 flex items-center justify-between gap-3 rounded-2xl border p-3.5 shadow-2xl backdrop-blur-md">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 font-black text-white shadow-sm">
                 ₹
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-foreground">Install PactTab</p>
-                <p className="text-[11px] text-muted-foreground truncate">
+                <p className="text-foreground text-xs font-bold">Install PactTab</p>
+                <p className="text-muted-foreground truncate text-[11px]">
                   Add to home screen for instant offline access
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex shrink-0 items-center gap-1.5">
               <Button
                 size="sm"
                 onClick={install}
@@ -122,7 +122,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
                 size="icon"
                 variant="ghost"
                 onClick={handleDismiss}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                className="text-muted-foreground hover:text-foreground h-8 w-8 cursor-pointer"
                 aria-label="Dismiss banner"
               >
                 <X className="h-4 w-4" />

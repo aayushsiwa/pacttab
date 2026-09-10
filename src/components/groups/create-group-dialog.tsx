@@ -26,7 +26,7 @@ export function CreateGroupDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button className="gap-1.5 shadow-xs font-medium" />}>
+      <DialogTrigger render={<Button className="gap-1.5 font-medium shadow-xs" />}>
         <Plus className="h-4 w-4" />
         <span>Create Group</span>
       </DialogTrigger>
@@ -34,13 +34,14 @@ export function CreateGroupDialog() {
         <DialogHeader>
           <DialogTitle>Create a Private Group</DialogTitle>
           <DialogDescription>
-            Start a closed tab for a trip, flat, or shared event. Only people with an invite link can join.
+            Start a closed tab for a trip, flat, or shared event. Only people with an invite link
+            can join.
           </DialogDescription>
         </DialogHeader>
 
         <form action={formAction} className="space-y-4 pt-2">
           {state?.error && (
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+            <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border p-3 text-xs">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{state.error}</span>
             </div>
@@ -70,7 +71,7 @@ export function CreateGroupDialog() {
             />
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="gap-2 pt-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"

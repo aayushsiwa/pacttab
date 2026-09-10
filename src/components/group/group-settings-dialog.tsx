@@ -72,8 +72,7 @@ export function GroupSettingsDialog({
   const otherMembers = members.filter((m) => m.id !== currentUserId);
 
   const hasUnsettledBalance = Math.abs(userNetBalance) > 0.01;
-  const isBlockedFromLeaving =
-    hasUnsettledBalance || (isAdmin && otherMembers.length > 0);
+  const isBlockedFromLeaving = hasUnsettledBalance || (isAdmin && otherMembers.length > 0);
 
   const handleUpdateDetails = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,13 +144,13 @@ export function GroupSettingsDialog({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-6 bg-background border-border/80 shadow-xl">
+        <DialogContent className="bg-background border-border/80 max-h-[85vh] overflow-y-auto rounded-2xl p-6 shadow-xl sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Settings className="h-5 w-5 text-foreground" />
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <Settings className="text-foreground h-5 w-5" />
               <span>Group Settings</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-muted-foreground text-xs">
               Manage group info, member permissions, and group lifecycle.
             </DialogDescription>
           </DialogHeader>
@@ -169,7 +168,7 @@ export function GroupSettingsDialog({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Trip to Goa, Apartment 402..."
-                    className="text-xs rounded-xl"
+                    className="rounded-xl text-xs"
                     required
                   />
                 </div>
@@ -184,7 +183,7 @@ export function GroupSettingsDialog({
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Short summary or purpose of this group..."
                     rows={2}
-                    className="text-xs rounded-xl resize-none"
+                    className="resize-none rounded-xl text-xs"
                   />
                 </div>
 
@@ -198,24 +197,25 @@ export function GroupSettingsDialog({
                 </Button>
               </form>
             ) : (
-              <div className="p-3.5 rounded-xl border border-border/60 bg-muted/20 space-y-1">
-                <p className="text-xs font-bold text-foreground">{groupName}</p>
+              <div className="border-border/60 bg-muted/20 space-y-1 rounded-xl border p-3.5">
+                <p className="text-foreground text-xs font-bold">{groupName}</p>
                 {groupDescription && (
-                  <p className="text-[11px] text-muted-foreground">{groupDescription}</p>
+                  <p className="text-muted-foreground text-[11px]">{groupDescription}</p>
                 )}
               </div>
             )}
 
             {/* 2. Admin Transfer Section */}
             {isAdmin && otherMembers.length > 0 && (
-              <div className="space-y-3 pt-4 border-t border-border/60">
+              <div className="border-border/60 space-y-3 border-t pt-4">
                 <div>
-                  <h3 className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                  <h3 className="text-foreground flex items-center gap-1.5 text-xs font-bold">
                     <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     <span>Transfer Admin Rights</span>
                   </h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Assign another active member as the group administrator. You will become a regular member.
+                  <p className="text-muted-foreground mt-0.5 text-[11px]">
+                    Assign another active member as the group administrator. You will become a
+                    regular member.
                   </p>
                 </div>
 
@@ -223,7 +223,7 @@ export function GroupSettingsDialog({
                   <select
                     value={selectedAdminId}
                     onChange={(e) => setSelectedAdminId(e.target.value)}
-                    className="flex-1 rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="border-border bg-card text-foreground focus:ring-ring flex-1 rounded-xl border px-3 py-2 text-xs focus:ring-2 focus:outline-none"
                   >
                     <option value="">Select a member...</option>
                     {otherMembers.map((m) => (
@@ -239,7 +239,7 @@ export function GroupSettingsDialog({
                     variant="outline"
                     disabled={!selectedAdminId || isPending}
                     onClick={handleTransferAdmin}
-                    className="rounded-xl text-xs font-semibold shrink-0"
+                    className="shrink-0 rounded-xl text-xs font-semibold"
                   >
                     Transfer
                   </Button>
@@ -248,25 +248,23 @@ export function GroupSettingsDialog({
             )}
 
             {/* 3. Leave Group Section */}
-            <div className="space-y-3 pt-4 border-t border-border/60">
+            <div className="border-border/60 space-y-3 border-t pt-4">
               <div>
-                <h3 className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                  <LogOut className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-foreground flex items-center gap-1.5 text-xs font-bold">
+                  <LogOut className="text-muted-foreground h-4 w-4" />
                   <span>Leave Group</span>
                 </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-muted-foreground mt-0.5 text-[11px]">
                   Leaving removes you from chat and prevents new expense assignments.
                 </p>
               </div>
 
               {hasUnsettledBalance ? (
-                <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-xs flex items-start gap-2.5">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                   <div>
-                    <span className="font-bold block">
-                      Balance must be ₹0.00 to leave
-                    </span>
-                    <span className="text-[11px] opacity-90 block mt-0.5">
+                    <span className="block font-bold">Balance must be ₹0.00 to leave</span>
+                    <span className="mt-0.5 block text-[11px] opacity-90">
                       {userNetBalance > 0
                         ? `You are owed ₹${userNetBalance.toFixed(2)}. Settle up with other members before leaving.`
                         : `You owe ₹${Math.abs(userNetBalance).toFixed(2)}. Please settle all debts before leaving.`}
@@ -274,22 +272,26 @@ export function GroupSettingsDialog({
                   </div>
                 </div>
               ) : isAdmin && otherMembers.length > 0 ? (
-                <div className="p-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-800 dark:text-indigo-200 text-xs flex items-start gap-2.5">
-                  <Info className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
+                <div className="flex items-start gap-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-xs text-indigo-800 dark:text-indigo-200">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <div>
-                    <span className="font-bold block">Admin Transfer Required</span>
-                    <span className="text-[11px] opacity-90 block mt-0.5">
-                      As the administrator, you must transfer group admin rights to another member before you can leave.
+                    <span className="block font-bold">Admin Transfer Required</span>
+                    <span className="mt-0.5 block text-[11px] opacity-90">
+                      As the administrator, you must transfer group admin rights to another member
+                      before you can leave.
                     </span>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-3 rounded-xl border border-border/60 bg-muted/20">
+                <div className="border-border/60 bg-muted/20 flex items-center justify-between rounded-xl border p-3">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px]">
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400"
+                    >
                       Balance ₹0.00
                     </Badge>
-                    <span className="text-[11px] text-muted-foreground">Ready to leave</span>
+                    <span className="text-muted-foreground text-[11px]">Ready to leave</span>
                   </div>
 
                   <Button
@@ -298,7 +300,7 @@ export function GroupSettingsDialog({
                     size="sm"
                     disabled={isBlockedFromLeaving || isPending}
                     onClick={() => setIsConfirmLeaveOpen(true)}
-                    className="text-xs font-semibold rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 rounded-xl text-xs font-semibold"
                   >
                     Leave Group
                   </Button>
@@ -308,14 +310,15 @@ export function GroupSettingsDialog({
 
             {/* 4. Danger Zone: Delete Group (Admin only) */}
             {isAdmin && (
-              <div className="space-y-3 pt-4 border-t border-destructive/20">
+              <div className="border-destructive/20 space-y-3 border-t pt-4">
                 <div>
-                  <h3 className="text-xs font-bold flex items-center gap-1.5 text-destructive">
+                  <h3 className="text-destructive flex items-center gap-1.5 text-xs font-bold">
                     <Trash2 className="h-4 w-4" />
                     <span>Delete Group Permanently</span>
                   </h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Irreversibly delete this group, along with all recorded expenses, splits, settlements, and chat messages.
+                  <p className="text-muted-foreground mt-0.5 text-[11px]">
+                    Irreversibly delete this group, along with all recorded expenses, splits,
+                    settlements, and chat messages.
                   </p>
                 </div>
 
@@ -325,7 +328,7 @@ export function GroupSettingsDialog({
                   size="sm"
                   disabled={isPending}
                   onClick={() => setIsConfirmDeleteOpen(true)}
-                  className="rounded-xl text-xs font-bold gap-1.5"
+                  className="gap-1.5 rounded-xl text-xs font-bold"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>Delete This Group</span>
@@ -338,14 +341,15 @@ export function GroupSettingsDialog({
 
       {/* Confirmation Modal for Leaving */}
       <Dialog open={isConfirmLeaveOpen} onOpenChange={setIsConfirmLeaveOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-background border-border/80 shadow-xl">
+        <DialogContent className="bg-background border-border/80 rounded-2xl p-6 shadow-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <LogOut className="h-4 w-4 text-muted-foreground" />
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <LogOut className="text-muted-foreground h-4 w-4" />
               <span>Confirm Leaving Group</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Are you sure you want to leave <strong>{groupName}</strong>? You will need an invite link to rejoin.
+            <DialogDescription className="text-muted-foreground text-xs">
+              Are you sure you want to leave <strong>{groupName}</strong>? You will need an invite
+              link to rejoin.
             </DialogDescription>
           </DialogHeader>
 
@@ -375,14 +379,15 @@ export function GroupSettingsDialog({
 
       {/* Confirmation Modal for Group Deletion */}
       <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-background border-destructive/40 shadow-xl">
+        <DialogContent className="bg-background border-destructive/40 rounded-2xl p-6 shadow-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-destructive flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-destructive" />
+            <DialogTitle className="text-destructive flex items-center gap-2 text-base font-bold">
+              <ShieldAlert className="text-destructive h-4 w-4" />
               <span>Permanently Delete Group</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              This will permanently delete <strong>{groupName}</strong> and purge all chat logs, expense records, splits, and settlements. This action cannot be undone.
+            <DialogDescription className="text-muted-foreground text-xs">
+              This will permanently delete <strong>{groupName}</strong> and purge all chat logs,
+              expense records, splits, and settlements. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

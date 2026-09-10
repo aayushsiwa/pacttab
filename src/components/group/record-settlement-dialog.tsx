@@ -54,8 +54,10 @@ function SettlementForm({
   };
   onClose: () => void;
 }) {
-  const defaultPayer = prefill?.payerId || (members.find((m) => m.id === currentUserId)?.id || members[0]?.id || "");
-  const defaultRecipient = prefill?.recipientId || (members.find((m) => m.id !== defaultPayer)?.id || "");
+  const defaultPayer =
+    prefill?.payerId || members.find((m) => m.id === currentUserId)?.id || members[0]?.id || "";
+  const defaultRecipient =
+    prefill?.recipientId || members.find((m) => m.id !== defaultPayer)?.id || "";
 
   const [paidByUserId, setPaidByUserId] = useState(defaultPayer);
   const [receivedByUserId, setReceivedByUserId] = useState(defaultRecipient);
@@ -102,12 +104,13 @@ function SettlementForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground leading-relaxed">
-        💡 <strong>Mutual Affirmation:</strong> Once recorded, the other member will be prompted to confirm this payment. Net balances will update as soon as they confirm.
+      <div className="border-primary/20 bg-primary/5 text-muted-foreground rounded-xl border p-3 text-xs leading-relaxed">
+        💡 <strong>Mutual Affirmation:</strong> Once recorded, the other member will be prompted to
+        confirm this payment. Net balances will update as soon as they confirm.
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+        <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border p-3 text-xs">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -119,7 +122,7 @@ function SettlementForm({
           id="payer"
           value={paidByUserId}
           onChange={(e) => setPaidByUserId(e.target.value)}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           disabled={isPending}
         >
           {members.map((m) => (
@@ -136,7 +139,7 @@ function SettlementForm({
           id="recipient"
           value={receivedByUserId}
           onChange={(e) => setReceivedByUserId(e.target.value)}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           disabled={isPending}
         >
           {members
@@ -164,13 +167,8 @@ function SettlementForm({
         />
       </div>
 
-      <DialogFooter className="gap-2 sm:gap-0 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onClose}
-          disabled={isPending}
-        >
+      <DialogFooter className="gap-2 pt-2 sm:gap-0">
+        <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
           Cancel
         </Button>
         <Button type="submit" disabled={isPending}>
@@ -202,7 +200,9 @@ export function RecordSettlementDialog({
       {trigger ? (
         <DialogTrigger render={trigger as React.ReactElement} />
       ) : (
-        <DialogTrigger render={<Button variant="outline" className="gap-1.5 shadow-xs font-medium" />}>
+        <DialogTrigger
+          render={<Button variant="outline" className="gap-1.5 font-medium shadow-xs" />}
+        >
           <ArrowLeftRight className="h-4 w-4" />
           <span>Record Settlement</span>
         </DialogTrigger>
@@ -210,7 +210,7 @@ export function RecordSettlementDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ArrowLeftRight className="h-5 w-5 text-primary" />
+            <ArrowLeftRight className="text-primary h-5 w-5" />
             <span>Record a Settlement</span>
           </DialogTitle>
           <DialogDescription>

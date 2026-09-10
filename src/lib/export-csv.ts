@@ -30,18 +30,13 @@ export function exportExpensesToCsv(groupName: string, expenses: CsvExpenseItem[
   ];
 
   const rows = expenses.map((exp) => {
-    const dateStr = exp.expenseDate
-      ? new Date(exp.expenseDate).toISOString().split("T")[0]
-      : "";
+    const dateStr = exp.expenseDate ? new Date(exp.expenseDate).toISOString().split("T")[0] : "";
     const descriptionStr = exp.description || "Expense";
     const amountStr = Number(exp.amount).toFixed(2);
     const payerStr = `@${exp.payerUsername}`;
     const splitCount = exp.splits.length;
     const splitBreakdown = exp.splits
-      .map(
-        (s) =>
-          `@${s.username || "user"}: Rs.${Number(s.owedAmount).toFixed(2)}`
-      )
+      .map((s) => `@${s.username || "user"}: Rs.${Number(s.owedAmount).toFixed(2)}`)
       .join("; ");
 
     return [

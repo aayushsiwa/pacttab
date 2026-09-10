@@ -59,8 +59,12 @@ async function main() {
     maintenanceUrl.pathname = "/postgres";
 
     try {
-      const maintenanceClient = postgres(maintenanceUrl.toString(), { prepare: false, connect_timeout: 10 });
-      const checkRes = await maintenanceClient`SELECT 1 FROM pg_database WHERE datname = ${targetDbName}`;
+      const maintenanceClient = postgres(maintenanceUrl.toString(), {
+        prepare: false,
+        connect_timeout: 10,
+      });
+      const checkRes =
+        await maintenanceClient`SELECT 1 FROM pg_database WHERE datname = ${targetDbName}`;
 
       if (checkRes.length === 0) {
         console.log(`   Creating database "${targetDbName}"...`);
@@ -73,7 +77,9 @@ async function main() {
     } catch (createErr: unknown) {
       const message = createErr instanceof Error ? createErr.message : String(createErr);
       console.error(`   ❌ Failed to create database "${targetDbName}":`, message);
-      console.log(`   ℹ️  If your managed provider (e.g. Supabase) only allows using the "postgres" database, update DATABASE_URL to end with /postgres`);
+      console.log(
+        `   ℹ️  If your managed provider (e.g. Supabase) only allows using the "postgres" database, update DATABASE_URL to end with /postgres`
+      );
       process.exit(1);
     }
   }

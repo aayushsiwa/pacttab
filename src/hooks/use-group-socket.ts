@@ -21,7 +21,12 @@ interface UseGroupSocketOptions {
   onNewMessage?: (msg: ChatMessage) => void;
 }
 
-export function useGroupSocket({ groupId, userId, currentUsername, onNewMessage }: UseGroupSocketOptions) {
+export function useGroupSocket({
+  groupId,
+  userId,
+  currentUsername,
+  onNewMessage,
+}: UseGroupSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const onNewMessageRef = useRef(onNewMessage);
@@ -88,7 +93,9 @@ export function useGroupSocket({ groupId, userId, currentUsername, onNewMessage 
               }
             } else if (data.type === "expense_created") {
               const exp = data as Extract<WSEvent, { type: "expense_created" }>;
-              toast.info(`${exp.payerUsername} added expense: ${exp.description} (₹${exp.amount.toFixed(2)})`);
+              toast.info(
+                `${exp.payerUsername} added expense: ${exp.description} (₹${exp.amount.toFixed(2)})`
+              );
               router.refresh();
             } else if (data.type === "expense_deleted") {
               const exp = data as Extract<WSEvent, { type: "expense_deleted" }>;
@@ -96,7 +103,9 @@ export function useGroupSocket({ groupId, userId, currentUsername, onNewMessage 
               router.refresh();
             } else if (data.type === "settlement_recorded") {
               const set = data as Extract<WSEvent, { type: "settlement_recorded" }>;
-              toast.success(`Settlement recorded: ${set.payerUsername} paid ${set.recipientUsername} ₹${set.amount.toFixed(2)}`);
+              toast.success(
+                `Settlement recorded: ${set.payerUsername} paid ${set.recipientUsername} ₹${set.amount.toFixed(2)}`
+              );
               router.refresh();
             } else if (data.type === "member_joined") {
               const mem = data as Extract<WSEvent, { type: "member_joined" }>;

@@ -59,8 +59,6 @@ interface ExpenseItem {
   }[];
 }
 
-
-
 interface InviteItem {
   id: string;
   token: string;
@@ -109,9 +107,7 @@ export function GroupTabs({
   activeInvites,
   pendingJoinRequests = [],
 }: GroupTabsProps) {
-  const [activeTab, setActiveTab] = useState<"chat" | "expenses" | "balances">(
-    "chat",
-  );
+  const [activeTab, setActiveTab] = useState<"chat" | "expenses" | "balances">("chat");
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -149,19 +145,19 @@ export function GroupTabs({
 
       {/* Members & Invites Modal */}
       <Dialog open={isMembersModalOpen} onOpenChange={setIsMembersModalOpen}>
-        <DialogContent className="sm:max-w-xl md:max-w-fit max-h-[85vh] overflow-y-auto p-0 gap-0 border-border/80 bg-background shadow-xl rounded-2xl">
-          <DialogHeader className="p-2 md:p-5 md:pb-4 border-b border-border/70 sticky top-0 bg-background/95 backdrop-blur-sm z-10">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+        <DialogContent className="border-border/80 bg-background max-h-[85vh] gap-0 overflow-y-auto rounded-2xl p-0 shadow-xl sm:max-w-xl md:max-w-fit">
+          <DialogHeader className="border-border/70 bg-background/95 sticky top-0 z-10 border-b p-2 backdrop-blur-sm md:p-5 md:pb-4">
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
               <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <span>Group Members & Invites</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground mt-1">
+            <DialogDescription className="text-muted-foreground mt-1 text-xs">
               Active members and invite links for{" "}
               <strong className="text-foreground">{group.name}</strong>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-5 w-full">
+          <div className="w-full p-5">
             <MembersView
               groupId={groupId}
               currentUserId={currentUserId}
@@ -175,21 +171,21 @@ export function GroupTabs({
       </Dialog>
 
       {/* Group Room Header with Clickable Members Trigger */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/80">
+      <div className="border-border/80 flex flex-col gap-4 border-b pb-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3.5">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 text-white font-black text-xl shadow-sm">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 text-xl font-black text-white shadow-sm">
             {group.name.charAt(0).toUpperCase()}
           </div>
           <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-foreground text-2xl font-black tracking-tight sm:text-3xl">
                 {group.name}
               </h1>
               <Badge
                 variant={currentUserRole === "admin" ? "default" : "secondary"}
-                className={`text-[10px] uppercase font-bold tracking-wider rounded-full px-2.5 py-0.5 ${
+                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${
                   currentUserRole === "admin"
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                    ? "border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                     : "bg-secondary text-secondary-foreground"
                 }`}
               >
@@ -198,19 +194,19 @@ export function GroupTabs({
             </div>
 
             {group.description && (
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl leading-relaxed">
+              <p className="text-muted-foreground mt-1 max-w-xl text-xs leading-relaxed sm:text-sm">
                 {group.description}
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsMembersModalOpen(true)}
-            className="relative gap-2 text-xs font-bold rounded-xl h-9 px-3.5 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
+            className="border-border/80 hover:bg-muted/80 relative h-9 cursor-pointer gap-2 rounded-xl px-3.5 text-xs font-bold shadow-2xs"
           >
             <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>
@@ -218,11 +214,11 @@ export function GroupTabs({
             </span>
             {currentUserRole === "admin" && pendingJoinRequests.length > 0 && (
               <span
-                className="relative flex h-2.5 w-2.5 ml-0.5"
+                className="relative ml-0.5 flex h-2.5 w-2.5"
                 title={`${pendingJoinRequests.length} join request(s) awaiting your approval`}
               >
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500 ring-2 ring-background" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="ring-background relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500 ring-2" />
               </span>
             )}
           </Button>
@@ -231,21 +227,21 @@ export function GroupTabs({
             variant="outline"
             size="sm"
             onClick={() => setIsSettingsModalOpen(true)}
-            className="gap-2 text-xs font-bold rounded-xl h-9 px-3 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
+            className="border-border/80 hover:bg-muted/80 h-9 cursor-pointer gap-2 rounded-xl px-3 text-xs font-bold shadow-2xs"
             title="Group Settings"
           >
-            <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+            <Settings className="text-muted-foreground h-3.5 w-3.5" />
             <span className="hidden sm:inline">Settings</span>
           </Button>
         </div>
       </div>
 
       {/* Interactive Tabs Strip (Chat, Expenses, Balances) */}
-      <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         <div
           role="tablist"
           aria-label="Group tabs"
-          className="h-12 min-w-max sm:w-full flex items-center justify-start rounded-2xl bg-muted/50 p-1.5 gap-1 sm:gap-1.5 border border-border/80 shadow-2xs"
+          className="bg-muted/50 border-border/80 flex h-12 min-w-max items-center justify-start gap-1 rounded-2xl border p-1.5 shadow-2xs sm:w-full sm:gap-1.5"
         >
           {/* Chat Tab */}
           <button
@@ -256,22 +252,19 @@ export function GroupTabs({
             aria-selected={activeTab === "chat"}
             onClick={() => handleTabChange("chat")}
             className={cn(
-              "relative h-9 rounded-xl px-3 sm:px-4 font-bold text-xs transition-all gap-1.5 sm:gap-2 shrink-0 flex items-center cursor-pointer select-none",
+              "relative flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-all select-none sm:gap-2 sm:px-4",
               activeTab === "chat"
-                ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/40",
+                ? "bg-card text-foreground border-border/60 border shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/40"
             )}
           >
             <MessageSquare className="h-3.5 w-3.5" />
             <span>Chat</span>
             <span className="hidden sm:inline">& Activity</span>
             {chatUnreadCount > 0 && activeTab !== "chat" && (
-              <span
-                className="relative flex h-2 w-2 ml-0.5"
-                title={`${chatUnreadCount} unread`}
-              >
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className="relative ml-0.5 flex h-2 w-2" title={`${chatUnreadCount} unread`}>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
             )}
           </button>
@@ -285,15 +278,15 @@ export function GroupTabs({
             aria-selected={activeTab === "expenses"}
             onClick={() => handleTabChange("expenses")}
             className={cn(
-              "relative h-9 rounded-xl px-3 sm:px-4 font-bold text-xs transition-all gap-1.5 sm:gap-2 shrink-0 flex items-center cursor-pointer select-none",
+              "relative flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-all select-none sm:gap-2 sm:px-4",
               activeTab === "expenses"
-                ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/40",
+                ? "bg-card text-foreground border-border/60 border shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/40"
             )}
           >
             <Receipt className="h-3.5 w-3.5" />
             <span>Expenses</span>
-            <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.2 text-[10px] font-bold">
+            <span className="bg-muted-foreground/15 py-0.2 rounded-full px-1.5 text-[10px] font-bold">
               {expenses.length}
             </span>
           </button>
@@ -307,21 +300,21 @@ export function GroupTabs({
             aria-selected={activeTab === "balances"}
             onClick={() => handleTabChange("balances")}
             className={cn(
-              "relative h-9 rounded-xl px-3 sm:px-4 font-bold text-xs transition-all gap-1.5 sm:gap-2 shrink-0 flex items-center cursor-pointer select-none",
+              "relative flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-all select-none sm:gap-2 sm:px-4",
               activeTab === "balances"
-                ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/40",
+                ? "bg-card text-foreground border-border/60 border shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/40"
             )}
           >
             <ArrowLeftRight className="h-3.5 w-3.5" />
             <span>Balances</span>
             {pendingSettlementConfirmations.length > 0 && activeTab !== "balances" && (
               <span
-                className="relative flex h-2 w-2 ml-0.5"
+                className="relative ml-0.5 flex h-2 w-2"
                 title={`${pendingSettlementConfirmations.length} settlement(s) awaiting your affirmation`}
               >
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
               </span>
             )}
           </button>

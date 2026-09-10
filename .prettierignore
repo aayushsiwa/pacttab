@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+dist
+build
+coverage
+.turbo
+.vercel
+.env*
+!.env.example
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+drizzle/

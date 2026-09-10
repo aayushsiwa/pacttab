@@ -66,7 +66,11 @@ export async function deleteSession(): Promise<void> {
   }
 }
 
-export async function getCurrentUser(): Promise<{ id: string; username: string; createdAt: Date } | null> {
+export async function getCurrentUser(): Promise<{
+  id: string;
+  username: string;
+  createdAt: Date;
+} | null> {
   if (process.env.TEST_CURRENT_USER_ID) {
     const [testUser] = await db
       .select({ id: users.id, username: users.username, createdAt: users.createdAt })
