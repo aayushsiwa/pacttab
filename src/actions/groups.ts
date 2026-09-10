@@ -26,6 +26,23 @@ const CreateGroupSchema = z.object({
   description: z.string().trim().max(500, "Description must be 500 characters or fewer").optional(),
 });
 
+// Reserved routes and words disallowed as custom invite slugs
+const RESERVED_SLUGS = new Set([
+  "api",
+  "login",
+  "signup",
+  "groups",
+  "group",
+  "join",
+  "admin",
+  "settings",
+  "manifest",
+  "favicon",
+  "offline",
+  "help",
+  "about",
+]);
+
 export type GroupActionState = {
   error?: string;
   success?: boolean;
@@ -102,6 +119,7 @@ export async function createInviteLinkAction(
     expiresInHours?: number | null;
     maxUses?: number | null;
     requiresApproval?: boolean;
+    customSlug?: string | null;
   }
 ): Promise<{ success: boolean; token?: string; error?: string }> {
   const user = await requireUser();
@@ -117,7 +135,45 @@ export async function createInviteLinkAction(
     return { success: false, error: "Only admins can generate invite links" };
   }
 
-  const token = crypto.randomBytes(16).toString("hex");
+  let token: string;
+  const rawSlug = options?.customSlug?.trim();
+
+  // Validate custom slug if provided, otherwise generate random token
+  if (rawSlug) {
+    const slug = rawSlug.toLowerCase();
+
+    if (!/^[a-z0-9_-]{3,50}$/.test(slug)) {
+      return {
+        success: false,
+        error: "Custom invite code must be 3–50 characters and contain only letters, numbers, hyphens, and underscores.",
+      };
+    }
+
+    if (RESERVED_SLUGS.has(slug)) {
+      return {
+        success: false,
+        error: `The invite code "${slug}" is reserved. Please choose another code.`,
+      };
+    }
+
+    const [existing] = await db
+      .select({ id: inviteLinks.id })
+      .from(inviteLinks)
+      .where(eq(inviteLinks.token, slug))
+      .limit(1);
+
+    if (existing) {
+      return {
+        success: false,
+        error: `The invite code "${slug}" is already in use. Please choose another.`,
+      };
+    }
+
+    token = slug;
+  } else {
+    token = crypto.randomBytes(16).toString("hex");
+  }
+
   const expiresAt =
     options?.expiresInHours && options.expiresInHours > 0
       ? new Date(Date.now() + options.expiresInHours * 3600 * 1000)
