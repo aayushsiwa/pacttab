@@ -53,12 +53,29 @@ async function testAuthInviteFlow() {
   }
   console.log(`   ✓ Correctly returned error: "${stateShort.error}" and preserved username: "${stateShort.username}"`);
 
-  // 4. Test success redirect to returnTo
-  console.log("3. Testing successful sign-up redirects to returnTo URL...");
+  // 4. Test confirm password mismatch validation
+  console.log("3. Testing validation error when confirm password does not match...");
+  const formDataMismatch = new FormData();
+  formDataMismatch.append("username", `mismatch_${suffix}`);
+  formDataMismatch.append("password", "validPassword123");
+  formDataMismatch.append("confirmPassword", "differentPassword123");
+
+  const stateMismatch = await signUpAction(null, formDataMismatch);
+  if (!stateMismatch.error || !stateMismatch.error.includes("Passwords do not match")) {
+    throw new Error(`Expected passwords do not match error, got: ${JSON.stringify(stateMismatch)}`);
+  }
+  if (stateMismatch.username !== `mismatch_${suffix}`) {
+    throw new Error(`Expected preserved username 'mismatch_${suffix}', got '${stateMismatch.username}'`);
+  }
+  console.log(`   ✓ Correctly returned error: "${stateMismatch.error}" and preserved username: "${stateMismatch.username}"`);
+
+  // 5. Test success redirect to returnTo
+  console.log("4. Testing successful sign-up with matching confirm password redirects to returnTo URL...");
   const newUsername = `invited_${suffix}`;
   const formDataSuccess = new FormData();
   formDataSuccess.append("username", newUsername);
   formDataSuccess.append("password", "validPassword123");
+  formDataSuccess.append("confirmPassword", "validPassword123");
   const expectedReturnTo = `/join/special_token_${suffix}`;
   formDataSuccess.append("returnTo", expectedReturnTo);
 

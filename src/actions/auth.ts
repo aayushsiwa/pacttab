@@ -27,9 +27,26 @@ export type AuthActionState = {
 export async function signUpAction(prevState: AuthActionState | null, formData: FormData): Promise<AuthActionState> {
   const rawUsername = formData.get("username");
   const rawPassword = formData.get("password");
+  const rawConfirmPassword = formData.get("confirmPassword");
   const rawReturnTo = formData.get("returnTo");
 
   const usernameStr = typeof rawUsername === "string" ? rawUsername : "";
+
+  // Validate confirmPassword if supplied in the form
+  if (rawConfirmPassword !== null) {
+    if (typeof rawConfirmPassword !== "string" || !rawConfirmPassword) {
+      return {
+        error: "Please confirm your password.",
+        username: usernameStr,
+      };
+    }
+    if (rawPassword !== rawConfirmPassword) {
+      return {
+        error: "Passwords do not match. Please ensure both passwords match.",
+        username: usernameStr,
+      };
+    }
+  }
 
   const validation = AuthSchema.safeParse({
     username: rawUsername,

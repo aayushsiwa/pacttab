@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, ShieldAlert, Lock, User, Link2 } from "lucide-react";
+import { AlertCircle, ShieldAlert, Lock, User, Link2, Check } from "lucide-react";
 
 interface SignUpFormProps {
   returnTo?: string;
@@ -21,6 +21,19 @@ export function SignUpForm({ returnTo }: SignUpFormProps) {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  const errorMessage = clientError || state?.error;
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (password !== confirmPassword) {
+      e.preventDefault();
+      setClientError("Passwords do not match. Please ensure both passwords match.");
+      return;
+    }
+    setClientError(null);
+  };
 
   return (
     <Card className="w-full max-w-md border-border/80 bg-card/90 shadow-xl backdrop-blur-sm rounded-2xl overflow-hidden">
@@ -34,7 +47,7 @@ export function SignUpForm({ returnTo }: SignUpFormProps) {
         </CardDescription>
       </CardHeader>
 
-      <form action={formAction}>
+      <form action={formAction} onSubmit={handleSubmit}>
         {/* Preserve returnTo target URL */}
         {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
@@ -54,10 +67,10 @@ export function SignUpForm({ returnTo }: SignUpFormProps) {
             </div>
           </div>
 
-          {state?.error && (
+          {errorMessage && (
             <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive font-medium">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{state.error}</span>
+              <span>{errorMessage}</span>
             </div>
           )}
 
@@ -97,7 +110,10 @@ export function SignUpForm({ returnTo }: SignUpFormProps) {
                 name="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (clientError) setClientError(null);
+                }}
                 placeholder="••••••••"
                 autoComplete="new-password"
                 required
@@ -108,6 +124,40 @@ export function SignUpForm({ returnTo }: SignUpFormProps) {
             <p className="text-[11px] text-muted-foreground">
               Minimum 6 characters.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Confirm Password
+            </Label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (clientError) setClientError(null);
+                }}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+                className="pl-10 h-10 rounded-xl"
+                disabled={isPending}
+              />
+            </div>
+            {confirmPassword.length > 0 && password !== confirmPassword && (
+              <p className="text-[11px] text-destructive font-medium">
+                Passwords do not match.
+              </p>
+            )}
+            {confirmPassword.length > 0 && password.length >= 6 && password === confirmPassword && (
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                <Check className="h-3 w-3" /> Passwords match.
+              </p>
+            )}
           </div>
         </CardContent>
 
