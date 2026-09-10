@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { hashPassword, verifyPassword, createSession, deleteSession } from "@/lib/auth";
+import { hashPassword, verifyPassword, createSession, deleteSession, requireUser } from "@/lib/auth";
 
 const AuthSchema = z.object({
   username: z
@@ -170,5 +170,43 @@ export async function signInAction(prevState: AuthActionState | null, formData: 
 
 export async function signOutAction(): Promise<void> {
   await deleteSession();
+  redirect("/login");
+}
+
+export async function deleteAccountAction(
+  prevState: unknown,
+  formData: FormData
+): Promise<{ success: boolean; error?: string }> {
+  const user = await requireUser();
+  const password = formData.get("password") as string;
+
+  if (!password) {
+    return { success: false, error: "Password is required to delete your account" };
+  }
+
+  const [dbUser] = await db
+    .select({ passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1);
+
+  if (!dbUser) {
+    return { success: false, error: "User not found" };
+  }
+
+  const isValid = await verifyPassword(password, dbUser.passwordHash);
+  if (!isValid) {
+    return { success: false, error: "Incorrect password. Account was not deleted." };
+  }
+
+  try {
+    // Delete user (PostgreSQL cascades all sessions, memberships, expenses, splits)
+    await db.delete(users).where(eq(users.id, user.id));
+    await deleteSession();
+  } catch (error) {
+    console.error("Failed to delete account:", error);
+    return { success: false, error: "Failed to delete account. Please try again." };
+  }
+
   redirect("/login");
 }

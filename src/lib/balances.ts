@@ -41,6 +41,123 @@ export function calculateEqualSplits(
 }
 
 /**
+ * Split an amount by exact rupee amounts with verification.
+ */
+export function calculateExactSplits(
+  totalAmount: number,
+  splits: { userId: string; amount: number }[]
+): { userId: string; owedAmount: number }[] {
+  if (splits.length === 0) return [];
+  const targetCents = Math.round(totalAmount * 100);
+  const sumCents = splits.reduce((sum, s) => sum + Math.round(s.amount * 100), 0);
+
+  if (sumCents !== targetCents) {
+    const diff = (targetCents - sumCents) / 100;
+    throw new Error(
+      `Exact split total (₹${(sumCents / 100).toFixed(2)}) must equal total expense amount (₹${totalAmount.toFixed(2)}). Difference: ₹${diff.toFixed(2)}`
+    );
+  }
+
+  return splits.map((s) => ({
+    userId: s.userId,
+    owedAmount: Math.round(s.amount * 100) / 100,
+  }));
+}
+
+/**
+ * Split an amount by percentages with penny-accurate residual distribution.
+ */
+export function calculatePercentageSplits(
+  totalAmount: number,
+  splits: { userId: string; percentage: number }[]
+): { userId: string; owedAmount: number }[] {
+  if (splits.length === 0) return [];
+  const sumPercent = splits.reduce((sum, s) => sum + s.percentage, 0);
+
+  if (Math.abs(sumPercent - 100) > 0.01) {
+    throw new Error(`Percentages must sum to 100%. Current sum: ${sumPercent.toFixed(2)}%`);
+  }
+
+  const targetCents = Math.round(totalAmount * 100);
+  const computed = splits.map((s) => {
+    const exactCents = (s.percentage / 100) * targetCents;
+    const floorCents = Math.floor(exactCents);
+    const fraction = exactCents - floorCents;
+    return {
+      userId: s.userId,
+      cents: floorCents,
+      fraction,
+    };
+  });
+
+  const allocatedCents = computed.reduce((sum, item) => sum + item.cents, 0);
+  let remainderCents = targetCents - allocatedCents;
+
+  // Sort by highest fraction to distribute leftover pennies
+  const sortedIndices = computed
+    .map((item, index) => ({ index, fraction: item.fraction }))
+    .sort((a, b) => b.fraction - a.fraction);
+
+  let i = 0;
+  while (remainderCents > 0 && i < sortedIndices.length) {
+    computed[sortedIndices[i].index].cents += 1;
+    remainderCents--;
+    i++;
+  }
+
+  return computed.map((c) => ({
+    userId: c.userId,
+    owedAmount: c.cents / 100,
+  }));
+}
+
+/**
+ * Split an amount by shares / weights with penny-accurate residual distribution.
+ */
+export function calculateShareSplits(
+  totalAmount: number,
+  splits: { userId: string; shares: number }[]
+): { userId: string; owedAmount: number }[] {
+  if (splits.length === 0) return [];
+  const totalShares = splits.reduce((sum, s) => sum + Math.max(0, s.shares), 0);
+
+  if (totalShares <= 0) {
+    throw new Error("Total shares must be greater than zero");
+  }
+
+  const targetCents = Math.round(totalAmount * 100);
+  const computed = splits.map((s) => {
+    const exactCents = (Math.max(0, s.shares) / totalShares) * targetCents;
+    const floorCents = Math.floor(exactCents);
+    const fraction = exactCents - floorCents;
+    return {
+      userId: s.userId,
+      cents: floorCents,
+      fraction,
+    };
+  });
+
+  const allocatedCents = computed.reduce((sum, item) => sum + item.cents, 0);
+  let remainderCents = targetCents - allocatedCents;
+
+  const sortedIndices = computed
+    .map((item, index) => ({ index, fraction: item.fraction }))
+    .sort((a, b) => b.fraction - a.fraction);
+
+  let i = 0;
+  while (remainderCents > 0 && i < sortedIndices.length) {
+    computed[sortedIndices[i].index].cents += 1;
+    remainderCents--;
+    i++;
+  }
+
+  return computed.map((c) => ({
+    userId: c.userId,
+    owedAmount: c.cents / 100,
+  }));
+}
+
+/**
  * Calculates member balances and simplified debt repayments.
  */
 export function calculateBalancesAndSettlements(
@@ -56,6 +173,7 @@ export function calculateBalancesAndSettlements(
     amount: string | number;
     paidByUserId: string;
     receivedByUserId: string;
+    status?: string;
   }[]
 ): {
   balances: MemberBalance[];
@@ -89,8 +207,11 @@ export function calculateBalancesAndSettlements(
     }
   }
 
-  // 2. Process Settlements
+  // 2. Process Settlements (only confirmed settlements impact balances)
   for (const set of settlements) {
+    if (set.status && set.status !== "confirmed") {
+      continue;
+    }
     const setAmount = Number(set.amount);
     const payer = memberMap.get(set.paidByUserId);
     const recipient = memberMap.get(set.receivedByUserId);
