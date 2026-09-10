@@ -182,8 +182,9 @@ export function MembersView({
                   These users clicked an invite link that requires admin approval.
                 </CardDescription>
               </div>
-              <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                Action Required
+              <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 flex items-center gap-1.5 font-bold text-[10px]">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span>Action Required</span>
               </Badge>
             </div>
           </CardHeader>

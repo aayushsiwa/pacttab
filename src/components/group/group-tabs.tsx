@@ -118,6 +118,13 @@ export function GroupTabs({
 
   const myBalance = balances.find((b) => b.userId === currentUserId)?.netBalance || 0;
 
+  const pendingSettlementConfirmations = settlements.filter((s) => {
+    if (s.status !== "pending") return false;
+    const counterpartyUserId =
+      s.createdByUserId === s.paidByUserId ? s.receivedByUserId : s.paidByUserId;
+    return counterpartyUserId === currentUserId;
+  });
+
   const handleTabChange = (val: "chat" | "expenses" | "balances") => {
     setActiveTab(val);
     if (val === "chat") {
@@ -203,12 +210,21 @@ export function GroupTabs({
             variant="outline"
             size="sm"
             onClick={() => setIsMembersModalOpen(true)}
-            className="gap-2 text-xs font-bold rounded-xl h-9 px-3.5 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
+            className="relative gap-2 text-xs font-bold rounded-xl h-9 px-3.5 border-border/80 shadow-2xs hover:bg-muted/80 cursor-pointer"
           >
             <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>
               {members.length} {members.length === 1 ? "Member" : "Members"}
             </span>
+            {currentUserRole === "admin" && pendingJoinRequests.length > 0 && (
+              <span
+                className="relative flex h-2.5 w-2.5 ml-0.5"
+                title={`${pendingJoinRequests.length} join request(s) awaiting your approval`}
+              >
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500 ring-2 ring-background" />
+              </span>
+            )}
           </Button>
 
           <Button
@@ -299,6 +315,15 @@ export function GroupTabs({
           >
             <ArrowLeftRight className="h-3.5 w-3.5" />
             <span>Balances</span>
+            {pendingSettlementConfirmations.length > 0 && activeTab !== "balances" && (
+              <span
+                className="relative flex h-2 w-2 ml-0.5"
+                title={`${pendingSettlementConfirmations.length} settlement(s) awaiting your affirmation`}
+              >
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+              </span>
+            )}
           </button>
         </div>
       </div>

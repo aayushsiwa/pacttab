@@ -58,16 +58,66 @@ export async function getUserGroups(userId: string) {
   const messageMap = new Map<string, Date | null>();
   messageStats.forEach((m) => messageMap.set(m.groupId, m.lastIncomingMessageAt));
 
-  return memberships.map((m) => ({
-    id: m.groupId,
-    name: m.groupName,
-    description: m.groupDescription,
-    role: m.role,
-    joinedAt: m.joinedAt,
-    createdAt: m.createdAt,
-    memberCount: countMap.get(m.groupId) || 1,
-    lastIncomingMessageAt: messageMap.get(m.groupId) || null,
-  }));
+  // Count pending join requests for groups where user is admin
+  const adminGroupIds = memberships
+    .filter((m) => m.role === "admin")
+    .map((m) => m.groupId);
+
+  const pendingJoinCounts = adminGroupIds.length > 0
+    ? await db
+        .select({
+          groupId: joinRequests.groupId,
+          count: sql<number>`count(${joinRequests.id})::int`,
+        })
+        .from(joinRequests)
+        .where(
+          and(
+            inArray(joinRequests.groupId, adminGroupIds),
+            eq(joinRequests.status, "pending")
+          )
+        )
+        .groupBy(joinRequests.groupId)
+    : [];
+
+  const pendingJoinMap = new Map<string, number>();
+  pendingJoinCounts.forEach((c) => pendingJoinMap.set(c.groupId, c.count));
+
+  // Count pending settlements requiring affirmation from current user
+  const pendingSettlementCounts = await db
+    .select({
+      groupId: settlements.groupId,
+      count: sql<number>`count(${settlements.id})::int`,
+    })
+    .from(settlements)
+    .where(
+      and(
+        inArray(settlements.groupId, groupIds),
+        eq(settlements.status, "pending"),
+        sql`(${settlements.createdByUserId} = ${settlements.paidByUserId} AND ${settlements.receivedByUserId} = ${userId}) OR (${settlements.createdByUserId} = ${settlements.receivedByUserId} AND ${settlements.paidByUserId} = ${userId})`
+      )
+    )
+    .groupBy(settlements.groupId);
+
+  const pendingSettlementMap = new Map<string, number>();
+  pendingSettlementCounts.forEach((s) => pendingSettlementMap.set(s.groupId, s.count));
+
+  return memberships.map((m) => {
+    const pendingJoinRequestsCount = pendingJoinMap.get(m.groupId) || 0;
+    const pendingSettlementsCount = pendingSettlementMap.get(m.groupId) || 0;
+    return {
+      id: m.groupId,
+      name: m.groupName,
+      description: m.groupDescription,
+      role: m.role,
+      joinedAt: m.joinedAt,
+      createdAt: m.createdAt,
+      memberCount: countMap.get(m.groupId) || 1,
+      lastIncomingMessageAt: messageMap.get(m.groupId) || null,
+      pendingJoinRequestsCount,
+      pendingSettlementsCount,
+      pendingActionCount: pendingJoinRequestsCount + pendingSettlementsCount,
+    };
+  });
 }
 
 export async function getGroupDetails(groupId: string, userId: string) {
@@ -254,3 +304,39 @@ export async function getGroupDetails(groupId: string, userId: string) {
     pendingJoinRequests,
   };
 }
+
+export async function getUserPendingJoinRequests(userId: string) {
+  return db
+    .select({
+      id: joinRequests.id,
+      groupId: joinRequests.groupId,
+      groupName: groups.name,
+      groupDescription: groups.description,
+      createdAt: joinRequests.createdAt,
+    })
+    .from(joinRequests)
+    .innerJoin(groups, eq(joinRequests.groupId, groups.id))
+    .where(and(eq(joinRequests.userId, userId), eq(joinRequests.status, "pending")))
+    .orderBy(desc(joinRequests.createdAt));
+}
+
+export async function getUserPendingAdminActionsCount(userId: string): Promise<number> {
+  const result = await db
+    .select({
+      count: sql<number>`count(${joinRequests.id})::int`,
+    })
+    .from(joinRequests)
+    .innerJoin(
+      groupMembers,
+      and(
+        eq(joinRequests.groupId, groupMembers.groupId),
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.role, "admin"),
+        eq(groupMembers.status, "active")
+      )
+    )
+    .where(eq(joinRequests.status, "pending"));
+
+  return result[0]?.count || 0;
+}
+
