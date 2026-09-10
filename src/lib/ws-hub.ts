@@ -62,6 +62,17 @@ export type WSEvent =
       username: string;
     }
   | {
+      type: "join_request_created";
+      groupId: string;
+      username: string;
+    }
+  | {
+      type: "join_request_reviewed";
+      groupId: string;
+      username: string;
+      status: "approved" | "declined";
+    }
+  | {
       type: "refresh";
       groupId: string;
     };

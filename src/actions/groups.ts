@@ -343,6 +343,14 @@ export async function joinGroupAction(token: string): Promise<{
           authorUsername: null,
         },
       });
+
+      await broadcastWsEvent({
+        type: "join_request_created",
+        groupId: invite.groupId,
+        username: user.username,
+      });
+
+      revalidatePath("/groups");
     }
 
     return {
@@ -471,7 +479,14 @@ export async function createJoinRequestAction(groupId: string): Promise<{ succes
     },
   });
 
+  await broadcastWsEvent({
+    type: "join_request_created",
+    groupId,
+    username: user.username,
+  });
+
   revalidatePath(`/group/${groupId}`);
+  revalidatePath("/groups");
   return { success: true };
 }
 
@@ -575,9 +590,17 @@ export async function reviewJoinRequestAction(
           username: req.username,
         });
       }
+
+      await broadcastWsEvent({
+        type: "join_request_reviewed",
+        groupId,
+        username: req.username,
+        status: decision,
+      });
     });
 
     revalidatePath(`/group/${groupId}`);
+    revalidatePath("/groups");
     return { success: true };
   } catch (error) {
     console.error("Failed to review join request:", error);
