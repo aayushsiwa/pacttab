@@ -201,8 +201,8 @@ export async function createInviteLinkAction(
     safeRevalidatePath(`/group/${groupId}`);
     return { success: true, token };
   } catch (error) {
-    console.error("Failed to create invite link:", error);
-    return { success: false, error: "Failed to generate invite link" };
+    console.error("Failed to rotate invite link:", error);
+    return { success: false, error: "Failed to rotate invite link" };
   }
 }
 
