@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PwaProvider } from "@/components/pwa-provider";
 import { getCurrentUser } from "@/lib/auth";
+import { getUserPendingAdminActionsCount } from "@/lib/queries";
 import { Navbar } from "@/components/navbar";
 import { OfflineBanner } from "@/components/offline-banner";
 import { Toaster } from "@/components/ui/sonner";
@@ -62,6 +63,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
+  const pendingAdminActionsCount = user ? await getUserPendingAdminActionsCount(user.id) : 0;
 
   return (
     <html
@@ -78,7 +80,7 @@ export default async function RootLayout({
         >
           <PwaProvider>
             <OfflineBanner />
-            <Navbar user={user} />
+            <Navbar user={user} pendingAdminActionsCount={pendingAdminActionsCount} />
             <main className="flex-1">{children}</main>
             <Toaster position="top-center" richColors />
           </PwaProvider>
