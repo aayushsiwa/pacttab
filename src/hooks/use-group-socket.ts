@@ -102,6 +102,12 @@ export function useGroupSocket({ groupId, userId, currentUsername, onNewMessage 
               const mem = data as Extract<WSEvent, { type: "member_joined" }>;
               toast.info(`${mem.username} joined the group!`);
               router.refresh();
+            } else if (data.type === "join_request_created") {
+              const req = data as Extract<WSEvent, { type: "join_request_created" }>;
+              toast.info(`@${req.username} requested to join the group`);
+              router.refresh();
+            } else if (data.type === "join_request_reviewed") {
+              router.refresh();
             } else if (data.type === "refresh") {
               router.refresh();
             }
