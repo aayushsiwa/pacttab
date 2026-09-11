@@ -13,6 +13,7 @@ Zero personal data. Zero email or phone numbers. 100% Private.
 
 <a href="#features">Features</a> •
 <a href="#tech-stack">Tech Stack</a> •
+<a href="#self-hosting">Self-Hosting</a> •
 <a href="#getting-started">Getting Started</a> •
 <a href="#available-scripts">Available Scripts</a> •
 <a href="#git-hooks--contributions">Git Hooks</a> •
@@ -179,8 +180,31 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 
 ---
 
+## Self-Hosting
+
+PactTab is ready to self-host with zero hassle using Docker Compose:
+
+```bash
+# 1. Clone & enter repository
+git clone https://github.com/aayushsiwa/pacttab.git
+cd pacttab
+
+# 2. Setup your environment
+cp .env.example .env
+
+# 3. Start full stack (Next.js, PostgreSQL, Redis, Auto-Migrations)
+docker compose up -d
+```
+
+- **Health check**: `curl http://localhost:3000/api/health`
+- **Low-memory / Lite mode (no Redis)**: `docker compose -f docker-compose.lite.yml up -d`
+- **Reverse proxies (Caddy/Nginx) & backups**: See the complete **[Self-Hosting Guide](docs/self-hosting.md)**.
+
+---
+
 ## Documentation & Architecture Plans
 
+- [Self-Hosting Guide](docs/self-hosting.md): Complete instructions for Docker Compose, low-memory mode, Caddy/Nginx reverse proxies, automated migrations, backups, and bare-metal systemd.
 - [Web MCP Implementation POC](docs/web-mcp-poc.md): Architectural design, use cases, security safeguards, and implementation roadmap for Model Context Protocol (Web MCP) support over SSE and in-browser agents.
 - [MVP Specification & Roadmap](MVP.md): Detailed product requirements, data entities, and shipped milestone tracking.
 
