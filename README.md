@@ -179,6 +179,13 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 
 ---
 
+## Documentation & Architecture Plans
+
+- [Web MCP Implementation POC](docs/web-mcp-poc.md): Architectural design, use cases, security safeguards, and implementation roadmap for Model Context Protocol (Web MCP) support over SSE and in-browser agents.
+- [MVP Specification & Roadmap](MVP.md): Detailed product requirements, data entities, and shipped milestone tracking.
+
+---
+
 ## License
 
 MIT License.
