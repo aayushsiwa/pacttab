@@ -188,14 +188,20 @@ A successful MVP allows a new user to:
 
 ## Suggested release sequence
 
-### Release 1
+### Release 1 (Shipped)
 
 Authentication, private groups, direct invite links, equal-split expenses, balances, settlements, and basic group chat.
 
-### Release 2
+### Release 2 (Shipped)
 
-Invite expiry and usage limits, revoke/rotate invites, admin join-request queue, custom splits, expense editing history, account/group deletion, and installable PWA polish.
+- Invite expiry, usage limits, custom invite tokens, and revoke/rotate actions
+- Admin join-request queue with pending status chips for requesters & notification indicators for admins
+- Custom splits (exact amounts per participant) alongside equal splits
+- Settlement affirmation workflow (payer records, receiver affirms/disputes)
+- Real-time WebSockets with Redis pub/sub and group `@mention` autocomplete
+- Installable PWA with offline fallback shell and manifest
+- Automated test coverage via Vitest (10 test suites, 44 tests)
 
-### Release 3
+### Release 3 (Planned)
 
-Offline expense drafts, notifications, attachments, recurring expenses, multiple currencies, and optional payment-link integrations.
+Offline expense drafts, external push notifications, attachments/receipt uploads, recurring expenses, multiple currencies, and optional payment-link integrations.
