@@ -25,6 +25,8 @@
     "test:release2": "vitest run tests/release-2-flow.test.ts",
     "test:custom-invites": "vitest run tests/custom-invite-links.test.ts",
     "test:admin-notifications": "vitest run tests/admin-notifications.test.ts",
+    "services:up": "docker compose up -d db redis",
+    "services:down": "docker compose down",
     "prepare": "husky"
   },
   "dependencies": {

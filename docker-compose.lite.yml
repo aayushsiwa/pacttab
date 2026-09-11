@@ -30,6 +30,8 @@ services:
     image: postgres:16-alpine
     container_name: pacttab_db_lite
     restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-pacttab}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pacttab_secure_pass}
