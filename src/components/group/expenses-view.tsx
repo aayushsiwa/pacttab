@@ -19,6 +19,9 @@ import {
 import { Receipt, Trash2, Calendar, User, Users, Edit3, Download } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime, formatDate } from "@/lib/date";
+import { formatMoney } from "@/lib/format";
+import { IconTile } from "@/components/shared/icon-tile";
+import { StatusPill } from "@/components/shared/status-pill";
 import { exportExpensesToCsv } from "@/lib/export-csv";
 
 interface ExpenseItem {
@@ -96,16 +99,12 @@ export function ExpensesView({
             <span className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
               Total Group Spending
             </span>
-            <span className="py-0.2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+            <StatusPill tone="emerald" size="sm">
               Active Tab
-            </span>
+            </StatusPill>
           </div>
           <div className="text-foreground text-3xl font-black tracking-tight sm:text-4xl">
-            ₹
-            {totalSpent.toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {formatMoney(totalSpent)}
           </div>
           <p className="text-muted-foreground text-xs">
             Cumulative across {expenses.length} {expenses.length === 1 ? "expense" : "expenses"}
@@ -158,9 +157,11 @@ export function ExpensesView({
               >
                 <CardContent className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
                   <div className="flex min-w-0 flex-1 items-start gap-3.5">
-                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 font-bold text-emerald-600 shadow-2xs ring-1 ring-emerald-500/20 dark:text-emerald-400">
-                      <Receipt className="h-5 w-5" />
-                    </div>
+                    <IconTile
+                      tone="emerald"
+                      icon={Receipt}
+                      className="mt-0.5 ring-1 ring-emerald-500/20"
+                    />
 
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
@@ -213,7 +214,7 @@ export function ExpensesView({
                                 : "bg-muted/60 text-muted-foreground border-border/50"
                             }`}
                           >
-                            @{s.username || "member"} (₹{Number(s.owedAmount).toFixed(2)})
+                            @{s.username || "member"} ({formatMoney(s.owedAmount)})
                           </span>
                         ))}
                       </div>
@@ -224,10 +225,10 @@ export function ExpensesView({
                   <div className="border-border/60 flex shrink-0 items-center justify-between gap-2 border-t pt-3 sm:flex-col sm:items-end sm:justify-center sm:border-t-0 sm:pt-0">
                     <div className="text-left sm:text-right">
                       <div className="text-foreground text-xl font-black tracking-tight">
-                        ₹{Number(exp.amount).toFixed(2)}
+                        {formatMoney(exp.amount)}
                       </div>
                       <div className="text-muted-foreground text-[11px] font-medium">
-                        ₹{(Number(exp.amount) / exp.splits.length).toFixed(2)} / person
+                        {formatMoney(Number(exp.amount) / exp.splits.length)} / person
                       </div>
                     </div>
 
@@ -269,9 +270,9 @@ export function ExpensesView({
           <DialogHeader>
             <DialogTitle>Delete Expense</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &ldquo;{expenseToDelete?.description}&rdquo; (₹
-              {Number(expenseToDelete?.amount || 0).toFixed(2)})? This will remove the split debt
-              for all members.
+              Are you sure you want to delete &ldquo;{expenseToDelete?.description}&rdquo; (
+              {formatMoney(expenseToDelete?.amount || 0)})? This will remove the split debt for all
+              members.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 pt-2 sm:gap-0">

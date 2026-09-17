@@ -1,0 +1,12 @@
+{$DOMAIN:localhost} {
+    encode gzip
+
+    # Reverse proxy Next.js and WebSocket traffic
+    reverse_proxy app:3000 {
+        # WebSocket upgrade is handled automatically by Caddy
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

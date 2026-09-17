@@ -204,4 +204,4 @@ Authentication, private groups, direct invite links, equal-split expenses, balan
 
 ### Release 3 (Planned)
 
-Offline expense drafts, external push notifications, attachments/receipt uploads, recurring expenses, multiple currencies, and optional payment-link integrations.
+Offline expense drafts, external push notifications, attachments/receipt uploads, recurring expenses, multiple currencies, Web MCP (Model Context Protocol) agent connectivity ([POC](docs/web-mcp-poc.md)), and optional payment-link integrations.

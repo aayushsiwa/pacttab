@@ -1,0 +1,21 @@
+[Unit]
+Description=PactTab - Private Group Expenses & Real-Time Chat
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=pacttab
+WorkingDirectory=/opt/pacttab
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
+EnvironmentFile=/opt/pacttab/.env
+ExecStart=/usr/bin/pnpm start
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=pacttab
+
+[Install]
+WantedBy=multi-user.target

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Edit3, AlertCircle, Check } from "lucide-react";
 import { toast } from "sonner";
+import { formatMoney } from "@/lib/format";
 
 interface Member {
   id: string;
@@ -391,8 +392,8 @@ function EditExpenseForm({
 
             {numAmount > 0 && participantCount > 0 && (
               <div className="bg-muted/60 text-muted-foreground rounded-lg p-2.5 text-center text-xs">
-                Equal Split: <strong className="text-foreground">₹{perPerson}</strong> per person (
-                {participantCount} {participantCount === 1 ? "person" : "people"})
+                Equal Split: <strong className="text-foreground">{formatMoney(perPerson)}</strong>{" "}
+                per person ({participantCount} {participantCount === 1 ? "person" : "people"})
               </div>
             )}
           </>
@@ -466,7 +467,7 @@ function EditExpenseForm({
                   {isSelected && splitType === "shares" && (
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="text-muted-foreground text-[11px]">
-                        ≈ ₹{estimatedShareRupees}
+                        ≈ {formatMoney(estimatedShareRupees)}
                       </span>
                       <Input
                         type="number"
@@ -491,12 +492,12 @@ function EditExpenseForm({
                     : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
                 }`}
               >
-                Allocated: ₹{exactSum.toFixed(2)} of ₹{numAmount.toFixed(2)}{" "}
+                Allocated: {formatMoney(exactSum)} of {formatMoney(numAmount)}{" "}
                 {Math.abs(exactRemaining) < 0.01 ? (
                   "• ✓ Exact Match"
                 ) : (
                   <span>
-                    • Remaining: <strong>₹{exactRemaining.toFixed(2)}</strong>
+                    • Remaining: <strong>{formatMoney(exactRemaining)}</strong>
                   </span>
                 )}
               </div>

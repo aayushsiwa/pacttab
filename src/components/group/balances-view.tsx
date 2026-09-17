@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import type { MemberBalance, SuggestedSettlement } from "@/lib/balances";
 import { formatRelativeTime, formatDate } from "@/lib/date";
+import { formatMoney } from "@/lib/format";
+import { AmountChip } from "@/components/shared/amount-chip";
+import { IconTile } from "@/components/shared/icon-tile";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { toast } from "sonner";
 
@@ -186,9 +189,7 @@ export function BalancesView({
                     </div>
                     <div className="text-foreground text-xs font-medium">
                       @{set.payerUsername} ➔ @{set.recipientUsername}:{" "}
-                      <strong className="text-sm font-bold">
-                        ₹{Number(set.amount).toFixed(2)}
-                      </strong>
+                      <strong className="text-sm font-bold">{formatMoney(set.amount)}</strong>
                     </div>
                     <div className="text-muted-foreground text-[11px]">
                       {isAwaitingMyConfirmation
@@ -280,9 +281,9 @@ export function BalancesView({
             </div>
             <div className="text-2xl font-black tracking-tight sm:text-3xl">
               {myNet > 0.009
-                ? `You are owed ₹${myNet.toFixed(2)}`
+                ? `You are owed ${formatMoney(myNet)}`
                 : myNet < -0.009
-                  ? `You owe ₹${Math.abs(myNet).toFixed(2)}`
+                  ? `You owe ${formatMoney(Math.abs(myNet))}`
                   : "You are all settled up! 🎉"}
             </div>
             <p className="mt-0.5 text-xs opacity-75">
@@ -353,26 +354,20 @@ export function BalancesView({
                         )}
                       </div>
                       <div className="text-muted-foreground truncate text-[11px]">
-                        Paid ₹{b.totalPaid.toFixed(2)} • Share ₹{b.totalOwed.toFixed(2)}
+                        Paid {formatMoney(b.totalPaid)} • Share {formatMoney(b.totalOwed)}
                       </div>
                     </div>
                   </div>
 
                   <div className="shrink-0 text-right">
-                    {isOwed && (
-                      <span className="inline-flex items-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-black text-emerald-600 sm:text-sm dark:text-emerald-400">
-                        +₹{b.netBalance.toFixed(2)}
-                      </span>
-                    )}
-                    {owes && (
-                      <span className="inline-flex items-center rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-black text-amber-600 sm:text-sm dark:text-amber-400">
-                        -₹{Math.abs(b.netBalance).toFixed(2)}
-                      </span>
-                    )}
+                    {isOwed && <AmountChip polarity="+" value={b.netBalance} />}
+                    {owes && <AmountChip polarity="-" value={Math.abs(b.netBalance)} />}
                     {isSettled && (
-                      <span className="text-muted-foreground bg-muted/60 inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Settled
-                      </span>
+                      <AmountChip
+                        polarity="settled"
+                        value={0}
+                        settledIcon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
+                      />
                     )}
                   </div>
                 </div>
@@ -392,9 +387,12 @@ export function BalancesView({
           <CardContent className="space-y-2.5 p-5 pt-0">
             {suggestedSettlements.length === 0 ? (
               <div className="text-muted-foreground flex flex-col items-center justify-center py-10 text-center">
-                <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
+                <IconTile
+                  size="lg"
+                  tone="emerald"
+                  icon={CheckCircle2}
+                  className="mb-2.5 h-12 w-12 rounded-2xl"
+                />
                 <p className="text-foreground text-sm font-bold">All settled up!</p>
                 <p className="text-muted-foreground mt-1 max-w-xs text-xs leading-relaxed">
                   No debts currently need to be paid in this group.
@@ -441,7 +439,7 @@ export function BalancesView({
                       <div className="text-muted-foreground text-xs">
                         Amount:{" "}
                         <strong className="text-foreground text-sm font-black">
-                          ₹{s.amount.toFixed(2)}
+                          {formatMoney(s.amount)}
                         </strong>
                       </div>
                     </div>
@@ -527,7 +525,7 @@ export function BalancesView({
                 </div>
 
                 <span className="text-foreground text-sm font-black">
-                  ₹{Number(set.amount).toFixed(2)}
+                  {formatMoney(set.amount)}
                 </span>
               </div>
             ))}
