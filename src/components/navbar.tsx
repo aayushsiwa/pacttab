@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { GradientTile } from "@/components/shared/gradient-tile";
+import { StatusPill } from "@/components/shared/status-pill";
+import { PingIndicator } from "@/components/shared/ping-indicator";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,19 +68,23 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
             href={user ? "/groups" : "/"}
             className="group flex items-center gap-2.5 transition-transform active:scale-95"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 text-base font-black text-white shadow-sm ring-1 ring-black/5 transition-shadow group-hover:shadow-md">
+            <GradientTile
+              size="sm"
+              className="shadow-sm ring-1 ring-black/5 transition-shadow group-hover:shadow-md"
+            >
               ₹
-            </div>
+            </GradientTile>
             <div className="flex items-center gap-2">
               <span className="from-foreground via-foreground to-foreground/80 bg-gradient-to-r bg-clip-text text-lg font-extrabold tracking-tight">
                 PactTab
               </span>
-              <Badge
-                variant="outline"
-                className="hidden rounded-full border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-emerald-600 uppercase sm:inline-flex dark:text-emerald-400"
+              <StatusPill
+                tone="emerald"
+                size="sm"
+                className="hidden tracking-wider uppercase sm:inline-flex"
               >
                 Zero-Data
-              </Badge>
+              </StatusPill>
             </div>
           </Link>
 
@@ -90,13 +96,11 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
               >
                 <span>Groups</span>
                 {pendingAdminActionsCount > 0 && (
-                  <span
-                    className="relative flex h-2 w-2"
+                  <PingIndicator
+                    size="sm"
+                    tone="amber"
                     title={`${pendingAdminActionsCount} pending request(s) awaiting your approval`}
-                  >
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                    <span className="ring-background relative inline-flex h-2 w-2 rounded-full bg-amber-500 ring-1" />
-                  </span>
+                  />
                 )}
               </Link>
             </nav>
@@ -113,12 +117,7 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
                 >
                   <div className="relative">
                     <UserAvatar username={user.username} size="sm" className="h-6 w-6" />
-                    {pendingAdminActionsCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                        <span className="ring-card relative inline-flex h-2 w-2 rounded-full bg-amber-500 ring-1" />
-                      </span>
-                    )}
+                    {pendingAdminActionsCount > 0 && <PingIndicator size="sm" tone="amber" />}
                   </div>
                   <span className="text-foreground/90 max-w-[120px] truncate text-xs font-semibold">
                     @{user.username}
@@ -145,9 +144,9 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
                         <span>Your Groups</span>
                       </div>
                       {pendingAdminActionsCount > 0 && (
-                        <span className="py-0.2 rounded-full border border-amber-500/30 bg-amber-500/15 px-1.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                        <StatusPill tone="amber" size="sm">
                           {pendingAdminActionsCount}
-                        </span>
+                        </StatusPill>
                       )}
                     </DropdownMenuItem>
                   </Link>

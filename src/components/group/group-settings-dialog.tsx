@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { formatMoney } from "@/lib/format";
 import {
   Settings,
   ShieldAlert,
@@ -263,11 +264,13 @@ export function GroupSettingsDialog({
                 <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                   <div>
-                    <span className="block font-bold">Balance must be ₹0.00 to leave</span>
+                    <span className="block font-bold">
+                      Balance must be {formatMoney(0)} to leave
+                    </span>
                     <span className="mt-0.5 block text-[11px] opacity-90">
                       {userNetBalance > 0
-                        ? `You are owed ₹${userNetBalance.toFixed(2)}. Settle up with other members before leaving.`
-                        : `You owe ₹${Math.abs(userNetBalance).toFixed(2)}. Please settle all debts before leaving.`}
+                        ? `You are owed ${formatMoney(userNetBalance)}. Settle up with other members before leaving.`
+                        : `You owe ${formatMoney(Math.abs(userNetBalance))}. Please settle all debts before leaving.`}
                     </span>
                   </div>
                 </div>
@@ -289,7 +292,7 @@ export function GroupSettingsDialog({
                       variant="outline"
                       className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400"
                     >
-                      Balance ₹0.00
+                      Balance {formatMoney(0)}
                     </Badge>
                     <span className="text-muted-foreground text-[11px]">Ready to leave</span>
                   </div>

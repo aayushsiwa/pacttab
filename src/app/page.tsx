@@ -4,11 +4,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { GradientTile } from "@/components/shared/gradient-tile";
+import { FeatureCard } from "@/components/shared/feature-card";
+import { SectionHeading } from "@/components/shared/section-heading";
+import { StatusPill } from "@/components/shared/status-pill";
+import { PingIndicator } from "@/components/shared/ping-indicator";
 import {
-  MessageSquare,
-  Split,
   ArrowRight,
   Lock,
+  Split,
+  MessageSquare,
   Server,
   EyeOff,
   KeyRound,
@@ -125,10 +130,9 @@ export default async function HomePage() {
 
       {/* Hero Section */}
       <section className="flex w-full flex-col items-center px-4 pt-14 pb-12 text-center sm:pt-20 sm:pb-16">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-700 shadow-2xs dark:text-emerald-300">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-          <span>Zero email • Zero phone numbers • 100% Private</span>
-        </div>
+        <StatusPill tone="emerald" dot size="lg" className="mb-6">
+          Zero email • Zero phone numbers • 100% Private
+        </StatusPill>
 
         <h1 className="text-foreground max-w-3xl text-4xl leading-[1.15] font-black tracking-tight sm:text-5xl md:text-6xl">
           Split expenses & chat with friends in{" "}
@@ -182,23 +186,22 @@ export default async function HomePage() {
           <div className="border-border/60 mb-4 flex items-center justify-between border-b pb-3">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-sm font-bold text-white shadow-2xs">
+                <GradientTile
+                  size="md"
+                  gradient="from-emerald-600 to-teal-600"
+                  weight="bold"
+                  className="shadow-2xs"
+                >
                   🌴
-                </div>
-                <span className="absolute -top-1 -right-1 flex h-3 w-3" title="New unread activity">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="ring-card relative inline-flex h-3 w-3 rounded-full bg-emerald-500 shadow-xs ring-2" />
-                </span>
+                </GradientTile>
+                <PingIndicator title="New unread activity" />
               </div>
               <div className="text-left">
                 <div className="flex items-center gap-2">
                   <h3 className="text-foreground text-sm font-bold sm:text-base">
                     Goa Road Trip 2026
                   </h3>
-                  <span className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                    Live
-                  </span>
+                  <StatusPill dot>Live</StatusPill>
                 </div>
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <div className="flex -space-x-1.5 overflow-hidden">
@@ -288,17 +291,12 @@ export default async function HomePage() {
       {/* How It Works */}
       <section id="how-it-works" className="scroll-mt-24">
         <div className="container mb-16 max-w-5xl px-4 py-8">
-          <div className="mb-10 text-center">
-            <span className="border-border/80 bg-card/70 text-muted-foreground mb-4 inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-semibold shadow-xs">
-              How it works
-            </span>
-            <h2 className="text-foreground text-2xl font-black tracking-tight sm:text-3xl">
-              From awkward IOUs to{" "}
-              <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
-                settled in seconds.
-              </span>
-            </h2>
-          </div>
+          <SectionHeading
+            className="mb-10"
+            eyebrow="How it works"
+            title="From awkward IOUs to"
+            accent="settled in seconds."
+          />
 
           <div className="relative grid grid-cols-1 gap-6 text-left md:grid-cols-3">
             {steps.map(({ icon: Icon, step, title, description }) => (
@@ -308,9 +306,9 @@ export default async function HomePage() {
               >
                 <CardHeader className="p-6">
                   <div className="mb-4 flex items-center justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-sm">
+                    <GradientTile size="lg" gradient="from-emerald-600 to-teal-600">
                       <Icon className="h-5 w-5" />
-                    </div>
+                    </GradientTile>
                     <span className="text-foreground/30 font-mono text-lg font-black">{step}</span>
                   </div>
                   <CardTitle className="text-lg font-bold">{title}</CardTitle>
@@ -326,80 +324,51 @@ export default async function HomePage() {
 
       {/* Feature Highlights */}
       <section className="container mb-16 max-w-5xl px-4 py-8">
-        <div className="mb-10 text-center">
-          <h2 className="text-foreground text-2xl font-black tracking-tight sm:text-3xl">
-            Everything Splitwise does…
-          </h2>
-          <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-sm leading-relaxed">
-            …minus the data harvesting, the ads, and the sign-up bureaucracy. Plus a few things it
-            never bothered to build.
-          </p>
-        </div>
+        <SectionHeading
+          className="mb-10"
+          title="Everything Splitwise does…"
+          subtitle="…minus the data harvesting, the ads, and the sign-up bureaucracy. Plus a few things it never bothered to build."
+        />
 
         <div className="grid grid-cols-1 gap-6 text-left md:grid-cols-3">
-          <Card className="border-border/80 bg-card/70 rounded-2xl border shadow-xs transition-all hover:border-emerald-500/40 hover:shadow-md">
-            <CardHeader className="p-6">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 shadow-2xs dark:text-emerald-400">
-                <Lock className="h-5 w-5" />
-              </div>
-              <CardTitle className="text-lg font-bold">Zero Personal Data</CardTitle>
-              <CardDescription className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
-                Sign up with only a handle and password. No email verification, no phone number
-                harvesting, and zero third-party trackers.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <FeatureCard
+            icon={Lock}
+            tone="emerald"
+            title="Zero Personal Data"
+            description="Sign up with only a handle and password. No email verification, no phone number harvesting, and zero third-party trackers."
+          />
 
-          <Card className="border-border/80 bg-card/70 rounded-2xl border shadow-xs transition-all hover:border-teal-500/40 hover:shadow-md">
-            <CardHeader className="p-6">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 shadow-2xs dark:text-teal-400">
-                <Split className="h-5 w-5" />
-              </div>
-              <CardTitle className="text-lg font-bold">Optimal Balances</CardTitle>
-              <CardDescription className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
-                Record shared bills and let the algorithm calculate net balances and minimum debt
-                settlement transfers automatically.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <FeatureCard
+            icon={Split}
+            tone="teal"
+            title="Optimal Balances"
+            description="Record shared bills and let the algorithm calculate net balances and minimum debt settlement transfers automatically."
+          />
 
-          <Card className="border-border/80 bg-card/70 rounded-2xl border shadow-xs transition-all hover:border-indigo-500/40 hover:shadow-md">
-            <CardHeader className="p-6">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 shadow-2xs dark:text-indigo-400">
-                <MessageSquare className="h-5 w-5" />
-              </div>
-              <CardTitle className="text-lg font-bold">Real-Time Chat & @Mentions</CardTitle>
-              <CardDescription className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
-                Discuss plans, tag group members with autocomplete @mentions, and see financial
-                updates live via WebSockets.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <FeatureCard
+            icon={MessageSquare}
+            tone="indigo"
+            title="Real-Time Chat & @Mentions"
+            description="Discuss plans, tag group members with autocomplete @mentions, and see financial updates live via WebSockets."
+          />
         </div>
       </section>
 
       {/* Comparison vs Splitwise */}
       <section className="container mb-16 max-w-5xl px-4 py-8">
-        <div className="mb-8 text-center">
-          <h2 className="text-foreground text-2xl font-black tracking-tight sm:text-3xl">
-            Built to fix what{" "}
-            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
-              split apps get wrong.
-            </span>
-          </h2>
-          <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-sm leading-relaxed">
-            The basics shouldn&apos;t be locked behind a premium plan, and your friendships
-            shouldn&apos;t be the product.
-          </p>
-        </div>
+        <SectionHeading
+          title="Built to fix what"
+          accent="split apps get wrong."
+          subtitle="The basics shouldn't be locked behind a premium plan, and your friendships shouldn't be the product."
+        />
 
         <div className="border-border/80 bg-card/70 overflow-hidden rounded-2xl border shadow-md">
           {/* Column Headers */}
           <div className="border-border/70 bg-muted/40 grid grid-cols-2 border-b">
             <div className="flex items-center gap-2.5 px-5 py-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 text-sm font-black text-white shadow-sm">
+              <GradientTile size="xs" rounded="lg">
                 ₹
-              </div>
+              </GradientTile>
               <div className="text-left">
                 <div className="text-foreground text-sm font-extrabold">PactTab</div>
                 <div className="text-[10px] font-bold tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
@@ -464,58 +433,33 @@ export default async function HomePage() {
 
       {/* Self-Hosting & Privacy */}
       <section className="container mb-16 max-w-5xl px-4 py-8">
-        <div className="mb-8 text-center">
-          <h2 className="text-foreground text-2xl font-black tracking-tight sm:text-3xl">
-            Your money. Your server.{" "}
-            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
-              Your rules.
-            </span>
-          </h2>
-          <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-sm leading-relaxed">
-            PactTab is fully open source and built privacy-first from day one — no sneaky defaults,
-            no data resale, no dark patterns. Self-host it or trust the public instance.
-          </p>
-        </div>
+        <SectionHeading
+          title="Your money. Your server."
+          accent="Your rules."
+          subtitle="PactTab is fully open source and built privacy-first from day one — no sneaky defaults, no data resale, no dark patterns. Self-host it or trust the public instance."
+        />
 
         <div className="grid grid-cols-1 gap-6 text-left md:grid-cols-3">
-          <Card className="border-border/80 bg-card/70 rounded-2xl border shadow-xs transition-all hover:border-emerald-500/40 hover:shadow-md">
-            <CardHeader className="p-6">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 shadow-2xs dark:text-emerald-400">
-                <Server className="h-5 w-5" />
-              </div>
-              <CardTitle className="text-lg font-bold">Self-Hostable & Open Source</CardTitle>
-              <CardDescription className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
-                Run the entire app on your own infrastructure with a single command. Full code
-                auditability on GitHub — no black boxes, ever.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <FeatureCard
+            icon={Server}
+            tone="emerald"
+            title="Self-Hostable & Open Source"
+            description="Run the entire app on your own infrastructure with a single command. Full code auditability on GitHub — no black boxes, ever."
+          />
 
-          <Card className="border-border/80 bg-card/70 rounded-2xl border shadow-xs transition-all hover:border-teal-500/40 hover:shadow-md">
-            <CardHeader className="p-6">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 shadow-2xs dark:text-teal-400">
-                <KeyRound className="h-5 w-5" />
-              </div>
-              <CardTitle className="text-lg font-bold">Encrypted Access, Not Emails</CardTitle>
-              <CardDescription className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
-                Invite members with a shareable link and a password. No email harvesting, no phone
-                number collections, and nothing sold to advertisers.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <FeatureCard
+            icon={KeyRound}
+            tone="teal"
+            title="Encrypted Access, Not Emails"
+            description="Invite members with a shareable link and a password. No email harvesting, no phone number collections, and nothing sold to advertisers."
+          />
 
-          <Card className="border-border/80 bg-card/70 rounded-2xl border shadow-xs transition-all hover:border-indigo-500/40 hover:shadow-md">
-            <CardHeader className="p-6">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 shadow-2xs dark:text-indigo-400">
-                <EyeOff className="h-5 w-5" />
-              </div>
-              <CardTitle className="text-lg font-bold">Zero Tracking, Zero Dark Patterns</CardTitle>
-              <CardDescription className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
-                No analytics scripts, no cookies, no fingerprinting. If you delete your account,
-                everything goes with you — for real.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <FeatureCard
+            icon={EyeOff}
+            tone="indigo"
+            title="Zero Tracking, Zero Dark Patterns"
+            description="No analytics scripts, no cookies, no fingerprinting. If you delete your account, everything goes with you — for real."
+          />
         </div>
       </section>
 
@@ -566,9 +510,7 @@ export default async function HomePage() {
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row sm:items-start">
             <div className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-left">
               <Link href="/" className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 text-sm font-black text-white shadow-sm">
-                  ₹
-                </div>
+                <GradientTile size="xs">₹</GradientTile>
                 <span className="text-foreground text-base font-extrabold tracking-tight">
                   PactTab
                 </span>

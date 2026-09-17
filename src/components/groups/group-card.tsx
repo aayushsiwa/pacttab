@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { GradientTile } from "@/components/shared/gradient-tile";
+import { StatusPill } from "@/components/shared/status-pill";
+import { PingIndicator } from "@/components/shared/ping-indicator";
 import { Users, ArrowRight } from "lucide-react";
 
 export interface GroupCardItem {
@@ -81,32 +84,22 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
             <div className="flex min-w-0 items-center gap-3">
               {/* Avatar with unread / pending action notification dot */}
               <div className="relative shrink-0">
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr ${gradient} text-sm font-bold text-white shadow-2xs`}
-                >
+                <GradientTile size="md" gradient={gradient} weight="bold" className="shadow-2xs">
                   {group.name.charAt(0).toUpperCase()}
-                </div>
+                </GradientTile>
 
                 {hasPendingAction ? (
-                  <span
-                    className="absolute -top-1 -right-1 flex h-3.5 w-3.5"
+                  <PingIndicator
+                    size="md"
+                    tone="amber"
                     title={
                       hasJoinRequests
                         ? `${group.pendingJoinRequestsCount} join request(s) awaiting admin approval`
                         : "Action awaiting confirmation"
                     }
-                  >
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                    <span className="ring-card relative inline-flex h-3.5 w-3.5 rounded-full bg-amber-500 shadow-xs ring-2" />
-                  </span>
+                  />
                 ) : isUnread ? (
-                  <span
-                    className="absolute -top-1 -right-1 flex h-3.5 w-3.5"
-                    title="Unread messages in group"
-                  >
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="ring-card relative inline-flex h-3.5 w-3.5 rounded-full bg-emerald-500 shadow-xs ring-2" />
-                  </span>
+                  <PingIndicator size="md" title="Unread messages in group" />
                 ) : null}
               </div>
 
@@ -123,28 +116,26 @@ export function GroupCard({ group, currentUserId, gradient }: GroupCardProps) {
             {/* Badges: Action Required / Unread notification pill + Admin/Member badge */}
             <div className="flex shrink-0 items-center gap-1.5">
               {hasPendingAction && (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 shadow-2xs dark:text-amber-300"
+                <StatusPill
+                  tone="amber"
+                  size="sm"
+                  dot
                   title={
                     hasJoinRequests
                       ? `${group.pendingJoinRequestsCount} join request(s) awaiting approval`
                       : "Action required"
                   }
                 >
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-                  <span>
-                    {hasJoinRequests
-                      ? `${group.pendingJoinRequestsCount} REQUEST${(group.pendingJoinRequestsCount || 0) > 1 ? "S" : ""}`
-                      : "ACTION"}
-                  </span>
-                </span>
+                  {hasJoinRequests
+                    ? `${group.pendingJoinRequestsCount} REQUEST${(group.pendingJoinRequestsCount || 0) > 1 ? "S" : ""}`
+                    : "ACTION"}
+                </StatusPill>
               )}
 
               {isUnread && !hasPendingAction && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 shadow-2xs dark:text-emerald-300">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                  <span>NEW</span>
-                </span>
+                <StatusPill tone="emerald" size="sm" dot>
+                  NEW
+                </StatusPill>
               )}
 
               <Badge
