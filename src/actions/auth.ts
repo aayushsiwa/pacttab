@@ -145,7 +145,7 @@ export async function signInAction(
     .where(eq(users.username, normalizedUsername))
     .limit(1);
 
-  if (matchedUsers.length === 0) {
+  if (matchedUsers.length === 0 || !matchedUsers[0].passwordHash) {
     return {
       error: "Invalid username or password.",
       username: usernameStr,
@@ -153,7 +153,7 @@ export async function signInAction(
   }
 
   const user = matchedUsers[0];
-  const isValid = await verifyPassword(validation.data.password, user.passwordHash);
+  const isValid = await verifyPassword(validation.data.password, user.passwordHash!);
 
   if (!isValid) {
     return {
@@ -202,7 +202,7 @@ export async function deleteAccountAction(
     .where(eq(users.id, user.id))
     .limit(1);
 
-  if (!dbUser) {
+  if (!dbUser || !dbUser.passwordHash) {
     return { success: false, error: "User not found" };
   }
 
