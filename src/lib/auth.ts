@@ -46,7 +46,7 @@ export const betterAuthInstance = betterAuth({
           data:
             "username" in user && user.username
               ? user
-              : { ...user, username: provisionalUsername(user.id) },
+              : { ...user, username: provisionalUsername(user.id), needsUsername: true },
         }),
       },
     },
@@ -102,10 +102,16 @@ export async function getCurrentUser(): Promise<{
   id: string;
   username: string;
   createdAt: Date;
+  needsUsername: boolean;
 } | null> {
   if (process.env.TEST_CURRENT_USER_ID) {
     const [user] = await db
-      .select({ id: users.id, username: users.username, createdAt: users.createdAt })
+      .select({
+        id: users.id,
+        username: users.username,
+        createdAt: users.createdAt,
+        needsUsername: users.needsUsername,
+      })
       .from(users)
       .where(eq(users.id, process.env.TEST_CURRENT_USER_ID))
       .limit(1);
@@ -116,7 +122,12 @@ export async function getCurrentUser(): Promise<{
     const id = store.get(SESSION_COOKIE_NAME)?.value;
     if (id) {
       const [user] = await db
-        .select({ id: users.id, username: users.username, createdAt: users.createdAt })
+        .select({
+          id: users.id,
+          username: users.username,
+          createdAt: users.createdAt,
+          needsUsername: users.needsUsername,
+        })
         .from(sessions)
         .innerJoin(users, eq(sessions.userId, users.id))
         .where(and(eq(sessions.id, id), gt(sessions.expiresAt, new Date())))
@@ -127,7 +138,12 @@ export async function getCurrentUser(): Promise<{
     const socialSession = await betterAuthInstance.api.getSession({ headers: await headers() });
     if (!socialSession?.user) return null;
     const [user] = await db
-      .select({ id: users.id, username: users.username, createdAt: users.createdAt })
+      .select({
+        id: users.id,
+        username: users.username,
+        createdAt: users.createdAt,
+        needsUsername: users.needsUsername,
+      })
       .from(users)
       .where(eq(users.id, socialSession.user.id))
       .limit(1);
@@ -141,5 +157,6 @@ export async function getCurrentUser(): Promise<{
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.needsUsername) redirect("/onboarding");
   return user;
 }
