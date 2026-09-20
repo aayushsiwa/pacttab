@@ -15,12 +15,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, ShieldAlert, Lock, User, Link2, Check } from "lucide-react";
+import { SocialSignInOptions } from "@/components/auth/social-sign-in-options";
+import type { SocialAuthProvider } from "@/lib/social-auth-config";
 
 interface SignUpFormProps {
   returnTo?: string;
+  socialProviders?: { id: SocialAuthProvider; label: string }[];
 }
 
-export function SignUpForm({ returnTo }: SignUpFormProps) {
+export function SignUpForm({ returnTo, socialProviders = [] }: SignUpFormProps) {
   const [state, formAction, isPending] = useActionState<AuthActionState | null, FormData>(
     signUpAction,
     null
@@ -187,6 +190,8 @@ export function SignUpForm({ returnTo }: SignUpFormProps) {
           >
             {isPending ? "Creating account..." : "Create Account"}
           </Button>
+
+          <SocialSignInOptions providers={socialProviders} returnTo={returnTo} />
 
           <div className="text-muted-foreground text-center text-xs font-medium">
             Already have an account?{" "}
