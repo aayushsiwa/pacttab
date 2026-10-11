@@ -1,597 +1,487 @@
-# Refactor: Migrate to better-auth for Username/Password Authentication
+# TanStack Query Migration Plan
 
-## Overview
+## Current Architecture Problems
 
-This document outlines the migration from the current custom auth implementation (`src/lib/auth.ts`, `src/actions/auth.ts`) to **better-auth** (v1.7.3, already installed) with username/password authentication.
+- Server-centric: `revalidatePath()` + `router.refresh()` re-fetches entire page
+- No optimistic updates - UI blocked on server round-trip
+- No client-side cache deduplication
+- Race conditions between WS events and server action cache invalidation
+- WebSocket handlers manually call `router.refresh()` for specific event types
+
+## Target Architecture
+
+- **TanStack Query v5** for all client-side data fetching
+- **Server Actions** become Query mutations with `onMutate`/`onError`/`onSettled` for optimistic updates
+- **WebSocket events** directly invalidate/update query cache via `queryClient.invalidateQueries()` or `queryClient.setQueryData()`
+- Remove all `router.refresh()` and `revalidatePath()` calls
 
 ---
 
-## Current Implementation
+## Phase 1: Setup & Provider (Week 1)
 
-### Files to Replace
+### 1.1 Install Dependencies
 
-- `src/lib/auth.ts` - Password hashing, session management, cookie handling, user retrieval
-- `src/actions/auth.ts` - Server actions: `signUpAction`, `signInAction`, `signOutAction`, `deleteAccountAction`
-
-### Current Schema (users table)
-
-```typescript
-// src/db/schema.ts
-users: {
-  id: text PK,
-  username: varchar(50) UNIQUE NOT NULL,
-  passwordHash: text NOT NULL,
-  createdAt: timestamp
-}
-sessions: {
-  id: text PK,
-  userId: text FK -> users.id CASCADE,
-  expiresAt: timestamp NOT NULL,
-  createdAt: timestamp
-}
+```bash
+npm install @tanstack/react-query @tanstack/react-query-devtools
+npm install -D @tanstack/eslint-plugin-query
 ```
 
----
+### 1.2 Create Query Provider
 
-## Migration Plan
+**File:** `src/providers/query-provider.tsx`
 
-**Approved identity policy:** local handle/password accounts use the internal, non-deliverable email `<normalized-handle>@pacttab.local` for Better Auth compatibility. It is never displayed or used as a group identity. OAuth accounts retain their provider email only in the authentication layer.
-
-### 1. Database Schema Changes
-
-Better-auth requires specific table structures. Add a migration to create better-auth tables alongside existing ones (for zero-downtime migration):
-
-```sql
--- Migration: better_auth_tables
--- Run via: npm run db:generate && npm run db:push
-
--- better-auth user table (extends current users)
-CREATE TABLE "user" (
-  "id" TEXT PRIMARY KEY,
-  "name" TEXT,
-  "email" TEXT UNIQUE,
-  "emailVerified" BOOLEAN DEFAULT FALSE,
-  "image" TEXT,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
--- better-auth session table
-CREATE TABLE "session" (
-  "id" TEXT PRIMARY KEY,
-  "expiresAt" TIMESTAMP WITH TIME ZONE NOT NULL,
-  "token" TEXT UNIQUE NOT NULL,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  "ipAddress" TEXT,
-  "userAgent" TEXT,
-  "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE
-);
-
--- better-auth account table (for username/password)
-CREATE TABLE "account" (
-  "id" TEXT PRIMARY KEY,
-  "accountId" TEXT NOT NULL,
-  "providerId" TEXT NOT NULL,
-  "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-  "accessToken" TEXT,
-  "refreshToken" TEXT,
-  "idToken" TEXT,
-  "accessTokenExpiresAt" TIMESTAMP WITH TIME ZONE,
-  "refreshTokenExpiresAt" TIMESTAMP WITH TIME ZONE,
-  "scope" TEXT,
-  "password" TEXT, -- hashed password for credentials provider
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
--- better-auth verification table
-CREATE TABLE "verification" (
-  "id" TEXT PRIMARY KEY,
-  "identifier" TEXT NOT NULL,
-  "value" TEXT NOT NULL,
-  "expiresAt" TIMESTAMP WITH TIME ZONE NOT NULL,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
--- Indexes
-CREATE UNIQUE INDEX "account_providerId_accountId_idx" ON "account"("providerId", "accountId");
-```
-
-**Data Migration Strategy:**
-
-1. Keep existing `users` and `sessions` tables during migration
-2. Migrate existing users to `user` + `account` tables
-3. Update foreign keys in related tables (`group_members`, `expenses`, etc.) to reference new `user.id`
-4. Drop old tables after verification
-
----
-
-### 2. Better-auth Configuration
-
-Create `src/lib/auth.ts` (replaces current):
-
-```typescript
-// src/lib/auth.ts
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "@/db";
-import { users, sessions, accounts, verifications } from "@/db/schema/auth"; // new schema file
-import { username } from "better-auth/plugins";
-
-export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema: {
-      user: users,
-      session: sessions,
-      account: accounts,
-      verification: verifications,
-    },
-  }),
-  emailAndPassword: {
-    enabled: true,
-    minPasswordLength: 6,
-    maxPasswordLength: 128,
-    requireEmailVerification: false,
-    autoSignIn: true,
-  },
-  username: {
-    enabled: true,
-    minUsernameLength: 3,
-    maxUsernameLength: 30,
-    allowedCharacters: /^[a-zA-Z0-9_]+$/,
-  },
-  session: {
-    expiresIn: 60 * 60 * 24 * 30, // 30 days
-    updateAge: 60 * 60 * 24, // 1 day
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 5, // 5 minutes
-    },
-  },
-  plugins: [username()],
-  trustedOrigins: [process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"],
-  secret: process.env.BETTER_AUTH_SECRET!,
-});
-
-// Type-safe helpers
-export const signUp = auth.api.signUpEmail;
-export const signIn = auth.api.signInEmail;
-export const signOut = auth.api.signOut;
-export const getSession = auth.api.getSession;
-export const deleteUser = auth.api.deleteUser;
-```
-
----
-
-### 3. Better-auth Schema File
-
-Create `src/db/schema/auth.ts`:
-
-```typescript
-// src/db/schema/auth.ts
-import { pgTable, text, timestamp, boolean, uniqueIndex } from "drizzle-orm/pg-core";
-
-export const users = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name"),
-  email: text("email").unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const sessions = pgTable("session", {
-  id: text("id").primaryKey(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  token: text("token").unique().notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-});
-
-export const accounts = pgTable(
-  "account",
-  {
-    id: text("id").primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [uniqueIndex("account_provider_account_idx").on(table.providerId, table.accountId)]
-);
-
-export const verifications = pgTable("verification", {
-  id: text("id").primaryKey(),
-  identifier: text("identifier").notNull(),
-  value: text("value").notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-```
-
----
-
-### 4. API Route for better-auth
-
-Create `src/app/api/auth/[...all]/route.ts`:
-
-```typescript
-// src/app/api/auth/[...all]/route.ts
-import { auth } from "@/lib/auth";
-import { toNextJsHandler } from "better-auth/next-js";
-
-export const { GET, POST } = toNextJsHandler(auth.handler);
-```
-
----
-
-### 5. Server Actions (Replace `src/actions/auth.ts`)
-
-```typescript
-// src/actions/auth.ts
-"use server";
-
-import { z } from "zod";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { requireUser } from "@/lib/auth-utils";
-
-const UsernameSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(3, "Username must be at least 3 characters")
-    .max(30, "Username must be at most 30 characters")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-export type AuthActionState = {
-  error?: string;
-  success?: boolean;
-  username?: string;
-};
-
-export async function signUpAction(
-  prevState: AuthActionState | null,
-  formData: FormData
-): Promise<AuthActionState> {
-  const rawUsername = formData.get("username");
-  const rawPassword = formData.get("password");
-  const rawConfirmPassword = formData.get("confirmPassword");
-  const rawReturnTo = formData.get("returnTo");
-
-  const usernameStr = typeof rawUsername === "string" ? rawUsername : "";
-
-  if (rawConfirmPassword !== null) {
-    if (typeof rawConfirmPassword !== "string" || !rawConfirmPassword) {
-      return { error: "Please confirm your password.", username: usernameStr };
-    }
-    if (rawPassword !== rawConfirmPassword) {
-      return { error: "Passwords do not match.", username: usernameStr };
-    }
-  }
-
-  const validation = UsernameSchema.safeParse({ username: rawUsername, password: rawPassword });
-
-  if (!validation.success) {
-    return { error: validation.error.issues[0]?.message || "Invalid input", username: usernameStr };
-  }
-
-  try {
-    await auth.api.signUpEmail({
-      body: {
-        username: validation.data.username.toLowerCase(),
-        password: validation.data.password,
-      },
-    });
-  } catch (error: unknown) {
-    const err = error as { body?: { message?: string }; status?: number };
-    if (err.status === 400 && err.body?.message?.includes("username")) {
-      return { error: "Username is already taken.", username: usernameStr };
-    }
-    console.error("Sign up error:", error);
-    return { error: "Failed to create account.", username: usernameStr };
-  }
-
-  const returnToStr =
-    typeof rawReturnTo === "string" && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
-      ? rawReturnTo
-      : "/groups";
-
-  redirect(returnToStr);
-}
-
-export async function signInAction(
-  prevState: AuthActionState | null,
-  formData: FormData
-): Promise<AuthActionState> {
-  const rawUsername = formData.get("username");
-  const rawPassword = formData.get("password");
-  const rawReturnTo = formData.get("returnTo");
-
-  const usernameStr = typeof rawUsername === "string" ? rawUsername : "";
-
-  const validation = UsernameSchema.safeParse({ username: rawUsername, password: rawPassword });
-
-  if (!validation.success) {
-    return { error: validation.error.issues[0]?.message || "Invalid input", username: usernameStr };
-  }
-
-  try {
-    await auth.api.signInEmail({
-      body: {
-        username: validation.data.username.toLowerCase(),
-        password: validation.data.password,
-      },
-    });
-  } catch (error: unknown) {
-    const err = error as { body?: { message?: string }; status?: number };
-    if (err.status === 401) {
-      return { error: "Invalid username or password.", username: usernameStr };
-    }
-    console.error("Sign in error:", error);
-    return { error: "Failed to sign in.", username: usernameStr };
-  }
-
-  const returnToStr =
-    typeof rawReturnTo === "string" && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
-      ? rawReturnTo
-      : "/groups";
-
-  redirect(returnToStr);
-}
-
-export async function signOutAction(): Promise<void> {
-  await auth.api.signOut({ headers: new Headers() });
-  redirect("/login");
-}
-
-export async function deleteAccountAction(
-  prevState: unknown,
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-  const password = formData.get("password") as string;
-
-  if (!password) {
-    return { success: false, error: "Password is required to delete your account" };
-  }
-
-  try {
-    await auth.api.deleteUser({
-      body: { password },
-      headers: new Headers(), // session cookie automatically included
-    });
-  } catch (error: unknown) {
-    const err = error as { body?: { message?: string }; status?: number };
-    if (err.status === 401) {
-      return { success: false, error: "Incorrect password." };
-    }
-    console.error("Failed to delete account:", error);
-    return { success: false, error: "Failed to delete account." };
-  }
-
-  redirect("/login");
-}
-```
-
----
-
-### 6. Auth Utilities (Replace `src/lib/auth.ts` helpers)
-
-Create `src/lib/auth-utils.ts`:
-
-```typescript
-// src/lib/auth-utils.ts
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { cache } from "react";
-
-export async function getCurrentUser() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user ?? null;
-}
-
-export const getCachedUser = cache(getCurrentUser);
-
-export async function requireUser() {
-  const user = await getCachedUser();
-  if (!user) redirect("/login");
-  return user;
-}
-
-export async function getSession() {
-  return auth.api.getSession({ headers: await headers() });
-}
-```
-
----
-
-### 7. Client-side Auth Hook
-
-Create `src/hooks/use-auth.ts`:
-
-```typescript
-// src/hooks/use-auth.ts
+```tsx
 "use client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 
-import { useSession } from "better-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60 * 5, // 5 min
+            gcTime: 1000 * 60 * 30, // 30 min
+            refetchOnWindowFocus: false,
+            retry: 1,
+          },
+          mutations: {
+            retry: 0,
+          },
+        },
+      })
+  );
 
-export function useAuth(requireAuth = true) {
-  const { data: session, isPending } = useSession();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isPending && requireAuth && !session) {
-      router.push("/login");
-    }
-  }, [session, isPending, requireAuth, router]);
-
-  return {
-    user: session?.user ?? null,
-    isLoading: isPending,
-    isAuthenticated: !!session,
-  };
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 ```
 
+### 1.3 Wrap App Layout
+
+**File:** `src/app/providers.tsx` (new)
+
+```tsx
+"use client";
+import { QueryProvider } from "@/providers/query-provider";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryProvider>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryProvider>
+  );
+}
+```
+
+**File:** `src/app/layout.tsx` - wrap `<body>` with `<Providers>`
+
 ---
 
-### 8. Middleware for Route Protection
+## Phase 2: Define Query Keys & Hooks (Week 1-2)
 
-Create `src/middleware.ts`:
+### 2.1 Centralized Query Keys
 
-```typescript
-// src/middleware.ts
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+**File:** `src/lib/query-keys.ts`
 
-export async function middleware(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: request.headers });
+```ts
+export const queryKeys = {
+  groups: {
+    all: ["groups"] as const,
+    lists: () => [...queryKeys.groups.all, "list"] as const,
+    list: (filters: string) => [...queryKeys.groups.lists(), { filters }] as const,
+    details: () => [...queryKeys.groups.all, "detail"] as const,
+    detail: (groupId: string) => [...queryKeys.groups.details(), groupId] as const,
+    pendingInvites: (groupId: string) => [...queryKeys.groups.detail(groupId), "invites"] as const,
+    pendingJoinRequests: (groupId: string) =>
+      [...queryKeys.groups.detail(groupId), "joinRequests"] as const,
+  },
+  expenses: {
+    all: ["expenses"] as const,
+    list: (groupId: string) => [...queryKeys.expenses.all, groupId] as const,
+  },
+  settlements: {
+    all: ["settlements"] as const,
+    list: (groupId: string) => [...queryKeys.settlements.all, groupId] as const,
+  },
+  balances: {
+    all: ["balances"] as const,
+    detail: (groupId: string) => [...queryKeys.balances.all, groupId] as const,
+  },
+  messages: {
+    all: ["messages"] as const,
+    list: (groupId: string) => [...queryKeys.messages.all, groupId] as const,
+  },
+  members: {
+    all: ["members"] as const,
+    list: (groupId: string) => [...queryKeys.members.all, groupId] as const,
+  },
+  user: {
+    pendingJoinRequests: ["user", "pendingJoinRequests"] as const,
+    pendingAdminActions: ["user", "pendingAdminActions"] as const,
+  },
+} as const;
+```
 
-  const protectedPaths = ["/groups", "/settings"];
-  const isProtected = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
+### 2.2 Create Query Hooks (migrate from `src/lib/queries.ts`)
 
-  if (isProtected && !session) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("returnTo", request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+**File:** `src/hooks/queries/use-groups.ts`
 
-  if (
-    (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup") &&
-    session
-  ) {
-    return NextResponse.redirect(new URL("/groups", request.url));
-  }
+```ts
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
-  return NextResponse.next();
+export function useGroups() {
+  return useQuery({
+    queryKey: queryKeys.groups.lists(),
+    queryFn: async () => {
+      const res = await fetch("/api/groups");
+      if (!res.ok) throw new Error("Failed to fetch groups");
+      return res.json();
+    },
+  });
 }
 
-export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+export function useGroupDetail(groupId: string) {
+  return useQuery({
+    queryKey: queryKeys.groups.detail(groupId),
+    queryFn: async () => {
+      const res = await fetch(`/api/groups/${groupId}`);
+      if (!res.ok) throw new Error("Failed to fetch group");
+      return res.json();
+    },
+    enabled: !!groupId,
+  });
+}
+```
+
+**File:** `src/hooks/queries/use-expenses.ts`
+
+```ts
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+
+export function useExpenses(groupId: string) {
+  return useQuery({
+    queryKey: queryKeys.expenses.list(groupId),
+    queryFn: async () => {
+      const res = await fetch(`/api/groups/${groupId}/expenses`);
+      if (!res.ok) throw new Error("Failed to fetch expenses");
+      return res.json();
+    },
+    enabled: !!groupId,
+  });
+}
+```
+
+Similar hooks for: `useSettlements`, `useBalances`, `useMessages`, `useMembers`, `useUserPendingJoinRequests`, `useUserPendingAdminActions`
+
+---
+
+## Phase 3: Create API Routes for Client Fetching (Week 2)
+
+Replace server-only `getGroupDetails()` with REST endpoints:
+
+| Current                             | New API Route                       |
+| ----------------------------------- | ----------------------------------- |
+| `getGroupDetails()`                 | `GET /api/groups/[id]`              |
+| `getGroupMessages()`                | `GET /api/groups/[id]/messages`     |
+| `getUserGroups()`                   | `GET /api/groups`                   |
+| `getUserPendingJoinRequests()`      | `GET /api/user/join-requests`       |
+| `getUserPendingAdminActionsCount()` | `GET /api/user/admin-actions-count` |
+
+Each route returns typed JSON (reuse logic from `src/lib/queries.ts`).
+
+---
+
+## Phase 4: Convert Server Actions to Mutations (Week 2-3)
+
+### Pattern for Each Mutation
+
+```ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+
+export function useCreateExpense(groupId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateExpenseInput) => {
+      const res = await fetch(`/api/groups/${groupId}/expenses`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create expense");
+      return res.json();
+    },
+    onMutate: async (newExpense) => {
+      // Optimistic update
+      await queryClient.cancelQueries({ queryKey: queryKeys.expenses.list(groupId) });
+      const previous = queryClient.getQueryData(queryKeys.expenses.list(groupId));
+
+      queryClient.setQueryData(queryKeys.expenses.list(groupId), (old: Expense[]) => [
+        { ...newExpense, id: "temp-" + Date.now(), optimistic: true },
+        ...(old || []),
+      ]);
+
+      return { previous };
+    },
+    onError: (err, newExpense, context) => {
+      queryClient.setQueryData(queryKeys.expenses.list(groupId), context?.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.list(groupId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.balances.detail(groupId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });
+    },
+  });
+}
+```
+
+### Mutations to Convert
+
+| Server Action             | Mutation Hook          |
+| ------------------------- | ---------------------- |
+| `createGroupAction`       | `useCreateGroup`       |
+| `createInviteLinkAction`  | `useCreateInviteLink`  |
+| `rotateInviteLinkAction`  | `useRotateInviteLink`  |
+| `revokeInviteLinkAction`  | `useRevokeInviteLink`  |
+| `joinGroupAction`         | `useJoinGroup`         |
+| `createJoinRequestAction` | `useCreateJoinRequest` |
+| `reviewJoinRequestAction` | `useReviewJoinRequest` |
+| `updateGroupAction`       | `useUpdateGroup`       |
+| `transferAdminAction`     | `useTransferAdmin`     |
+| `leaveGroupAction`        | `useLeaveGroup`        |
+| `deleteGroupAction`       | `useDeleteGroup`       |
+| `createExpenseAction`     | `useCreateExpense`     |
+| `deleteExpenseAction`     | `useDeleteExpense`     |
+| `updateExpenseAction`     | `useUpdateExpense`     |
+| `recordSettlementAction`  | `useRecordSettlement`  |
+| `confirmSettlementAction` | `useConfirmSettlement` |
+| `rejectSettlementAction`  | `useRejectSettlement`  |
+| `cancelSettlementAction`  | `useCancelSettlement`  |
+| `sendMessageAction`       | `useSendMessage`       |
+
+---
+
+## Phase 5: WebSocket Integration with Query Cache (Week 3)
+
+### 5.1 Enhanced useGroupSocket
+
+**File:** `src/hooks/use-group-socket.ts`
+
+```tsx
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  const queryClient = useQueryClient(); // Need to access differently - see below
+
+  switch (data.type) {
+    case "new_message":
+      queryClient.setQueryData(queryKeys.messages.list(data.groupId), (old: Message[]) => [
+        ...(old || []),
+        data.message,
+      ]);
+      break;
+    case "expense_created":
+    case "expense_updated":
+    case "expense_deleted":
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.list(data.groupId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.balances.detail(data.groupId) });
+      break;
+    case "settlement_recorded":
+    case "settlement_confirmed":
+    case "settlement_rejected":
+    case "settlement_cancelled":
+      queryClient.invalidateQueries({ queryKey: queryKeys.settlements.list(data.groupId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.balances.detail(data.groupId) });
+      break;
+    case "member_joined":
+      queryClient.invalidateQueries({ queryKey: queryKeys.members.list(data.groupId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(data.groupId) });
+      break;
+    case "join_request_created":
+    case "join_request_reviewed":
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.groups.pendingJoinRequests(data.groupId),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.user.pendingAdminActions });
+      break;
+    case "refresh":
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(data.groupId) });
+      break;
+  }
 };
 ```
 
----
+**Note:** Since `useQueryClient` can't be used in `useEffect`, create a singleton accessor or pass queryClient via context.
 
-### 9. Environment Variables
+### 5.2 Provide QueryClient to Socket Hook
 
-Add to `.env.local`:
+**Option A:** Store queryClient in global (simple)
 
-```env
-BETTER_AUTH_SECRET=your-32-char-secret-key
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+```ts
+// src/lib/query-client.ts
+import { QueryClient } from "@tanstack/react-query";
+export const queryClient = new QueryClient({...});
 ```
 
-Generate secret: `openssl rand -base64 32`
+**Option B:** Context provider (cleaner)
 
----
+```tsx
+// src/providers/query-client-provider.tsx
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { createContext, useContext } from "react";
 
-### 10. Update Imports Across Codebase
+const QueryClientContext = createContext<ReturnType<typeof useQueryClient> | null>(null);
 
-Replace imports in:
-
-- `src/app/page.tsx`
-- `src/app/layout.tsx`
-- `src/app/groups/page.tsx`
-- `src/app/group/[id]/page.tsx`
-- `src/app/join/[token]/page.tsx`
-- `src/components/navbar.tsx`
-- `src/components/user-settings-dialog.tsx`
-
-**From:**
-
-```typescript
-import { getCurrentUser, requireUser } from "@/lib/auth";
-import { signOutAction, deleteAccountAction } from "@/actions/auth";
+export function useQueryClientContext() {
+  const client = useContext(QueryClientContext);
+  if (!client) throw new Error("useQueryClientContext must be used within QueryClientProvider");
+  return client;
+}
 ```
 
-**To:**
+Then in `use-group-socket.ts`:
 
-```typescript
-import { getCurrentUser, requireUser } from "@/lib/auth-utils";
-import { signOutAction, deleteAccountAction } from "@/actions/auth";
-import { useAuth } from "@/hooks/use-auth"; // for client components
+```ts
+import { useQueryClientContext } from "@/providers/query-client-provider";
+
+export function useGroupSocket({...}) {
+  const queryClient = useQueryClientContext();
+  // ... use queryClient in ws.onmessage
+}
 ```
 
 ---
 
-## Migration Steps Checklist
+## Phase 6: Update Components to Use Hooks (Week 3-4)
 
-### Phase 1: Schema & Config
+### 6.1 Group Page - Convert to Client Component
 
-- [ ] Create `src/db/schema/auth.ts` with better-auth tables
-- [ ] Generate and run migration (`npm run db:generate && npm run db:push`)
-- [ ] Create `src/lib/auth.ts` with better-auth config
-- [ ] Create `src/app/api/auth/[...all]/route.ts`
-- [ ] Add environment variables
+**File:** `src/app/group/[id]/page.tsx`
 
-### Phase 2: Server Actions & Utilities
+```tsx
+"use client";
+import { useGroupDetail } from "@/hooks/queries/use-groups";
+import { useExpenses } from "@/hooks/queries/use-expenses";
+// ... other hooks
 
-- [ ] Create `src/lib/auth-utils.ts`
-- [ ] Update `src/actions/auth.ts` to use better-auth API
-- [ ] Test signup/signin flows
+export default function GroupPage({ params }: GroupPageProps) {
+  const { id: groupId } = await params;
+  const { data: groupDetail } = useGroupDetail(groupId);
+  const { data: expenses } = useExpenses(groupId);
+  // ... other queries
 
-### Phase 3: Client Integration
+  if (!groupDetail) return <Loading />;
 
-- [ ] Create `src/hooks/use-auth.ts`
-- [ ] Create `src/middleware.ts`
-- [ ] Update all server components to use `auth-utils`
-- [ ] Update client components to use `useAuth` hook
+  return <GroupTabs ... />;
+}
+```
 
-### Phase 4: Data Migration
+### 6.2 Groups Page
 
-- [ ] Write migration script to copy users from old `users` table to new `user` + `account` tables
-- [ ] Update foreign key references in related tables
-- [ ] Verify all data integrity
-- [ ] Drop old `users` and `sessions` tables
+**File:** `src/app/groups/page.tsx`
 
-### Phase 5: Cleanup
+```tsx
+"use client";
+import { useGroups } from "@/hooks/queries/use-groups";
+import { useUserPendingJoinRequests } from "@/hooks/queries/use-user";
 
-- [ ] Remove old `src/lib/auth.ts` (custom implementation)
-- [ ] Remove bcryptjs dependency (`npm uninstall bcryptjs @types/bcryptjs`)
-- [ ] Run full test suite
-- [ ] Deploy
+export default function GroupsPage() {
+  const { data: groups } = useGroups();
+  const { data: pendingRequests } = useUserPendingJoinRequests();
+  // ...
+}
+```
+
+### 6.3 Component Updates
+
+- Replace `router.refresh()` calls with query invalidation in mutation `onSettled`
+- Replace `useTransition` + Server Actions with `useMutation`
+- Pass mutation functions to dialogs/components via props or context
 
 ---
 
-## Testing Checklist
+## Phase 7: Remove Legacy Code (Week 4)
 
-- [ ] Sign up with username/password
-- [ ] Sign in with username/password
-- [ ] Sign out
-- [ ] Delete account with password confirmation
-- [ ] Session persistence across browser restart
-- [ ] Protected routes redirect to login
-- [ ] Authenticated users redirected from login/signup
-- [ ] Middleware protects `/groups`, `/settings`
-- [ ] All existing tests pass (`npm run test`)
+### 7.1 Remove from Server Actions
+
+- All `revalidatePath()` calls
+- All `redirect()` calls (handle navigation in mutation `onSuccess`)
+
+### 7.2 Remove from Components
+
+- All `router.refresh()` calls
+- `useTransition` for server actions
+
+### 7.3 Remove WebSocket `router.refresh()` handlers
+
+- `use-group-socket.ts` lines 99-121
+
+### 7.4 Delete Unused
+
+- `src/lib/queries.ts` (replaced by API routes + hooks)
+- `getGroupMessages` action (replaced by API route)
+
+---
+
+## Phase 8: Advanced Optimizations (Week 4+)
+
+### 8.1 Prefetching
+
+```tsx
+// In link hover or on page load
+const queryClient = useQueryClient();
+queryClient.prefetchQuery({ queryKey: queryKeys.groups.detail(groupId) });
+```
+
+### 8.2 Infinite Queries for Messages
+
+```tsx
+import { useInfiniteQuery } from "@tanstack/react-query";
+
+export function useMessages(groupId: string) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.messages.list(groupId),
+    queryFn: ({ pageParam }) => fetch(`/api/groups/${groupId}/messages?cursor=${pageParam}`),
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    initialPageParam: 0,
+  });
+}
+```
+
+### 8.3 Persist Cache (optional)
+
+```bash
+npm install @tanstack/query-sync-storage-persister
+```
+
+---
+
+## Migration Checklist
+
+- [ ] Install TanStack Query dependencies
+- [ ] Create QueryProvider and wrap app
+- [ ] Define queryKeys.ts
+- [ ] Create API routes for all queries
+- [ ] Create query hooks (useGroups, useExpenses, etc.)
+- [ ] Create mutation hooks for all server actions
+- [ ] Update WebSocket handler to use queryClient
+- [ ] Convert group page to client component with hooks
+- [ ] Convert groups page to client component with hooks
+- [ ] Convert all dialogs/components to use mutations
+- [ ] Remove all `revalidatePath()` from server actions
+- [ ] Remove all `router.refresh()` from components
+- [ ] Remove `useTransition` from server action calls
+- [ ] Delete `src/lib/queries.ts`
+- [ ] Add ESLint plugin for TanStack Query
+- [ ] Test optimistic updates work correctly
+- [ ] Verify WebSocket events update cache in real-time
 
 ---
 
@@ -599,20 +489,6 @@ import { useAuth } from "@/hooks/use-auth"; // for client components
 
 If issues arise:
 
-1. Keep old `users` and `sessions` tables during migration
-2. Revert `src/lib/auth.ts` and `src/actions/auth.ts` to custom implementation
-3. Revert middleware and client hooks
-4. Update imports back to original paths
-
----
-
-## Optional OAuth Provider Configuration
-
-Google and GitHub support must use `src/lib/social-auth-config.ts` as the only environment parser. It keeps credentials server-only and exposes UI-safe `{ id, label }` metadata separately.
-
-- [x] Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` to `.env.example`.
-- [x] Enable a provider only when it has both a non-empty client ID and secret.
-- [x] Add unit coverage for disabled, partial, complete, and whitespace-only provider configuration.
-- [ ] Configure Better Auth `socialProviders` from the server-only enabled-provider configuration.
-- [ ] Render Google/GitHub controls only from the safe provider metadata after the Better Auth handler is live.
-- [ ] Keep local handle/password controls available regardless of OAuth configuration.
+1. Keep `revalidatePath()` in server actions as fallback
+2. Use `queryClient.invalidateQueries()` in `onSettled` as safety net
+3. Feature flag via env var to toggle TanStack Query on/off per route
