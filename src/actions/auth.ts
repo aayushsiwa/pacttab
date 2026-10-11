@@ -1,20 +1,11 @@
 "use server";
 
 import { z } from "zod";
-import crypto from "crypto";
-import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import {
-  hashPassword,
-  verifyPassword,
-  createSession,
-  deleteSession,
-  requireUser,
-} from "@/lib/auth";
+import { betterAuthInstance } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 
-const AuthSchema = z.object({
+const UsernameSchema = z.object({
   username: z
     .string()
     .trim()
@@ -41,67 +32,52 @@ export async function signUpAction(
 
   const usernameStr = typeof rawUsername === "string" ? rawUsername : "";
 
-  // Validate confirmPassword if supplied in the form
   if (rawConfirmPassword !== null) {
     if (typeof rawConfirmPassword !== "string" || !rawConfirmPassword) {
-      return {
-        error: "Please confirm your password.",
-        username: usernameStr,
-      };
+      return { error: "Please confirm your password.", username: usernameStr };
     }
     if (rawPassword !== rawConfirmPassword) {
-      return {
-        error: "Passwords do not match. Please ensure both passwords match.",
-        username: usernameStr,
-      };
+      return { error: "Passwords do not match.", username: usernameStr };
     }
   }
 
-  const validation = AuthSchema.safeParse({
-    username: rawUsername,
-    password: rawPassword,
-  });
+  const validation = UsernameSchema.safeParse({ username: rawUsername, password: rawPassword });
 
   if (!validation.success) {
-    return {
-      error: validation.error.issues[0]?.message || "Invalid input",
-      username: usernameStr,
-    };
+    return { error: validation.error.issues[0]?.message || "Invalid input", username: usernameStr };
   }
-
-  const normalizedUsername = validation.data.username.toLowerCase();
-
-  // Check if username is already taken
-  const existingUser = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.username, normalizedUsername))
-    .limit(1);
-
-  if (existingUser.length > 0) {
-    return {
-      error: "Username is already taken. Please choose another.",
-      username: usernameStr,
-    };
-  }
-
-  const passwordHash = await hashPassword(validation.data.password);
-  const userId = crypto.randomUUID();
 
   try {
-    await db.insert(users).values({
-      id: userId,
-      username: normalizedUsername,
-      passwordHash,
+    const email = `${validation.data.username.toLowerCase()}@pacttab.local`;
+    await betterAuthInstance.api.signUpEmail({
+      body: {
+        email,
+        password: validation.data.password,
+        name: validation.data.username,
+      },
     });
-
-    await createSession(userId);
-  } catch (error) {
-    console.error("Sign up error:", error);
-    return {
-      error: "Failed to create account. Please try again.",
-      username: usernameStr,
+  } catch (error: unknown) {
+    const err = error as {
+      body?: { message?: string };
+      status?: number | string;
+      statusCode?: number;
     };
+    const status =
+      typeof err.status === "number"
+        ? err.status
+        : typeof err.status === "string"
+          ? err.status === "UNPROCESSABLE_ENTITY"
+            ? 422
+            : parseInt(err.status) || 0
+          : err.statusCode || 0;
+    if (
+      (status === 400 || status === 422) &&
+      (err.body?.message?.includes("username") || err.body?.message?.includes("already exists"))
+    ) {
+      return { error: "Username is already taken.", username: usernameStr };
+    }
+    console.error("Sign up error:", error);
+    return { error: "Failed to create account.", username: usernameStr };
   }
 
   const returnToStr =
@@ -122,54 +98,27 @@ export async function signInAction(
 
   const usernameStr = typeof rawUsername === "string" ? rawUsername : "";
 
-  const validation = AuthSchema.safeParse({
-    username: rawUsername,
-    password: rawPassword,
-  });
+  const validation = UsernameSchema.safeParse({ username: rawUsername, password: rawPassword });
 
   if (!validation.success) {
-    return {
-      error: validation.error.issues[0]?.message || "Invalid input",
-      username: usernameStr,
-    };
-  }
-
-  const normalizedUsername = validation.data.username.toLowerCase();
-
-  const matchedUsers = await db
-    .select({
-      id: users.id,
-      passwordHash: users.passwordHash,
-    })
-    .from(users)
-    .where(eq(users.username, normalizedUsername))
-    .limit(1);
-
-  if (matchedUsers.length === 0) {
-    return {
-      error: "Invalid username or password.",
-      username: usernameStr,
-    };
-  }
-
-  const user = matchedUsers[0];
-  const isValid = await verifyPassword(validation.data.password, user.passwordHash);
-
-  if (!isValid) {
-    return {
-      error: "Invalid username or password.",
-      username: usernameStr,
-    };
+    return { error: validation.error.issues[0]?.message || "Invalid input", username: usernameStr };
   }
 
   try {
-    await createSession(user.id);
-  } catch (error) {
+    const email = `${validation.data.username.toLowerCase()}@pacttab.local`;
+    await betterAuthInstance.api.signInEmail({
+      body: {
+        email,
+        password: validation.data.password,
+      },
+    });
+  } catch (error: unknown) {
+    const err = error as { body?: { message?: string }; status?: number };
+    if (err.status === 401) {
+      return { error: "Invalid username or password.", username: usernameStr };
+    }
     console.error("Sign in error:", error);
-    return {
-      error: "Failed to sign in. Please try again.",
-      username: usernameStr,
-    };
+    return { error: "Failed to sign in.", username: usernameStr };
   }
 
   const returnToStr =
@@ -181,7 +130,7 @@ export async function signInAction(
 }
 
 export async function signOutAction(): Promise<void> {
-  await deleteSession();
+  await betterAuthInstance.api.signOut({ headers: new Headers() });
   redirect("/login");
 }
 
@@ -189,35 +138,25 @@ export async function deleteAccountAction(
   prevState: unknown,
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
+  await requireUser();
   const password = formData.get("password") as string;
 
   if (!password) {
     return { success: false, error: "Password is required to delete your account" };
   }
 
-  const [dbUser] = await db
-    .select({ passwordHash: users.passwordHash })
-    .from(users)
-    .where(eq(users.id, user.id))
-    .limit(1);
-
-  if (!dbUser) {
-    return { success: false, error: "User not found" };
-  }
-
-  const isValid = await verifyPassword(password, dbUser.passwordHash);
-  if (!isValid) {
-    return { success: false, error: "Incorrect password. Account was not deleted." };
-  }
-
   try {
-    // Delete user (PostgreSQL cascades all sessions, memberships, expenses, splits)
-    await db.delete(users).where(eq(users.id, user.id));
-    await deleteSession();
-  } catch (error) {
+    await betterAuthInstance.api.deleteUser({
+      body: { password },
+      headers: new Headers(),
+    });
+  } catch (error: unknown) {
+    const err = error as { body?: { message?: string }; status?: number };
+    if (err.status === 401) {
+      return { success: false, error: "Incorrect password." };
+    }
     console.error("Failed to delete account:", error);
-    return { success: false, error: "Failed to delete account. Please try again." };
+    return { success: false, error: "Failed to delete account." };
   }
 
   redirect("/login");

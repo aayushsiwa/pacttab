@@ -15,6 +15,20 @@
       "when": 1789048518823,
       "tag": "0001_married_vision",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789884945421,
+      "tag": "0002_ambiguous_mysterio",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789898940402,
+      "tag": "0003_heavy_terrax",
+      "breakpoints": true
     }
   ]
 }

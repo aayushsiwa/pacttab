@@ -41,7 +41,7 @@ const compareRows = [
   {
     ours: [
       "Sign-up that respects you",
-      "Handle + password, in seconds. No email, no phone, no verification loop.",
+      "Use a handle + password with no email or phone required. Planned Google and GitHub sign-in will be optional for people who prefer them.",
     ],
     theirs: [
       "Email verification, often a phone number.",
@@ -131,7 +131,7 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="flex w-full flex-col items-center px-4 pt-14 pb-12 text-center sm:pt-20 sm:pb-16">
         <StatusPill tone="emerald" dot size="lg" className="mb-6">
-          Zero email • Zero phone numbers • 100% Private
+          No email required • No phone numbers • Privacy-first
         </StatusPill>
 
         <h1 className="text-foreground max-w-3xl text-4xl leading-[1.15] font-black tracking-tight sm:text-5xl md:text-6xl">
@@ -142,8 +142,9 @@ export default async function HomePage() {
         </h1>
 
         <p className="text-muted-foreground mt-5 max-w-xl text-base leading-relaxed sm:text-lg">
-          For trips, flatmates, and dinners. No account verification, no contacts uploaded, and no
-          tracking. Create a group, share a link, and settle up in seconds.
+          For trips, flatmates, and dinners. Use a private PactTab handle—or, when optional Google
+          and GitHub sign-in arrives, connect a provider only if you&apos;re comfortable. No
+          contacts uploaded and no tracking.
         </p>
 
         <div className="mt-8 flex w-full max-w-xs flex-col justify-center gap-3.5 sm:max-w-md sm:flex-row">
@@ -334,8 +335,8 @@ export default async function HomePage() {
           <FeatureCard
             icon={Lock}
             tone="emerald"
-            title="Zero Personal Data"
-            description="Sign up with only a handle and password. No email verification, no phone number harvesting, and zero third-party trackers."
+            title="Privacy-First Sign-In"
+            description="Use only a handle and password—no email or phone required. Planned Google and GitHub sign-in will be optional, never required."
           />
 
           <FeatureCard
@@ -451,7 +452,7 @@ export default async function HomePage() {
             icon={KeyRound}
             tone="teal"
             title="Encrypted Access, Not Emails"
-            description="Invite members with a shareable link and a password. No email harvesting, no phone number collections, and nothing sold to advertisers."
+            description="Invite members with a shareable link and a password. No contacts are uploaded, and optional Google or GitHub sign-in never becomes a group identity."
           />
 
           <FeatureCard
@@ -474,8 +475,8 @@ export default async function HomePage() {
             </span>
           </h2>
           <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm leading-relaxed sm:text-base">
-            No contacts to upload. No emails to verify. No ads sitting between you and your money —
-            just a closed circle, an honest split, and friends who actually chip in.
+            No contacts to upload. No email required. When optional Google or GitHub sign-in
+            arrives, choose it only if you&apos;re comfortable—then keep the focus on your people.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3.5 sm:flex-row">
             <Link href="/signup">

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { LoginForm } from "./login-form";
+import { getEnabledSocialAuthProviderOptions } from "@/lib/social-auth-config";
 
 interface LoginPageProps {
   searchParams: Promise<{
@@ -14,7 +15,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-4">
       <Suspense fallback={<div className="text-muted-foreground text-sm">Loading...</div>}>
-        <LoginForm returnTo={returnTo} />
+        <LoginForm returnTo={returnTo} socialProviders={getEnabledSocialAuthProviderOptions()} />
       </Suspense>
     </div>
   );
