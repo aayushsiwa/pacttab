@@ -8,6 +8,7 @@ import { getUserPendingAdminActionsCount } from "@/lib/queries";
 import { Navbar } from "@/components/navbar";
 import { OfflineBanner } from "@/components/offline-banner";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -67,6 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="bg-background text-foreground flex min-h-full flex-col">
+        <Analytics />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
