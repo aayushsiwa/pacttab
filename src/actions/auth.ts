@@ -54,6 +54,7 @@ export async function signUpAction(
         email,
         password: validation.data.password,
         name: validation.data.username,
+        username: validation.data.username.toLowerCase(),
       },
     });
   } catch (error: unknown) {
@@ -68,11 +69,17 @@ export async function signUpAction(
         : typeof err.status === "string"
           ? err.status === "UNPROCESSABLE_ENTITY"
             ? 422
-            : parseInt(err.status) || 0
+            : err.status === "BAD_REQUEST"
+              ? 400
+              : err.status === "UNAUTHORIZED"
+                ? 401
+                : parseInt(err.status) || 0
           : err.statusCode || 0;
     if (
       (status === 400 || status === 422) &&
-      (err.body?.message?.includes("username") || err.body?.message?.includes("already exists"))
+      (err.body?.message?.includes("username") ||
+        err.body?.message?.includes("already exists") ||
+        err.body?.message?.includes("already taken"))
     ) {
       return { error: "Username is already taken.", username: usernameStr };
     }
@@ -105,10 +112,9 @@ export async function signInAction(
   }
 
   try {
-    const email = `${validation.data.username.toLowerCase()}@pacttab.local`;
-    await betterAuthInstance.api.signInEmail({
+    await betterAuthInstance.api.signInUsername({
       body: {
-        email,
+        username: validation.data.username.toLowerCase(),
         password: validation.data.password,
       },
     });
