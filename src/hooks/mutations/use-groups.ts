@@ -2,7 +2,6 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface CreateGroupInput {
@@ -12,7 +11,6 @@ interface CreateGroupInput {
 
 export function useCreateGroup() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: async (data: CreateGroupInput) => {
@@ -30,8 +28,6 @@ export function useCreateGroup() {
     onSuccess: (data) => {
       if (data.success && data.groupId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.groups.lists() });
-        router.push(`/group/${data.groupId}`);
-        router.refresh();
         toast.success("Group created");
       }
     },
@@ -152,7 +148,6 @@ interface JoinGroupInput {
 
 export function useJoinGroup() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: async (data: JoinGroupInput) => {
@@ -178,8 +173,6 @@ export function useJoinGroup() {
       if (data.success && data.groupId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.groups.lists() });
         queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(data.groupId) });
-        router.push(`/group/${data.groupId}`);
-        router.refresh();
         toast.success(`Joined ${data.groupName || "group"}`);
       } else if (data.pendingApproval) {
         toast.info(data.error || "Join request submitted for approval");
@@ -333,7 +326,6 @@ interface LeaveGroupInput {
 
 export function useLeaveGroup() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: async (data: LeaveGroupInput) => {
@@ -349,8 +341,6 @@ export function useLeaveGroup() {
     onSuccess: (data) => {
       if (data.success) {
         queryClient.invalidateQueries({ queryKey: queryKeys.groups.lists() });
-        router.push("/groups");
-        router.refresh();
         toast.success("Left group");
       }
     },
@@ -366,7 +356,6 @@ interface DeleteGroupInput {
 
 export function useDeleteGroup() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: async (data: DeleteGroupInput) => {
@@ -382,8 +371,6 @@ export function useDeleteGroup() {
     onSuccess: (data) => {
       if (data.success) {
         queryClient.invalidateQueries({ queryKey: queryKeys.groups.lists() });
-        router.push("/groups");
-        router.refresh();
         toast.success("Group deleted");
       }
     },
