@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { deleteExpenseAction } from "@/actions/expenses";
+import { useDeleteExpense } from "@/hooks/mutations";
 import { AddExpenseDialog } from "@/components/group/add-expense-dialog";
 import { EditExpenseDialog } from "@/components/group/edit-expense-dialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,8 +60,8 @@ export function ExpensesView({
 }: ExpensesViewProps) {
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<ExpenseItem | null>(null);
-  const [isPending, startTransition] = useTransition();
   const queryClient = useQueryClient();
+  const { mutate, isPending } = useDeleteExpense();
 
   const totalSpent = expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
 
@@ -78,16 +78,23 @@ export function ExpensesView({
   const confirmDelete = () => {
     if (!expenseToDelete) return;
 
-    startTransition(async () => {
-      const res = await deleteExpenseAction(groupId, expenseToDelete.id);
-      if (res.success) {
-        toast.success(`Deleted expense: ${expenseToDelete.description}`);
-        setExpenseToDelete(null);
-        queryClient.invalidateQueries();
-      } else {
-        toast.error(res.error || "Failed to delete expense");
+    mutate(
+      { groupId, expenseId: expenseToDelete.id },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success(`Deleted expense: ${expenseToDelete.description}`);
+            setExpenseToDelete(null);
+            queryClient.invalidateQueries();
+          } else {
+            toast.error(res.error || "Failed to delete expense");
+          }
+        },
+        onError: (err: Error) => {
+          toast.error(err.message);
+        },
       }
-    });
+    );
   };
 
   return (
