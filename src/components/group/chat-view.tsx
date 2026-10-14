@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { sendMessageAction } from "@/actions/chat";
+import { useSendMessage } from "@/hooks/mutations";
 import { useGroupSocket, type ChatMessage } from "@/hooks/use-group-socket";
 import { MessageContent } from "@/components/group/message-content";
 import { MentionAutocomplete } from "@/components/group/mention-autocomplete";
@@ -38,7 +38,9 @@ export function ChatView({
 }: ChatViewProps) {
   const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
-  const [isSending, startSending] = useTransition();
+  const queryClient = useQueryClient();
+  const sendMessage = useSendMessage();
+  const isSending = sendMessage.isPending;
 
   // Unread messages tracking
   const [lastReadTimestamp, setLastReadTimestamp] = useState<number | null>(null);
@@ -77,7 +79,6 @@ export function ChatView({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
 
   // Handle incoming real-time WebSocket messages
   const handleNewMessage = useCallback((msg: ChatMessage) => {
@@ -245,16 +246,24 @@ export function ChatView({
     const sentViaWs = sendWsMessage(messageText);
 
     if (!sentViaWs) {
-      // Fallback to Server Action if socket is disconnected
-      startSending(async () => {
-        const res = await sendMessageAction(groupId, messageText);
-        if (!res.success) {
-          toast.error(res.error || "Failed to send message");
-          setText(messageText);
-        } else {
-          queryClient.invalidateQueries();
+      // Fallback to mutation if socket is disconnected
+      sendMessage.mutate(
+        { groupId, body: messageText },
+        {
+          onSuccess: (res) => {
+            if (!res.success) {
+              toast.error(res.error || "Failed to send message");
+              setText(messageText);
+            } else {
+              queryClient.invalidateQueries();
+            }
+          },
+          onError: (err: Error) => {
+            toast.error(err.message);
+            setText(messageText);
+          },
         }
-      });
+      );
     }
   };
 
