@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { updateExpenseAction } from "@/actions/expenses";
+import { useUpdateExpense } from "@/hooks/mutations";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -116,8 +116,8 @@ function EditExpenseForm({
     : new Date().toISOString().split("T")[0];
   const [expenseDate, setExpenseDate] = useState(formattedDate);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const queryClient = useQueryClient();
+  const { mutate, isPending } = useUpdateExpense();
 
   const numAmount = parseFloat(amount) || 0;
   const participantCount = participantIds.length;
@@ -173,16 +173,7 @@ function EditExpenseForm({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("groupId", groupId);
-    formData.append("expenseId", expense.id);
-    formData.append("description", description.trim());
-    formData.append("amount", numAmount.toString());
-    formData.append("paidByUserId", paidByUserId);
-    formData.append("expenseDate", expenseDate);
-    formData.append("splitType", splitType);
-
-    participantIds.forEach((id) => formData.append("participantUserIds", id));
+    let customSplits: string | null = null;
 
     if (splitType === "exact") {
       if (Math.abs(exactRemaining) > 0.01) {
@@ -191,43 +182,63 @@ function EditExpenseForm({
         );
         return;
       }
-      const customSplits = participantIds.map((id) => ({
-        userId: id,
-        amount: parseFloat(exactValues[id]) || 0,
-      }));
-      formData.append("customSplits", JSON.stringify(customSplits));
+      customSplits = JSON.stringify(
+        participantIds.map((id) => ({
+          userId: id,
+          amount: parseFloat(exactValues[id]) || 0,
+        }))
+      );
     } else if (splitType === "percentage") {
       if (Math.abs(percentRemaining) > 0.01) {
         setError(`Percentages must sum to 100%. Current sum: ${percentSum.toFixed(2)}%`);
         return;
       }
-      const customSplits = participantIds.map((id) => ({
-        userId: id,
-        percentage: parseFloat(percentValues[id]) || 0,
-      }));
-      formData.append("customSplits", JSON.stringify(customSplits));
+      customSplits = JSON.stringify(
+        participantIds.map((id) => ({
+          userId: id,
+          percentage: parseFloat(percentValues[id]) || 0,
+        }))
+      );
     } else if (splitType === "shares") {
       if (totalShares <= 0) {
         setError("Total shares must be greater than zero");
         return;
       }
-      const customSplits = participantIds.map((id) => ({
-        userId: id,
-        shares: parseInt(shareValues[id], 10) || 1,
-      }));
-      formData.append("customSplits", JSON.stringify(customSplits));
+      customSplits = JSON.stringify(
+        participantIds.map((id) => ({
+          userId: id,
+          shares: parseInt(shareValues[id], 10) || 1,
+        }))
+      );
     }
 
-    startTransition(async () => {
-      const res = await updateExpenseAction(null, formData);
-      if (res.success) {
-        toast.success(`Updated expense: ${description}`);
-        onClose();
-        queryClient.invalidateQueries();
-      } else {
-        setError(res.error || "Failed to update expense");
+    mutate(
+      {
+        groupId,
+        expenseId: expense.id,
+        description: description.trim(),
+        amount: numAmount,
+        paidByUserId,
+        participantUserIds: participantIds,
+        splitType,
+        customSplits,
+        expenseDate,
+      },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success(`Updated expense: ${description}`);
+            onClose();
+            queryClient.invalidateQueries();
+          } else {
+            setError(res.error || "Failed to update expense");
+          }
+        },
+        onError: (err: Error) => {
+          setError(err.message);
+        },
       }
-    });
+    );
   };
 
   return (
