@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/query-keys";
 import type { WSEvent } from "@/lib/ws-hub";
 
 export interface ChatMessage {
@@ -32,7 +32,6 @@ export function useGroupSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const onNewMessageRef = useRef(onNewMessage);
   const currentUsernameRef = useRef(currentUsername);
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -83,6 +82,12 @@ export function useGroupSocket({
               const msg = (data as Extract<WSEvent, { type: "new_message" }>).message;
               onNewMessageRef.current?.(msg);
 
+              // Optimistically update messages cache
+              queryClient.setQueryData(
+                queryKeys.messages.list(groupId),
+                (old: ChatMessage[] | undefined) => [...(old || []), msg]
+              );
+
               const activeUsername = currentUsernameRef.current;
               if (
                 activeUsername &&
@@ -93,34 +98,63 @@ export function useGroupSocket({
                   duration: 5000,
                 });
               }
-            } else if (data.type === "expense_created") {
+            } else if (
+              data.type === "expense_created" ||
+              data.type === "expense_updated" ||
+              data.type === "expense_deleted"
+            ) {
               const exp = data as Extract<WSEvent, { type: "expense_created" }>;
-              toast.info(
-                `${exp.payerUsername} added expense: ${exp.description} (₹${exp.amount.toFixed(2)})`
-              );
-              queryClient.invalidateQueries();
-            } else if (data.type === "expense_deleted") {
-              const exp = data as Extract<WSEvent, { type: "expense_deleted" }>;
-              toast.info(`Expense deleted: ${exp.description}`);
-              queryClient.invalidateQueries();
-            } else if (data.type === "settlement_recorded") {
+              if (data.type === "expense_created") {
+                toast.info(
+                  `${exp.payerUsername} added expense: ${exp.description} (₹${exp.amount.toFixed(2)})`
+                );
+              } else if (data.type === "expense_updated") {
+                toast.info(`${exp.payerUsername} updated expense: ${exp.description}`);
+              } else {
+                toast.info(`Expense deleted: ${exp.description}`);
+              }
+              queryClient.invalidateQueries({ queryKey: queryKeys.expenses.list(groupId) });
+              queryClient.invalidateQueries({ queryKey: queryKeys.balances.detail(groupId) });
+              queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });
+            } else if (
+              data.type === "settlement_recorded" ||
+              data.type === "settlement_confirmed" ||
+              data.type === "settlement_rejected" ||
+              data.type === "settlement_cancelled"
+            ) {
               const set = data as Extract<WSEvent, { type: "settlement_recorded" }>;
-              toast.success(
-                `Settlement recorded: ${set.payerUsername} paid ${set.recipientUsername} ₹${set.amount.toFixed(2)}`
-              );
-              queryClient.invalidateQueries();
+              if (data.type === "settlement_recorded") {
+                toast.success(
+                  `Settlement recorded: ${set.payerUsername} paid ${set.recipientUsername} ₹${set.amount.toFixed(2)}`
+                );
+              } else if (data.type === "settlement_confirmed") {
+                toast.success(`Settlement confirmed`);
+              } else if (data.type === "settlement_rejected") {
+                toast.error(`Settlement rejected`);
+              } else {
+                toast.info(`Settlement cancelled`);
+              }
+              queryClient.invalidateQueries({ queryKey: queryKeys.settlements.list(groupId) });
+              queryClient.invalidateQueries({ queryKey: queryKeys.balances.detail(groupId) });
             } else if (data.type === "member_joined") {
               const mem = data as Extract<WSEvent, { type: "member_joined" }>;
               toast.info(`${mem.username} joined the group!`);
-              queryClient.invalidateQueries();
+              queryClient.invalidateQueries({ queryKey: queryKeys.members.list(groupId) });
+              queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });
             } else if (data.type === "join_request_created") {
               const req = data as Extract<WSEvent, { type: "join_request_created" }>;
               toast.info(`@${req.username} requested to join the group`);
-              queryClient.invalidateQueries();
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.groups.pendingJoinRequests(groupId),
+              });
+              queryClient.invalidateQueries({ queryKey: queryKeys.user.pendingAdminActions });
             } else if (data.type === "join_request_reviewed") {
-              queryClient.invalidateQueries();
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.groups.pendingJoinRequests(groupId),
+              });
+              queryClient.invalidateQueries({ queryKey: queryKeys.user.pendingAdminActions });
             } else if (data.type === "refresh") {
-              queryClient.invalidateQueries();
+              queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });
             }
           } catch {
             // Ignore parse errors
@@ -148,7 +182,7 @@ export function useGroupSocket({
       if (ws) ws.close();
       wsRef.current = null;
     };
-  }, [groupId, userId, onNewMessage, router, queryClient]);
+  }, [groupId, userId, queryClient]);
 
   const sendWsMessage = useCallback(
     (body: string) => {
