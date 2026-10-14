@@ -70,3 +70,19 @@ export function isSocialAuthProviderEnabled(
 ): boolean {
   return getEnabledSocialAuthProviders(environment).some(({ id }) => id === provider);
 }
+
+function configuredPublicFlag(value: string | undefined): boolean {
+  return value?.trim().toLowerCase() === "true";
+}
+
+/** Public metadata safe to use in Client Components (reads NEXT_PUBLIC_* flags). */
+export function getPublicSocialAuthProviderOptions(
+  environment: Environment = process.env
+): { id: SocialAuthProvider; label: string }[] {
+  return SOCIAL_AUTH_PROVIDERS.flatMap((provider) => {
+    const prefix = provider.toUpperCase();
+    const enabled = configuredPublicFlag(environment[`NEXT_PUBLIC_${prefix}_OAUTH_ENABLED`]);
+    if (!enabled) return [];
+    return [{ ...providerMetadata[provider] }];
+  });
+}
