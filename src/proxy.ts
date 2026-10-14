@@ -1,14 +1,14 @@
-import { betterAuthInstance } from "@/lib/auth";
+import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  const session = await betterAuthInstance.api.getSession({ headers: request.headers });
+export async function proxy(request: NextRequest) {
+  const sessionCookie = getSessionCookie(request);
+  const isProtected = ["/groups", "/settings", "/onboarding", "/group"].some((path) =>
+    request.nextUrl.pathname.startsWith(path)
+  );
 
-  const protectedPaths = ["/groups", "/settings", "/onboarding", "/group"];
-  const isProtected = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
-
-  if (isProtected && !session) {
+  if (isProtected && !sessionCookie) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("returnTo", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
@@ -16,7 +16,7 @@ export async function middleware(request: NextRequest) {
 
   if (
     (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup") &&
-    session
+    sessionCookie
   ) {
     return NextResponse.redirect(new URL("/groups", request.url));
   }
