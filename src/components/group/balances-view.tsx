@@ -1,12 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  confirmSettlementAction,
-  rejectSettlementAction,
-  cancelSettlementAction,
-} from "@/actions/expenses";
+import { useConfirmSettlement, useRejectSettlement, useCancelSettlement } from "@/hooks/mutations";
 import { RecordSettlementDialog } from "@/components/group/record-settlement-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -86,61 +82,78 @@ export function BalancesView({
   };
 
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const queryClient = useQueryClient();
+  const confirmSettlement = useConfirmSettlement();
+  const rejectSettlement = useRejectSettlement();
+  const cancelSettlement = useCancelSettlement();
+
+  const isPending =
+    confirmSettlement.isPending || rejectSettlement.isPending || cancelSettlement.isPending;
 
   const handleConfirm = (settlementId: string) => {
     setProcessingId(settlementId);
-    const formData = new FormData();
-    formData.append("groupId", groupId);
-    formData.append("settlementId", settlementId);
-
-    startTransition(async () => {
-      const res = await confirmSettlementAction(null, formData);
-      setProcessingId(null);
-      if (res.success) {
-        toast.success("Settlement confirmed! Balances updated.");
-        queryClient.invalidateQueries();
-      } else {
-        toast.error(res.error || "Failed to confirm settlement");
+    confirmSettlement.mutate(
+      { groupId, settlementId },
+      {
+        onSuccess: (res) => {
+          setProcessingId(null);
+          if (res.success) {
+            toast.success("Settlement confirmed! Balances updated.");
+            queryClient.invalidateQueries();
+          } else {
+            toast.error(res.error || "Failed to confirm settlement");
+          }
+        },
+        onError: (err: Error) => {
+          setProcessingId(null);
+          toast.error(err.message);
+        },
       }
-    });
+    );
   };
 
   const handleReject = (settlementId: string) => {
     setProcessingId(settlementId);
-    const formData = new FormData();
-    formData.append("groupId", groupId);
-    formData.append("settlementId", settlementId);
-
-    startTransition(async () => {
-      const res = await rejectSettlementAction(null, formData);
-      setProcessingId(null);
-      if (res.success) {
-        toast.info("Settlement claim rejected.");
-        queryClient.invalidateQueries();
-      } else {
-        toast.error(res.error || "Failed to reject settlement");
+    rejectSettlement.mutate(
+      { groupId, settlementId },
+      {
+        onSuccess: (res) => {
+          setProcessingId(null);
+          if (res.success) {
+            toast.info("Settlement claim rejected.");
+            queryClient.invalidateQueries();
+          } else {
+            toast.error(res.error || "Failed to reject settlement");
+          }
+        },
+        onError: (err: Error) => {
+          setProcessingId(null);
+          toast.error(err.message);
+        },
       }
-    });
+    );
   };
 
   const handleCancel = (settlementId: string) => {
     setProcessingId(settlementId);
-    const formData = new FormData();
-    formData.append("groupId", groupId);
-    formData.append("settlementId", settlementId);
-
-    startTransition(async () => {
-      const res = await cancelSettlementAction(null, formData);
-      setProcessingId(null);
-      if (res.success) {
-        toast.info("Settlement cancelled.");
-        queryClient.invalidateQueries();
-      } else {
-        toast.error(res.error || "Failed to cancel settlement");
+    cancelSettlement.mutate(
+      { groupId, settlementId },
+      {
+        onSuccess: (res) => {
+          setProcessingId(null);
+          if (res.success) {
+            toast.info("Settlement cancelled.");
+            queryClient.invalidateQueries();
+          } else {
+            toast.error(res.error || "Failed to cancel settlement");
+          }
+        },
+        onError: (err: Error) => {
+          setProcessingId(null);
+          toast.error(err.message);
+        },
       }
-    });
+    );
   };
 
   const pendingSettlements = settlements.filter((s) => s.status === "pending");
