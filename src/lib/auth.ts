@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { username } from "better-auth/plugins";
+import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -34,6 +35,7 @@ export const betterAuthInstance = betterAuth({
       immutableUsername: true,
       usernameValidator: (value) => /^[a-zA-Z0-9_]+$/.test(value),
     }),
+    nextCookies(),
   ],
   databaseHooks: {
     user: {
