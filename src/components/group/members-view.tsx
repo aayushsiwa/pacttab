@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createInviteLinkAction,
   revokeInviteLinkAction,
@@ -88,7 +88,7 @@ export function MembersView({
   const [maxUses, setMaxUses] = useState<number | null>(null);
   const [requiresApproval, setRequiresApproval] = useState(false);
 
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const isAdmin = currentUserRole === "admin";
 
   const handleCopy = (token: string) => {
@@ -112,7 +112,7 @@ export function MembersView({
         setIsCreateModalOpen(false);
         setCustomSlug("");
         handleCopy(res.token);
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to create invite link");
       }
@@ -125,7 +125,7 @@ export function MembersView({
       if (res.success && res.token) {
         toast.success("Rotated invite link! Previous links invalidated.");
         handleCopy(res.token);
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to rotate invite link");
       }
@@ -137,7 +137,7 @@ export function MembersView({
       const res = await revokeInviteLinkAction(groupId, inviteId);
       if (res.success) {
         toast.success("Revoked invite link");
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to revoke invite link");
       }
@@ -151,7 +151,7 @@ export function MembersView({
         toast.success(
           decision === "approved" ? "Member approved and added to group!" : "Join request declined."
         );
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to process request");
       }

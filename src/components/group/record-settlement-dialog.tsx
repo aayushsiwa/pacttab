@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { recordSettlementAction } from "@/actions/expenses";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,7 +64,7 @@ function SettlementForm({
   const [amount, setAmount] = useState(prefill?.amount ? prefill.amount.toString() : "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +95,7 @@ function SettlementForm({
         const counterpartyName = currentUserId === paidByUserId ? recipientName : payerName;
         toast.success(`Settlement recorded! Waiting for @${counterpartyName} to confirm.`);
         onClose();
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         setError(res.error || "Failed to record settlement");
       }

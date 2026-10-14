@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { updateExpenseAction } from "@/actions/expenses";
 import { Button } from "@/components/ui/button";
 import {
@@ -117,7 +117,7 @@ function EditExpenseForm({
   const [expenseDate, setExpenseDate] = useState(formattedDate);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const numAmount = parseFloat(amount) || 0;
   const participantCount = participantIds.length;
@@ -223,7 +223,7 @@ function EditExpenseForm({
       if (res.success) {
         toast.success(`Updated expense: ${description}`);
         onClose();
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         setError(res.error || "Failed to update expense");
       }

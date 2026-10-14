@@ -2,7 +2,6 @@
 
 import crypto from "crypto";
 import { eq, and, asc } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { messages, groupMembers, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
@@ -61,7 +60,6 @@ export async function sendMessageAction(
       },
     });
 
-    revalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to send message:", error);

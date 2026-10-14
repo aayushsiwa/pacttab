@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   confirmSettlementAction,
   rejectSettlementAction,
@@ -87,7 +87,7 @@ export function BalancesView({
 
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const handleConfirm = (settlementId: string) => {
     setProcessingId(settlementId);
@@ -100,7 +100,7 @@ export function BalancesView({
       setProcessingId(null);
       if (res.success) {
         toast.success("Settlement confirmed! Balances updated.");
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to confirm settlement");
       }
@@ -118,7 +118,7 @@ export function BalancesView({
       setProcessingId(null);
       if (res.success) {
         toast.info("Settlement claim rejected.");
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to reject settlement");
       }
@@ -136,7 +136,7 @@ export function BalancesView({
       setProcessingId(null);
       if (res.success) {
         toast.info("Settlement cancelled.");
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to cancel settlement");
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useTransition, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { sendMessageAction } from "@/actions/chat";
 import { useGroupSocket, type ChatMessage } from "@/hooks/use-group-socket";
 import { MessageContent } from "@/components/group/message-content";
@@ -77,7 +77,7 @@ export function ChatView({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Handle incoming real-time WebSocket messages
   const handleNewMessage = useCallback((msg: ChatMessage) => {
@@ -146,11 +146,11 @@ export function ChatView({
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isConnected) {
-        router.refresh();
+        queryClient.invalidateQueries();
       }
     }, 15000);
     return () => clearInterval(interval);
-  }, [isConnected, router]);
+  }, [isConnected, queryClient]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -252,7 +252,7 @@ export function ChatView({
           toast.error(res.error || "Failed to send message");
           setText(messageText);
         } else {
-          router.refresh();
+          queryClient.invalidateQueries();
         }
       });
     }

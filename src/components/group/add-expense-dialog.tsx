@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { createExpenseAction } from "@/actions/expenses";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +43,7 @@ export function AddExpenseDialog({ groupId, currentUserId, members }: AddExpense
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const numAmount = parseFloat(amount) || 0;
   const participantCount = participantIds.length;
@@ -155,7 +155,7 @@ export function AddExpenseDialog({ groupId, currentUserId, members }: AddExpense
         setPercentValues({});
         setShareValues({});
         setParticipantIds(members.map((m) => m.id));
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         setError(res.error || "Failed to add expense");
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { deleteExpenseAction } from "@/actions/expenses";
 import { AddExpenseDialog } from "@/components/group/add-expense-dialog";
 import { EditExpenseDialog } from "@/components/group/edit-expense-dialog";
@@ -61,7 +61,7 @@ export function ExpensesView({
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<ExpenseItem | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const totalSpent = expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
 
@@ -83,7 +83,7 @@ export function ExpensesView({
       if (res.success) {
         toast.success(`Deleted expense: ${expenseToDelete.description}`);
         setExpenseToDelete(null);
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to delete expense");
       }

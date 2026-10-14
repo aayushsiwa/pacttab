@@ -3,7 +3,6 @@
 import { z } from "zod";
 import crypto from "crypto";
 import { eq, and, inArray } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { expenses, expenseSplits, settlements, messages, groupMembers, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
@@ -190,7 +189,6 @@ export async function createExpenseAction(
       payerUsername: payerName,
     });
 
-    revalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to create expense:", error);
@@ -282,7 +280,6 @@ export async function deleteExpenseAction(
       });
     });
 
-    revalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to delete expense:", error);
@@ -462,7 +459,6 @@ export async function updateExpenseAction(
       amount,
     });
 
-    revalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to update expense:", error);
@@ -588,7 +584,6 @@ export async function recordSettlementAction(
       });
     });
 
-    revalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to record settlement:", error);
@@ -707,7 +702,6 @@ export async function confirmSettlementAction(
       });
     });
 
-    revalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to confirm settlement:", error);
@@ -799,7 +793,6 @@ export async function rejectSettlementAction(
       });
     });
 
-    revalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to reject settlement:", error);
@@ -877,7 +870,6 @@ export async function cancelSettlementAction(
       });
     });
 
-    revalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to cancel settlement:", error);

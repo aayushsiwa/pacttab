@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   updateGroupAction,
   transferAdminAction,
@@ -69,6 +70,7 @@ export function GroupSettingsDialog({
   const [isPending, startTransition] = useTransition();
 
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isAdmin = currentUserRole === "admin";
   const otherMembers = members.filter((m) => m.id !== currentUserId);
 
@@ -87,7 +89,7 @@ export function GroupSettingsDialog({
       if (res.success) {
         toast.success("Group details updated!");
         onOpenChange(false);
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to update group details");
       }
@@ -105,7 +107,7 @@ export function GroupSettingsDialog({
       if (res.success) {
         toast.success("Admin rights transferred successfully!");
         onOpenChange(false);
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to transfer admin rights");
       }
@@ -120,7 +122,7 @@ export function GroupSettingsDialog({
         setIsConfirmLeaveOpen(false);
         onOpenChange(false);
         router.push("/groups");
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to leave group");
       }
@@ -135,7 +137,7 @@ export function GroupSettingsDialog({
         setIsConfirmDeleteOpen(false);
         onOpenChange(false);
         router.push("/groups");
-        router.refresh();
+        queryClient.invalidateQueries();
       } else {
         toast.error(res.error || "Failed to delete group");
       }
