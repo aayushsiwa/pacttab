@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { WSEvent } from "@/lib/ws-hub";
 
@@ -32,6 +33,7 @@ export function useGroupSocket({
   const onNewMessageRef = useRef(onNewMessage);
   const currentUsernameRef = useRef(currentUsername);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     onNewMessageRef.current = onNewMessage;
@@ -96,29 +98,29 @@ export function useGroupSocket({
               toast.info(
                 `${exp.payerUsername} added expense: ${exp.description} (₹${exp.amount.toFixed(2)})`
               );
-              router.refresh();
+              queryClient.invalidateQueries();
             } else if (data.type === "expense_deleted") {
               const exp = data as Extract<WSEvent, { type: "expense_deleted" }>;
               toast.info(`Expense deleted: ${exp.description}`);
-              router.refresh();
+              queryClient.invalidateQueries();
             } else if (data.type === "settlement_recorded") {
               const set = data as Extract<WSEvent, { type: "settlement_recorded" }>;
               toast.success(
                 `Settlement recorded: ${set.payerUsername} paid ${set.recipientUsername} ₹${set.amount.toFixed(2)}`
               );
-              router.refresh();
+              queryClient.invalidateQueries();
             } else if (data.type === "member_joined") {
               const mem = data as Extract<WSEvent, { type: "member_joined" }>;
               toast.info(`${mem.username} joined the group!`);
-              router.refresh();
+              queryClient.invalidateQueries();
             } else if (data.type === "join_request_created") {
               const req = data as Extract<WSEvent, { type: "join_request_created" }>;
               toast.info(`@${req.username} requested to join the group`);
-              router.refresh();
+              queryClient.invalidateQueries();
             } else if (data.type === "join_request_reviewed") {
-              router.refresh();
+              queryClient.invalidateQueries();
             } else if (data.type === "refresh") {
-              router.refresh();
+              queryClient.invalidateQueries();
             }
           } catch {
             // Ignore parse errors
@@ -146,7 +148,7 @@ export function useGroupSocket({
       if (ws) ws.close();
       wsRef.current = null;
     };
-  }, [groupId, userId, onNewMessage, router]);
+  }, [groupId, userId, onNewMessage, router, queryClient]);
 
   const sendWsMessage = useCallback(
     (body: string) => {
