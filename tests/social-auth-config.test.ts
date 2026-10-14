@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getEnabledSocialAuthProviderOptions,
   getEnabledSocialAuthProviders,
+  getPublicSocialAuthProviderOptions,
   getSocialAuthProviderFlags,
   isSocialAuthProviderEnabled,
 } from "../src/lib/social-auth-config";
@@ -57,5 +58,34 @@ describe("social auth configuration", () => {
         GOOGLE_CLIENT_SECRET: "google-secret",
       })
     ).toEqual([]);
+  });
+
+  it("public flags helper returns enabled providers when NEXT_PUBLIC flags are true", () => {
+    const environment = {
+      NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: "true",
+      NEXT_PUBLIC_GITHUB_OAUTH_ENABLED: "false",
+    };
+    expect(getPublicSocialAuthProviderOptions(environment)).toEqual([
+      { id: "google", label: "Google" },
+    ]);
+  });
+
+  it("public flags helper returns empty when flags are false or absent", () => {
+    expect(getPublicSocialAuthProviderOptions({})).toEqual([]);
+    expect(
+      getPublicSocialAuthProviderOptions({ NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: "false" })
+    ).toEqual([]);
+    expect(getPublicSocialAuthProviderOptions({ NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: "  " })).toEqual(
+      []
+    );
+  });
+
+  it("public flags helper is case-insensitive for 'true'", () => {
+    expect(
+      getPublicSocialAuthProviderOptions({ NEXT_PUBLIC_GITHUB_OAUTH_ENABLED: "TRUE" })
+    ).toEqual([{ id: "github", label: "GitHub" }]);
+    expect(
+      getPublicSocialAuthProviderOptions({ NEXT_PUBLIC_GITHUB_OAUTH_ENABLED: "True" })
+    ).toEqual([{ id: "github", label: "GitHub" }]);
   });
 });
