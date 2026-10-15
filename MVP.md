@@ -135,13 +135,14 @@ The MVP explicitly does not include:
 
 ## Technical approach
 
-- Framework: Next.js, full-stack App Router application
+- Framework: Next.js 16 (App Router), full-stack application
 - PWA: web manifest, installable experience, mobile-first responsive UI, basic offline shell
-- Authentication: Better Auth with username/password credentials
+- Authentication: Better Auth with username/password credentials (CSR login/signup via fetch)
 - Database: PostgreSQL
 - ORM: Drizzle ORM
+- Client Data: TanStack Query v5 for all client-side data fetching, optimistic updates, cache
 - Hosting: Vercel or Railway for the app, managed PostgreSQL through Neon, Supabase, or Railway
-- Real-time updates: start with polling or refresh; add WebSockets/Supabase Realtime only if chat responsiveness becomes a clear need
+- Real-time updates: WebSockets with Redis Pub/Sub and group `@mention` autocomplete
 
 ## Core data entities
 
