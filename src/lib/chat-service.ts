@@ -8,6 +8,7 @@ import type { ApiUser } from "@/lib/api-auth";
 export interface ChatActionResult {
   success: boolean;
   error?: string;
+  status?: number;
 }
 
 export async function sendMessage(
@@ -33,7 +34,7 @@ export async function sendMessage(
     .limit(1);
 
   if (membership.length === 0) {
-    return { success: false, error: "You are not an active member of this group" };
+    return { success: false, error: "You are not an active member of this group", status: 403 };
   }
 
   const messageId = crypto.randomUUID();
@@ -63,6 +64,6 @@ export async function sendMessage(
     return { success: true };
   } catch (error) {
     console.error("Failed to send message:", error);
-    return { success: false, error: "Failed to send message" };
+    return { success: false, error: "Failed to send message", status: 500 };
   }
 }

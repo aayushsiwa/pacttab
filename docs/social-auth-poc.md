@@ -22,7 +22,7 @@ Better Auth requires an email field for credential accounts. PactTab's local han
 
 ## Why This Was a Migration, Not Just Two Buttons
 
-PactTab originally owned authentication through custom `users` and `sessions` tables, bcrypt password hashes, and a `splitwise_session` cookie. Better Auth is now the active authentication system; this migration has been carried out and the custom session layer retired.
+PactTab originally owned authentication through custom `users` and `sessions` tables, bcrypt password hashes, and a `splitwise_session` cookie. The application cutover to Better Auth is complete and the custom session layer has been retired. Production-data migration is still pending as described in rollout step 7.
 
 Better Auth social sign-in requires an auth route, Better Auth session handling, and `user`, `session`, `account`, and `verification` data. Existing groups, expenses, messages, and invites reference current user IDs. The POC must preserve those IDs or migrate every foreign-key reference transactionally.
 

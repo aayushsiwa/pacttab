@@ -15,6 +15,7 @@ import type { ApiUser } from "@/lib/api-auth";
 export interface ExpenseActionResult {
   success: boolean;
   error?: string;
+  status?: number;
 }
 
 function computeSplits(
@@ -103,7 +104,7 @@ export async function createExpense(
     .limit(1);
 
   if (membership.length === 0) {
-    return { success: false, error: "You are not an active member of this group" };
+    return { success: false, error: "You are not an active member of this group", status: 403 };
   }
 
   const allNeededUsers = Array.from(new Set([paidByUserId, ...participantUserIds]));
@@ -124,7 +125,7 @@ export async function createExpense(
     splits = computeSplits(amount, participantUserIds, splitType, customSplits);
   } catch (splitErr: unknown) {
     const msg = splitErr instanceof Error ? splitErr.message : "Invalid split configuration";
-    return { success: false, error: msg };
+    return { success: false, error: msg, status: 400 };
   }
 
   const expenseId = crypto.randomUUID();
@@ -185,7 +186,7 @@ export async function createExpense(
     return { success: true };
   } catch (error) {
     console.error("Failed to create expense:", error);
-    return { success: false, error: "Failed to save expense. Please try again." };
+    return { success: false, error: "Failed to save expense. Please try again.", status: 500 };
   }
 }
 
@@ -235,7 +236,7 @@ export async function updateExpense(
     .limit(1);
 
   if (membership.length === 0) {
-    return { success: false, error: "You are not an active member of this group" };
+    return { success: false, error: "You are not an active member of this group", status: 403 };
   }
 
   const [existingExpense] = await db
@@ -245,7 +246,7 @@ export async function updateExpense(
     .limit(1);
 
   if (!existingExpense) {
-    return { success: false, error: "Expense not found" };
+    return { success: false, error: "Expense not found", status: 404 };
   }
 
   const isAdmin = membership[0].role === "admin";
@@ -253,7 +254,11 @@ export async function updateExpense(
   const isPayer = existingExpense.paidByUserId === user.id;
 
   if (!isAdmin && !isCreator && !isPayer) {
-    return { success: false, error: "You do not have permission to edit this expense" };
+    return {
+      success: false,
+      error: "You do not have permission to edit this expense",
+      status: 403,
+    };
   }
 
   const allNeededUsers = Array.from(new Set([paidByUserId, ...participantUserIds]));
@@ -272,7 +277,7 @@ export async function updateExpense(
     splits = computeSplits(amount, participantUserIds, splitType, customSplits);
   } catch (splitErr: unknown) {
     const msg = splitErr instanceof Error ? splitErr.message : "Invalid split configuration";
-    return { success: false, error: msg };
+    return { success: false, error: msg, status: 400 };
   }
 
   const dateObj = expenseDate ? new Date(expenseDate) : existingExpense.expenseDate;
@@ -332,7 +337,7 @@ export async function updateExpense(
     return { success: true };
   } catch (error) {
     console.error("Failed to update expense:", error);
-    return { success: false, error: "Failed to update expense" };
+    return { success: false, error: "Failed to update expense", status: 500 };
   }
 }
 
@@ -354,7 +359,7 @@ export async function deleteExpense(
     .limit(1);
 
   if (membership.length === 0) {
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: "Unauthorized", status: 403 };
   }
 
   const exp = await db
@@ -369,7 +374,7 @@ export async function deleteExpense(
     .limit(1);
 
   if (exp.length === 0) {
-    return { success: false, error: "Expense not found" };
+    return { success: false, error: "Expense not found", status: 404 };
   }
 
   const expenseItem = exp[0];
@@ -378,7 +383,11 @@ export async function deleteExpense(
   const isPayer = expenseItem.paidByUserId === user.id;
 
   if (!isAdmin && !isCreator && !isPayer) {
-    return { success: false, error: "You do not have permission to delete this expense" };
+    return {
+      success: false,
+      error: "You do not have permission to delete this expense",
+      status: 403,
+    };
   }
 
   try {
@@ -418,7 +427,7 @@ export async function deleteExpense(
     return { success: true };
   } catch (error) {
     console.error("Failed to delete expense:", error);
-    return { success: false, error: "Failed to delete expense" };
+    return { success: false, error: "Failed to delete expense", status: 500 };
   }
 }
 
@@ -471,7 +480,7 @@ export async function recordSettlement(
     .limit(1);
 
   if (membership.length === 0) {
-    return { success: false, error: "You are not an active member of this group" };
+    return { success: false, error: "You are not an active member of this group", status: 403 };
   }
 
   const memberRecords = await db
@@ -537,7 +546,7 @@ export async function recordSettlement(
     return { success: true };
   } catch (error) {
     console.error("Failed to record settlement:", error);
-    return { success: false, error: "Failed to record settlement" };
+    return { success: false, error: "Failed to record settlement", status: 500 };
   }
 }
 
@@ -559,7 +568,7 @@ export async function confirmSettlement(
     .limit(1);
 
   if (membership.length === 0) {
-    return { success: false, error: "You are not an active member of this group" };
+    return { success: false, error: "You are not an active member of this group", status: 403 };
   }
 
   const [settlement] = await db
@@ -569,11 +578,11 @@ export async function confirmSettlement(
     .limit(1);
 
   if (!settlement) {
-    return { success: false, error: "Settlement not found" };
+    return { success: false, error: "Settlement not found", status: 404 };
   }
 
   if (settlement.status !== "pending") {
-    return { success: false, error: `Settlement is already ${settlement.status}` };
+    return { success: false, error: `Settlement is already ${settlement.status}`, status: 409 };
   }
 
   const counterpartyUserId =
@@ -582,13 +591,21 @@ export async function confirmSettlement(
       : settlement.paidByUserId;
 
   if (settlement.createdByUserId && user.id !== counterpartyUserId) {
-    return { success: false, error: "Only the other member involved can affirm this settlement" };
+    return {
+      success: false,
+      error: "Only the other member involved can affirm this settlement",
+      status: 403,
+    };
   } else if (
     !settlement.createdByUserId &&
     user.id !== settlement.paidByUserId &&
     user.id !== settlement.receivedByUserId
   ) {
-    return { success: false, error: "Only a participant of this settlement can affirm it" };
+    return {
+      success: false,
+      error: "Only a participant of this settlement can affirm it",
+      status: 403,
+    };
   }
 
   const memberRecords = await db
@@ -646,7 +663,7 @@ export async function confirmSettlement(
     return { success: true };
   } catch (error) {
     console.error("Failed to confirm settlement:", error);
-    return { success: false, error: "Failed to confirm settlement" };
+    return { success: false, error: "Failed to confirm settlement", status: 500 };
   }
 }
 
@@ -655,6 +672,22 @@ export async function rejectSettlement(
   groupId: string,
   settlementId: string
 ): Promise<ExpenseActionResult> {
+  const membership = await db
+    .select({ id: groupMembers.id })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
+    .limit(1);
+
+  if (membership.length === 0) {
+    return { success: false, error: "You are not an active member of this group", status: 403 };
+  }
+
   const [settlement] = await db
     .select()
     .from(settlements)
@@ -662,11 +695,11 @@ export async function rejectSettlement(
     .limit(1);
 
   if (!settlement) {
-    return { success: false, error: "Settlement not found" };
+    return { success: false, error: "Settlement not found", status: 404 };
   }
 
   if (settlement.status !== "pending") {
-    return { success: false, error: `Settlement is already ${settlement.status}` };
+    return { success: false, error: `Settlement is already ${settlement.status}`, status: 409 };
   }
 
   const counterpartyUserId =
@@ -675,7 +708,21 @@ export async function rejectSettlement(
       : settlement.paidByUserId;
 
   if (settlement.createdByUserId && user.id !== counterpartyUserId) {
-    return { success: false, error: "Only the other member involved can reject this settlement" };
+    return {
+      success: false,
+      error: "Only the other member involved can reject this settlement",
+      status: 403,
+    };
+  } else if (
+    !settlement.createdByUserId &&
+    user.id !== settlement.paidByUserId &&
+    user.id !== settlement.receivedByUserId
+  ) {
+    return {
+      success: false,
+      error: "Only a participant of this settlement can reject it",
+      status: 403,
+    };
   }
 
   const memberRecords = await db
@@ -730,7 +777,7 @@ export async function rejectSettlement(
     return { success: true };
   } catch (error) {
     console.error("Failed to reject settlement:", error);
-    return { success: false, error: "Failed to reject settlement" };
+    return { success: false, error: "Failed to reject settlement", status: 500 };
   }
 }
 
@@ -746,15 +793,19 @@ export async function cancelSettlement(
     .limit(1);
 
   if (!settlement) {
-    return { success: false, error: "Settlement not found" };
+    return { success: false, error: "Settlement not found", status: 404 };
   }
 
   if (settlement.status !== "pending") {
-    return { success: false, error: `Settlement is already ${settlement.status}` };
+    return { success: false, error: `Settlement is already ${settlement.status}`, status: 409 };
   }
 
   if (settlement.createdByUserId !== user.id) {
-    return { success: false, error: "Only the member who recorded this settlement can cancel it" };
+    return {
+      success: false,
+      error: "Only the member who recorded this settlement can cancel it",
+      status: 403,
+    };
   }
 
   try {
@@ -798,6 +849,6 @@ export async function cancelSettlement(
     return { success: true };
   } catch (error) {
     console.error("Failed to cancel settlement:", error);
-    return { success: false, error: "Failed to cancel settlement" };
+    return { success: false, error: "Failed to cancel settlement", status: 500 };
   }
 }

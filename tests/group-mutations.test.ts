@@ -111,6 +111,28 @@ describe("group mutation APIs and onboarding authorization", () => {
     ]);
   });
 
+  it("rejects settings updates and deletion by an inactive admin", async () => {
+    process.env.TEST_CURRENT_USER_ID = adminId;
+    await db
+      .update(groupMembers)
+      .set({ status: "inactive" })
+      .where(eq(groupMembers.userId, adminId));
+    try {
+      expect((await PATCH(request("PATCH", { name: "Unauthorized edit" }), props())).status).toBe(
+        403
+      );
+      expect((await DELETE(request("DELETE"), props())).status).toBe(403);
+      expect(await db.select().from(groups).where(eq(groups.id, groupId))).toMatchObject([
+        { name: "Trip", description: "Weekend" },
+      ]);
+    } finally {
+      await db
+        .update(groupMembers)
+        .set({ status: "active" })
+        .where(eq(groupMembers.userId, adminId));
+    }
+  });
+
   it("preserves the stored description when PATCH omits it", async () => {
     process.env.TEST_CURRENT_USER_ID = adminId;
     const response = await PATCH(request("PATCH", { name: "Renamed Trip" }), props());

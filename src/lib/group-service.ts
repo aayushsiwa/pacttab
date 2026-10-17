@@ -136,7 +136,13 @@ export async function updateGroup(
   const [membership] = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (!membership || membership.role !== "admin") {
@@ -193,7 +199,13 @@ export async function deleteGroup(user: ApiUser, groupId: string): Promise<Group
   const [membership] = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (!membership || membership.role !== "admin") {

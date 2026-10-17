@@ -119,7 +119,14 @@ export default async function JoinPage({ params }: JoinPageProps) {
             <form
               action={async () => {
                 "use server";
-                await createJoinRequest(user, result.groupId!);
+                const currentUser = await getCurrentUser();
+                if (!currentUser) {
+                  redirect(`/login?returnTo=/join/${token}`);
+                }
+                if (currentUser.needsUsername) {
+                  redirect("/onboarding");
+                }
+                await createJoinRequest(currentUser, result.groupId!);
                 redirect(`/join/${token}`);
               }}
               className="w-full"
