@@ -20,9 +20,9 @@ The purpose is convenience, not identity collection. People who prefer a familia
 
 Better Auth requires an email field for credential accounts. PactTab's local handle-and-password accounts will receive an internal, non-deliverable value of the form `<normalized-handle>@pacttab.local`. It exists only for Better Auth account lookup: it is never displayed, emailed, exported, or used as a group identity. Google and GitHub users retain their provider email solely in the authentication layer; group UI continues to use the PactTab handle.
 
-## Why This Is a Migration, Not Two Buttons
+## Why This Was a Migration, Not Just Two Buttons
 
-PactTab currently owns authentication through custom `users` and `sessions` tables, bcrypt password hashes, and a `splitwise_session` cookie. Better Auth is installed but is not the active authentication system.
+PactTab originally owned authentication through custom `users` and `sessions` tables, bcrypt password hashes, and a `splitwise_session` cookie. Better Auth is now the active authentication system; this migration has been carried out and the custom session layer retired.
 
 Better Auth social sign-in requires an auth route, Better Auth session handling, and `user`, `session`, `account`, and `verification` data. Existing groups, expenses, messages, and invites reference current user IDs. The POC must preserve those IDs or migrate every foreign-key reference transactionally.
 
@@ -129,7 +129,7 @@ Leave both credential pairs empty to hide every provider. Google and GitHub are 
 4. Implement handle selection, safe return paths, and explicit linking.
 5. Render provider buttons and consent copy only from the enabled-provider configuration.
 6. Test in staging: new and existing users, invitations, account linking/unlinking, sign-out, and disabled providers.
-7. Back up production, migrate, enable the flag, and monitor auth failures without logging tokens or profile data.
+7. Back up production, migrate, enable the providers, and monitor auth failures without logging tokens or profile data.
 
 ## Acceptance Criteria
 

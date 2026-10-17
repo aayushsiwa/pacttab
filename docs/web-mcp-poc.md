@@ -88,7 +88,7 @@ By implementing Web MCP, PactTab will enable:
 │             │                          │               │
 │             ▼                          ▼               │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │   Internal Domain Services & Server Actions      │  │
+│  │   Internal Domain Services & API Routes          │  │
 │  │   (Drizzle ORM / PostgreSQL / Redis / WS Hub)    │  │
 │  └──────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────┘
@@ -103,7 +103,7 @@ By implementing Web MCP, PactTab will enable:
    - Ideal for external agents (Claude Desktop, Cursor, remote agent orchestrators).
 
 2. **In-Browser WebMCP (W3C Draft / In-Process)**:
-   - Client-side React drawer communicating with Next.js Server Actions directly or via `window.navigator.modelContext` where browser-supported.
+   - Client-side React drawer communicating with PactTab's REST API directly or via `window.navigator.modelContext` where browser-supported.
    - Eliminates need for external API tokens for users already logged in via session cookie.
 
 ---
@@ -196,8 +196,10 @@ export async function GET(req: NextRequest) {
 ```typescript
 import { z } from "zod";
 import { db } from "@/db";
-import { expenses, expenseSplits, groupMembers } from "@/db/schema";
+import { groupMembers } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { createExpense } from "@/lib/expense-service";
+import type { ApiUser } from "@/lib/api-auth";
 
 export const createExpenseTool = {
   name: "create_expense",
@@ -206,69 +208,52 @@ export const createExpenseTool = {
     groupId: z.string().describe("The ID of the group"),
     description: z.string().max(255).describe("Description of what was paid for"),
     amount: z.number().positive().describe("Total amount paid"),
-    splitType: z.enum(["equal", "custom"]).default("equal"),
+    splitType: z.enum(["equal", "exact"]).default("equal"),
     splits: z
       .array(
         z.object({
           userId: z.string(),
-          owedAmount: z.number().positive(),
+          amount: z.number().positive(),
         })
       )
       .optional()
-      .describe("Custom split amounts per user (required if splitType is 'custom')"),
+      .describe("Per-user amounts (required when splitType is 'exact')"),
   }),
-  execute: async (args: any, context: { userId: string }) => {
-    // 1. Verify user membership in group
-    const membership = await db.query.groupMembers.findFirst({
-      where: and(
-        eq(groupMembers.groupId, args.groupId),
-        eq(groupMembers.userId, context.userId),
-        eq(groupMembers.status, "active")
-      ),
+  execute: async (args: any, context: { user: ApiUser }) => {
+    // Reads may query directly; mutations delegate to the same domain service the
+    // REST handlers use, so membership checks, split math, and WebSocket
+    // broadcasts stay in one place.
+    const participantUserIds =
+      args.splits?.map((s: { userId: string }) => s.userId) ??
+      (
+        await db
+          .select({ userId: groupMembers.userId })
+          .from(groupMembers)
+          .where(and(eq(groupMembers.groupId, args.groupId), eq(groupMembers.status, "active")))
+      ).map((m) => m.userId);
+
+    const result = await createExpense(context.user, args.groupId, {
+      description: args.description,
+      amount: args.amount,
+      paidByUserId: context.user.id,
+      participantUserIds,
+      splitType: args.splitType,
+      customSplits: args.splits
+        ? JSON.stringify(
+            args.splits.map((s: { userId: string; amount: number }) => ({
+              userId: s.userId,
+              amount: s.amount,
+            }))
+          )
+        : undefined,
     });
 
-    if (!membership) {
-      throw new Error("You are not an active member of this group");
+    if (!result.success) {
+      throw new Error(result.error ?? "Failed to create expense");
     }
-
-    // 2. Compute splits if equal
-    let finalSplits = args.splits;
-    if (args.splitType === "equal") {
-      const activeMembers = await db.query.groupMembers.findMany({
-        where: and(eq(groupMembers.groupId, args.groupId), eq(groupMembers.status, "active")),
-      });
-      const perPerson = Number((args.amount / activeMembers.length).toFixed(2));
-      finalSplits = activeMembers.map((m) => ({
-        userId: m.userId,
-        owedAmount: perPerson,
-      }));
-    }
-
-    // 3. Persist expense in database transaction
-    const expenseId = crypto.randomUUID();
-    await db.transaction(async (tx) => {
-      await tx.insert(expenses).values({
-        id: expenseId,
-        groupId: args.groupId,
-        description: args.description,
-        amount: args.amount.toFixed(2),
-        paidByUserId: context.userId,
-        createdBy: context.userId,
-      });
-
-      for (const split of finalSplits) {
-        await tx.insert(expenseSplits).values({
-          id: crypto.randomUUID(),
-          expenseId,
-          userId: split.userId,
-          owedAmount: split.owedAmount.toFixed(2),
-        });
-      }
-    });
 
     return {
       success: true,
-      expenseId,
       message: `Recorded expense "${args.description}" for ₹${args.amount}`,
     };
   },

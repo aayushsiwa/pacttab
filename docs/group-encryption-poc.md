@@ -197,20 +197,20 @@ Migration strategy: additive columns + a `flags` column (or a `group_settings` r
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│                      Next.js Client                         │
+│                       Next.js Client                       │
 │  ┌─────────────────┐    ┌──────────────────────────────┐   │
 │  │  keyStore.ts    │    │  groupCrypto.ts              │   │
 │  │  · derive KEK   │───▶│  · unwrap GEK (member key)   │   │
 │  │  · unwrap priv  │    │  · encrypt / decrypt content │   │
 │  │  · cache (tab)  │    │  · nonce mgmt                │   │
 │  └─────────────────┘    └──────────────┬───────────────┘   │
-└───────────────────┬────────────────────┬────────────────────┘
+└───────────────────┬────────────────────┬───────────────────┘
                     │                    │
        register/login│        encrypt/decrypt payload
                     ▼                    ▼
 ┌────────────────────────────────────────────────────────────┐
-│                   Server Actions / API                      │
-│  registerUserKeys · saveWrappedGroupKey · rotateGroupKey    │
+│                    Route Handlers / API                    │
+│  registerUserKeys · saveWrappedGroupKey · rotateGroupKey   │
 │  saveMessage (ciphertext) · listMessages (ciphertext)      │
 └────────────────────────────────────────────────────────────┘
 ```
@@ -316,37 +316,33 @@ export async function encryptGroupContent(
 }
 ```
 
-### 8.4 Server action — attach wrapped key on join (`src/actions/group-encryption.ts`)
+### 8.4 API route — attach wrapped key on join (`src/app/api/groups/[id]/keys/route.ts`)
 
 ```typescript
-"use server";
+import { authenticateRequest, parseJsonBody, serviceResponse } from "@/lib/api-auth";
+import { attachWrappedGroupKey } from "@/lib/group-encryption-service";
 
-import { db } from "@/db";
-import { groupKeyWraps } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const auth = await authenticateRequest();
+  if (auth.response) return auth.response;
 
-export async function attachWrappedGroupKey(input: {
-  groupId: string;
-  memberUserId: string;
-  wrappedGroupKey: string; // produced client-side by an existing member
-  keyVersion: number;
-}) {
-  // Authorization: current user must be an active, non-removed member
-  // (this is enforced by getServerSession + membership check in the caller)
+  const parsed = await parseJsonBody(request);
+  if (parsed.response) return parsed.response;
 
-  await db.insert(groupKeyWraps).values({
-    id: crypto.randomUUID(),
-    groupId: input.groupId,
-    userId: input.memberUserId,
-    wrappedGroupKey: input.wrappedGroupKey,
-    keyVersion: input.keyVersion,
+  const { id: groupId } = await props.params;
+  const body = (parsed.data ?? {}) as Record<string, unknown>;
+
+  const result = await attachWrappedGroupKey(auth.user, groupId, {
+    memberUserId: String(body.memberUserId),
+    wrappedGroupKey: String(body.wrappedGroupKey),
+    keyVersion: Number(body.keyVersion),
   });
 
-  revalidatePath(`/groups/${input.groupId}`);
-  return { ok: true };
+  return serviceResponse(result);
 }
 ```
+
+The handler stays thin; `attachWrappedGroupKey` in `src/lib/group-encryption-service.ts` enforces active membership and inserts the `group_key_wraps` row, mirroring the other domain services.
 
 ### 8.5 Message write path (Client → Server)
 
@@ -383,7 +379,7 @@ export async function attachWrappedGroupKey(input: {
 | :---------- | :---------------------------------- | :------------------------------------------------------------------------------------------------------------ | :---------- |
 | **Phase 1** | **Crypto Core**                     | `user-keys.ts`, `group-crypto.ts`, unit tests for wrap/unwrap/encrypt/decrypt and IV uniqueness.              | 2 days      |
 | **Phase 2** | **Schema & Migration**              | Drizzle migration for `user_keys`, `group_key_wraps`, additive ciphertext columns; backward-compatible reads. | 1 day       |
-| **Phase 3** | **Key Ceremonies**                  | Register/user-key setup, group-create GEK, join re-wrap, remove→rotate server actions + client wiring.        | 3 days      |
+| **Phase 3** | **Key Ceremonies**                  | Register/user-key setup, group-create GEK, join re-wrap, remove→rotate API routes + client wiring.            | 3 days      |
 | **Phase 4** | **Chat + Expense Encryption Slice** | Encrypt/decrypt on send/receive for messages and expense descriptions; locked-placeholder UX.                 | 3 days      |
 | **Phase 5** | **Verification & Tests**            | Vitest crypto suite + an integration test proving a DB dump yields no plaintext message bodies.               | 1 day       |
 
