@@ -2,11 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { getPublicSocialAuthProviderOptions } from "@/lib/social-auth-config";
+import type { SocialAuthProvider } from "@/lib/social-auth-config";
 
-export function SocialSignInOptions({ returnTo }: { returnTo?: string }) {
-  const providers = getPublicSocialAuthProviderOptions();
+interface SocialSignInOptionsProps {
+  providers: { id: SocialAuthProvider; label: string }[];
+  returnTo?: string;
+}
 
+export function SocialSignInOptions({ providers, returnTo }: SocialSignInOptionsProps) {
   if (providers.length === 0) return null;
 
   return (
@@ -27,7 +30,7 @@ export function SocialSignInOptions({ returnTo }: { returnTo?: string }) {
             className="h-10 rounded-xl text-xs font-semibold"
             onClick={() =>
               authClient.signIn.social({
-                provider: provider.id as "google" | "github",
+                provider: provider.id,
                 callbackURL: returnTo || "/groups",
               })
             }

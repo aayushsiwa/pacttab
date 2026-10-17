@@ -16,12 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Lock, User, Link2 } from "lucide-react";
 import { SocialSignInOptions } from "@/components/auth/social-sign-in-options";
+import type { SocialAuthProvider } from "@/lib/social-auth-config";
 
 interface LoginFormProps {
+  providers: { id: SocialAuthProvider; label: string }[];
   returnTo?: string;
 }
 
-export function LoginForm({ returnTo }: LoginFormProps) {
+export function LoginForm({ providers, returnTo }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnTo = returnTo || searchParams?.get("returnTo") || "/groups";
@@ -145,7 +147,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
             {isPending ? "Signing in..." : "Sign In"}
           </Button>
 
-          <SocialSignInOptions returnTo={effectiveReturnTo} />
+          <SocialSignInOptions providers={providers} returnTo={effectiveReturnTo} />
 
           <div className="text-muted-foreground text-center text-xs font-medium">
             Don&apos;t have an account?{" "}
