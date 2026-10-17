@@ -77,7 +77,10 @@ function configuredPublicFlag(value: string | undefined): boolean {
 
 /** Public metadata safe to use in Client Components (reads NEXT_PUBLIC_* flags). */
 export function getPublicSocialAuthProviderOptions(
-  environment: Environment = process.env
+  environment: Environment = {
+    NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED,
+    NEXT_PUBLIC_GITHUB_OAUTH_ENABLED: process.env.NEXT_PUBLIC_GITHUB_OAUTH_ENABLED,
+  }
 ): { id: SocialAuthProvider; label: string }[] {
   return SOCIAL_AUTH_PROVIDERS.flatMap((provider) => {
     const prefix = provider.toUpperCase();

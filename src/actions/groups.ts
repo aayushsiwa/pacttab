@@ -1,6 +1,5 @@
 "use server";
 
-import { z } from "zod";
 import crypto from "crypto";
 import { eq, and, isNull, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -18,15 +17,7 @@ import {
 import { requireUser } from "@/lib/auth";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
 import { broadcastWsEvent } from "@/lib/ws-hub";
-
-const CreateGroupSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Group name is required")
-    .max(100, "Group name must be 100 characters or fewer"),
-  description: z.string().trim().max(500, "Description must be 500 characters or fewer").optional(),
-});
+import { groupDetailsSchema } from "@/lib/group-validation";
 
 // Reserved routes and words disallowed as custom invite slugs
 const RESERVED_SLUGS = new Set([
@@ -60,7 +51,7 @@ export async function createGroupAction(
   const rawName = formData.get("name");
   const rawDescription = formData.get("description");
 
-  const validation = CreateGroupSchema.safeParse({
+  const validation = groupDetailsSchema.safeParse({
     name: rawName,
     description: rawDescription || undefined,
   });

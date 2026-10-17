@@ -103,13 +103,16 @@ export function useGroupSocket({
               data.type === "expense_updated" ||
               data.type === "expense_deleted"
             ) {
-              const exp = data as Extract<WSEvent, { type: "expense_created" }>;
-              if (data.type === "expense_created") {
+              const exp = data as Extract<
+                WSEvent,
+                { type: "expense_created" | "expense_updated" | "expense_deleted" }
+              >;
+              if (exp.type === "expense_created") {
                 toast.info(
                   `${exp.payerUsername} added expense: ${exp.description} (₹${exp.amount.toFixed(2)})`
                 );
-              } else if (data.type === "expense_updated") {
-                toast.info(`${exp.payerUsername} updated expense: ${exp.description}`);
+              } else if (exp.type === "expense_updated") {
+                toast.info(`Expense updated: ${exp.description}`);
               } else {
                 toast.info(`Expense deleted: ${exp.description}`);
               }
@@ -134,8 +137,7 @@ export function useGroupSocket({
               } else {
                 toast.info(`Settlement cancelled`);
               }
-              queryClient.invalidateQueries({ queryKey: queryKeys.settlements.list(groupId) });
-              queryClient.invalidateQueries({ queryKey: queryKeys.balances.detail(groupId) });
+              queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });
             } else if (data.type === "member_joined") {
               const mem = data as Extract<WSEvent, { type: "member_joined" }>;
               toast.info(`${mem.username} joined the group!`);
@@ -144,14 +146,10 @@ export function useGroupSocket({
             } else if (data.type === "join_request_created") {
               const req = data as Extract<WSEvent, { type: "join_request_created" }>;
               toast.info(`@${req.username} requested to join the group`);
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.groups.pendingJoinRequests(groupId),
-              });
+              queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });
               queryClient.invalidateQueries({ queryKey: queryKeys.user.pendingAdminActions });
             } else if (data.type === "join_request_reviewed") {
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.groups.pendingJoinRequests(groupId),
-              });
+              queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });
               queryClient.invalidateQueries({ queryKey: queryKeys.user.pendingAdminActions });
             } else if (data.type === "refresh") {
               queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });

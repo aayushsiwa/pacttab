@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Lock, User, Link2 } from "lucide-react";
 import { SocialSignInOptions } from "@/components/auth/social-sign-in-options";
+import { safeReturnTo } from "@/lib/safe-return-to";
 
 interface LoginFormProps {
   returnTo?: string;
@@ -24,7 +25,7 @@ interface LoginFormProps {
 export function LoginForm({ returnTo }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const effectiveReturnTo = returnTo || searchParams?.get("returnTo") || "/groups";
+  const effectiveReturnTo = safeReturnTo(returnTo || searchParams?.get("returnTo"));
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

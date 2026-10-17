@@ -1,6 +1,7 @@
 "use client";
 
 import { useGroups, useUserPendingJoinRequests } from "@/hooks/queries/use-groups";
+import { useCurrentUser } from "@/hooks/queries/use-user";
 import { CreateGroupDialog } from "@/components/groups/create-group-dialog";
 import { JoinGroupDialog } from "@/components/groups/join-group-dialog";
 import { GroupCard } from "@/components/groups/group-card";
@@ -13,6 +14,7 @@ import type { PendingRequest, UserGroup } from "@/types/api";
 export default function GroupsPage() {
   const { data: userGroups } = useGroups<UserGroup[]>();
   const { data: pendingRequests } = useUserPendingJoinRequests<PendingRequest[]>();
+  const { data: user } = useCurrentUser();
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
@@ -116,6 +118,7 @@ export default function GroupsPage() {
             </div>
           </div>
         ) : (
+          user &&
           userGroups &&
           userGroups.length > 0 && (
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -130,7 +133,9 @@ export default function GroupsPage() {
                 ];
                 const gradient = gradients[idx % gradients.length];
 
-                return <GroupCard key={g.id} group={g} currentUserId="" gradient={gradient} />;
+                return (
+                  <GroupCard key={g.id} group={g} currentUserId={user.id} gradient={gradient} />
+                );
               })}
             </div>
           )

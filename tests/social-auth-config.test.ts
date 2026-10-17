@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getEnabledSocialAuthProviderOptions,
   getEnabledSocialAuthProviders,
@@ -8,6 +8,17 @@ import {
 } from "../src/lib/social-auth-config";
 
 describe("social auth configuration", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("reads default public flags through the explicit environment properties", () => {
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED", "true");
+    vi.stubEnv("NEXT_PUBLIC_GITHUB_OAUTH_ENABLED", "false");
+    expect(getPublicSocialAuthProviderOptions()).toEqual([{ id: "google", label: "Google" }]);
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED", "false");
+    vi.stubEnv("NEXT_PUBLIC_GITHUB_OAUTH_ENABLED", "true");
+    expect(getPublicSocialAuthProviderOptions()).toEqual([{ id: "github", label: "GitHub" }]);
+  });
+
   it("disables every provider when credentials are absent", () => {
     expect(getEnabledSocialAuthProviders({})).toEqual([]);
   });

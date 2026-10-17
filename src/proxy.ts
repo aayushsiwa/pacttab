@@ -14,13 +14,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (
-    (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup") &&
-    sessionCookie
-  ) {
-    return NextResponse.redirect(new URL("/groups", request.url));
-  }
-
   return NextResponse.next();
 }
 
