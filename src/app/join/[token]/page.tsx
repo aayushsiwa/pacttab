@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { joinGroupAction } from "@/actions/groups";
+import { createJoinRequest, joinGroup } from "@/lib/group-service";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,8 +53,12 @@ export default async function JoinPage({ params }: JoinPageProps) {
     );
   }
 
+  if (user.needsUsername) {
+    redirect("/onboarding");
+  }
+
   // Attempt joining
-  const result = await joinGroupAction(token);
+  const result = await joinGroup(token, user);
 
   if (result.success && result.groupId) {
     redirect(`/group/${result.groupId}`);
@@ -115,8 +119,7 @@ export default async function JoinPage({ params }: JoinPageProps) {
             <form
               action={async () => {
                 "use server";
-                const { createJoinRequestAction } = await import("@/actions/groups");
-                await createJoinRequestAction(result.groupId!);
+                await createJoinRequest(user, result.groupId!);
                 redirect(`/join/${token}`);
               }}
               className="w-full"

@@ -1,11 +1,8 @@
-"use server";
-
 import { z } from "zod";
 import crypto from "crypto";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { expenses, expenseSplits, settlements, messages, groupMembers, users } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
 import {
   calculateEqualSplits,
   calculateExactSplits,
@@ -13,6 +10,12 @@ import {
   calculateShareSplits,
 } from "@/lib/balances";
 import { broadcastWsEvent } from "@/lib/ws-hub";
+import type { ApiUser } from "@/lib/api-auth";
+
+export interface ExpenseActionResult {
+  success: boolean;
+  error?: string;
+}
 
 function computeSplits(
   amount: number,
@@ -35,8 +38,7 @@ function computeSplits(
   return calculateEqualSplits(amount, participantUserIds);
 }
 
-const CreateExpenseSchema = z.object({
-  groupId: z.string().uuid().or(z.string().min(1)),
+const ExpenseDetailsSchema = z.object({
   description: z.string().trim().min(1, "Description is required").max(255),
   amount: z.coerce.number().positive("Amount must be greater than zero"),
   paidByUserId: z.string().min(1, "Payer is required"),
@@ -46,30 +48,29 @@ const CreateExpenseSchema = z.object({
   expenseDate: z.string().optional(),
 });
 
-export async function createExpenseAction(
-  prevState: unknown,
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
+export interface ExpenseInput {
+  description: unknown;
+  amount: unknown;
+  paidByUserId: unknown;
+  participantUserIds: unknown;
+  splitType?: unknown;
+  customSplits?: unknown;
+  expenseDate?: unknown;
+}
 
-  const rawGroupId = formData.get("groupId") as string;
-  const rawDesc = formData.get("description") as string;
-  const rawAmount = formData.get("amount") as string;
-  const rawPaidBy = formData.get("paidByUserId") as string;
-  const rawDate = formData.get("expenseDate") as string;
-  const rawSplitType = (formData.get("splitType") as string) || "equal";
-  const rawCustomSplits = formData.get("customSplits") as string | null;
-  const rawParticipants = formData.getAll("participantUserIds") as string[];
-
-  const validation = CreateExpenseSchema.safeParse({
-    groupId: rawGroupId,
-    description: rawDesc,
-    amount: rawAmount,
-    paidByUserId: rawPaidBy,
-    participantUserIds: rawParticipants,
-    splitType: rawSplitType,
-    customSplits: rawCustomSplits,
-    expenseDate: rawDate,
+export async function createExpense(
+  user: ApiUser,
+  groupId: string,
+  input: ExpenseInput
+): Promise<ExpenseActionResult> {
+  const validation = ExpenseDetailsSchema.safeParse({
+    description: input.description,
+    amount: input.amount,
+    paidByUserId: input.paidByUserId,
+    participantUserIds: input.participantUserIds,
+    splitType: input.splitType ?? "equal",
+    customSplits: input.customSplits,
+    expenseDate: input.expenseDate,
   });
 
   if (!validation.success) {
@@ -80,7 +81,6 @@ export async function createExpenseAction(
   }
 
   const {
-    groupId,
     description,
     amount,
     paidByUserId,
@@ -90,7 +90,6 @@ export async function createExpenseAction(
     expenseDate,
   } = validation.data;
 
-  // 1. Verify that current user is an active member
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
@@ -107,7 +106,6 @@ export async function createExpenseAction(
     return { success: false, error: "You are not an active member of this group" };
   }
 
-  // 2. Verify all participants and payer are group members
   const allNeededUsers = Array.from(new Set([paidByUserId, ...participantUserIds]));
   const foundMembers = await db
     .select({ userId: groupMembers.userId, username: users.username })
@@ -121,7 +119,6 @@ export async function createExpenseAction(
 
   const payerName = foundMembers.find((m) => m.userId === paidByUserId)?.username || "A member";
 
-  // 3. Compute splits based on method
   let splits: { userId: string; owedAmount: number }[];
   try {
     splits = computeSplits(amount, participantUserIds, splitType, customSplits);
@@ -136,7 +133,6 @@ export async function createExpenseAction(
 
   try {
     await db.transaction(async (tx) => {
-      // Insert expense
       await tx.insert(expenses).values({
         id: expenseId,
         groupId,
@@ -147,7 +143,6 @@ export async function createExpenseAction(
         createdBy: user.id,
       });
 
-      // Insert splits
       for (const split of splits) {
         await tx.insert(expenseSplits).values({
           id: crypto.randomUUID(),
@@ -157,7 +152,6 @@ export async function createExpenseAction(
         });
       }
 
-      // Insert chat activity message
       await tx.insert(messages).values({
         id: messageId,
         groupId,
@@ -167,7 +161,6 @@ export async function createExpenseAction(
       });
     });
 
-    // Real-time broadcast over WebSocket
     await broadcastWsEvent({
       type: "new_message",
       groupId,
@@ -196,135 +189,20 @@ export async function createExpenseAction(
   }
 }
 
-export async function deleteExpenseAction(
+export async function updateExpense(
+  user: ApiUser,
   groupId: string,
-  expenseId: string
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
-  // Verify membership
-  const membership = await db
-    .select({ role: groupMembers.role })
-    .from(groupMembers)
-    .where(
-      and(
-        eq(groupMembers.groupId, groupId),
-        eq(groupMembers.userId, user.id),
-        eq(groupMembers.status, "active")
-      )
-    )
-    .limit(1);
-
-  if (membership.length === 0) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  // Get expense
-  const exp = await db
-    .select({
-      id: expenses.id,
-      description: expenses.description,
-      createdBy: expenses.createdBy,
-      paidByUserId: expenses.paidByUserId,
-    })
-    .from(expenses)
-    .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId)))
-    .limit(1);
-
-  if (exp.length === 0) {
-    return { success: false, error: "Expense not found" };
-  }
-
-  const expenseItem = exp[0];
-  const isAdmin = membership[0].role === "admin";
-  const isCreator = expenseItem.createdBy === user.id;
-  const isPayer = expenseItem.paidByUserId === user.id;
-
-  if (!isAdmin && !isCreator && !isPayer) {
-    return { success: false, error: "You do not have permission to delete this expense" };
-  }
-
-  try {
-    await db.transaction(async (tx) => {
-      // Delete splits first or cascade
-      await tx.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-      await tx.delete(expenses).where(eq(expenses.id, expenseId));
-
-      const deleteMsgId = crypto.randomUUID();
-      // Post activity message
-      await tx.insert(messages).values({
-        id: deleteMsgId,
-        groupId,
-        authorId: null,
-        body: `${user.username} deleted expense "${expenseItem.description}".`,
-        type: "system",
-      });
-
-      await broadcastWsEvent({
-        type: "new_message",
-        groupId,
-        message: {
-          id: deleteMsgId,
-          body: `${user.username} deleted expense "${expenseItem.description}".`,
-          type: "system",
-          createdAt: new Date().toISOString(),
-          authorId: null,
-          authorUsername: null,
-        },
-      });
-
-      await broadcastWsEvent({
-        type: "expense_deleted",
-        groupId,
-        description: expenseItem.description,
-      });
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to delete expense:", error);
-    return { success: false, error: "Failed to delete expense" };
-  }
-}
-
-const UpdateExpenseSchema = z.object({
-  groupId: z.string().uuid().or(z.string().min(1)),
-  expenseId: z.string().uuid().or(z.string().min(1)),
-  description: z.string().trim().min(1, "Description is required").max(255),
-  amount: z.coerce.number().positive("Amount must be greater than zero"),
-  paidByUserId: z.string().min(1, "Payer is required"),
-  participantUserIds: z.array(z.string()).min(1, "Select at least one participant"),
-  splitType: z.enum(["equal", "exact", "percentage", "shares"]).default("equal"),
-  customSplits: z.string().optional().nullable(),
-  expenseDate: z.string().optional(),
-});
-
-export async function updateExpenseAction(
-  prevState: unknown,
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
-  const rawGroupId = formData.get("groupId") as string;
-  const rawExpenseId = formData.get("expenseId") as string;
-  const rawDesc = formData.get("description") as string;
-  const rawAmount = formData.get("amount") as string;
-  const rawPaidBy = formData.get("paidByUserId") as string;
-  const rawDate = formData.get("expenseDate") as string;
-  const rawSplitType = (formData.get("splitType") as string) || "equal";
-  const rawCustomSplits = formData.get("customSplits") as string | null;
-  const rawParticipants = formData.getAll("participantUserIds") as string[];
-
-  const validation = UpdateExpenseSchema.safeParse({
-    groupId: rawGroupId,
-    expenseId: rawExpenseId,
-    description: rawDesc,
-    amount: rawAmount,
-    paidByUserId: rawPaidBy,
-    participantUserIds: rawParticipants,
-    splitType: rawSplitType,
-    customSplits: rawCustomSplits,
-    expenseDate: rawDate,
+  expenseId: string,
+  input: ExpenseInput
+): Promise<ExpenseActionResult> {
+  const validation = ExpenseDetailsSchema.safeParse({
+    description: input.description,
+    amount: input.amount,
+    paidByUserId: input.paidByUserId,
+    participantUserIds: input.participantUserIds,
+    splitType: input.splitType ?? "equal",
+    customSplits: input.customSplits,
+    expenseDate: input.expenseDate,
   });
 
   if (!validation.success) {
@@ -335,8 +213,6 @@ export async function updateExpenseAction(
   }
 
   const {
-    groupId,
-    expenseId,
     description,
     amount,
     paidByUserId,
@@ -346,7 +222,6 @@ export async function updateExpenseAction(
     expenseDate,
   } = validation.data;
 
-  // 1. Verify membership
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
@@ -363,7 +238,6 @@ export async function updateExpenseAction(
     return { success: false, error: "You are not an active member of this group" };
   }
 
-  // 2. Fetch existing expense
   const [existingExpense] = await db
     .select()
     .from(expenses)
@@ -382,7 +256,6 @@ export async function updateExpenseAction(
     return { success: false, error: "You do not have permission to edit this expense" };
   }
 
-  // 3. Verify participants
   const allNeededUsers = Array.from(new Set([paidByUserId, ...participantUserIds]));
   const foundMembers = await db
     .select({ userId: groupMembers.userId, username: users.username })
@@ -407,7 +280,6 @@ export async function updateExpenseAction(
 
   try {
     await db.transaction(async (tx) => {
-      // Update expense
       await tx
         .update(expenses)
         .set({
@@ -418,7 +290,6 @@ export async function updateExpenseAction(
         })
         .where(eq(expenses.id, expenseId));
 
-      // Replace splits
       await tx.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
       for (const split of splits) {
         await tx.insert(expenseSplits).values({
@@ -429,7 +300,6 @@ export async function updateExpenseAction(
         });
       }
 
-      // Insert audit system message
       await tx.insert(messages).values({
         id: updateMsgId,
         groupId,
@@ -466,29 +336,113 @@ export async function updateExpenseAction(
   }
 }
 
+export async function deleteExpense(
+  user: ApiUser,
+  groupId: string,
+  expenseId: string
+): Promise<ExpenseActionResult> {
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
+    .limit(1);
+
+  if (membership.length === 0) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const exp = await db
+    .select({
+      id: expenses.id,
+      description: expenses.description,
+      createdBy: expenses.createdBy,
+      paidByUserId: expenses.paidByUserId,
+    })
+    .from(expenses)
+    .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId)))
+    .limit(1);
+
+  if (exp.length === 0) {
+    return { success: false, error: "Expense not found" };
+  }
+
+  const expenseItem = exp[0];
+  const isAdmin = membership[0].role === "admin";
+  const isCreator = expenseItem.createdBy === user.id;
+  const isPayer = expenseItem.paidByUserId === user.id;
+
+  if (!isAdmin && !isCreator && !isPayer) {
+    return { success: false, error: "You do not have permission to delete this expense" };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
+      await tx.delete(expenses).where(eq(expenses.id, expenseId));
+
+      const deleteMsgId = crypto.randomUUID();
+      await tx.insert(messages).values({
+        id: deleteMsgId,
+        groupId,
+        authorId: null,
+        body: `${user.username} deleted expense "${expenseItem.description}".`,
+        type: "system",
+      });
+
+      await broadcastWsEvent({
+        type: "new_message",
+        groupId,
+        message: {
+          id: deleteMsgId,
+          body: `${user.username} deleted expense "${expenseItem.description}".`,
+          type: "system",
+          createdAt: new Date().toISOString(),
+          authorId: null,
+          authorUsername: null,
+        },
+      });
+
+      await broadcastWsEvent({
+        type: "expense_deleted",
+        groupId,
+        description: expenseItem.description,
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete expense:", error);
+    return { success: false, error: "Failed to delete expense" };
+  }
+}
+
 const RecordSettlementSchema = z.object({
-  groupId: z.string().min(1),
   paidByUserId: z.string().min(1, "Payer is required"),
   receivedByUserId: z.string().min(1, "Recipient is required"),
   amount: z.coerce.number().positive("Amount must be greater than zero"),
 });
 
-export async function recordSettlementAction(
-  prevState: unknown,
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
+export interface SettlementInput {
+  paidByUserId: unknown;
+  receivedByUserId: unknown;
+  amount: unknown;
+}
 
-  const rawGroupId = formData.get("groupId") as string;
-  const rawPaidBy = formData.get("paidByUserId") as string;
-  const rawReceivedBy = formData.get("receivedByUserId") as string;
-  const rawAmount = formData.get("amount") as string;
-
+export async function recordSettlement(
+  user: ApiUser,
+  groupId: string,
+  input: SettlementInput
+): Promise<ExpenseActionResult> {
   const validation = RecordSettlementSchema.safeParse({
-    groupId: rawGroupId,
-    paidByUserId: rawPaidBy,
-    receivedByUserId: rawReceivedBy,
-    amount: rawAmount,
+    paidByUserId: input.paidByUserId,
+    receivedByUserId: input.receivedByUserId,
+    amount: input.amount,
   });
 
   if (!validation.success) {
@@ -498,13 +452,12 @@ export async function recordSettlementAction(
     };
   }
 
-  const { groupId, paidByUserId, receivedByUserId, amount } = validation.data;
+  const { paidByUserId, receivedByUserId, amount } = validation.data;
 
   if (paidByUserId === receivedByUserId) {
     return { success: false, error: "Payer and recipient cannot be the same person" };
   }
 
-  // Verify group membership
   const membership = await db
     .select({ id: groupMembers.id })
     .from(groupMembers)
@@ -521,7 +474,6 @@ export async function recordSettlementAction(
     return { success: false, error: "You are not an active member of this group" };
   }
 
-  // Get usernames
   const memberRecords = await db
     .select({ userId: users.id, username: users.username })
     .from(users)
@@ -531,7 +483,6 @@ export async function recordSettlementAction(
   const recipientName =
     memberRecords.find((m) => m.userId === receivedByUserId)?.username || "Member";
 
-  // Counterparty is the other user involved who must confirm
   const counterpartyUserId = user.id === paidByUserId ? receivedByUserId : paidByUserId;
   const counterpartyName = counterpartyUserId === paidByUserId ? payerName : recipientName;
 
@@ -553,7 +504,6 @@ export async function recordSettlementAction(
       const settleMsgId = crypto.randomUUID();
       const messageBody = `${user.username} recorded payment of ₹${amount.toFixed(2)} from @${payerName} to @${recipientName} (Pending affirmation from @${counterpartyName}).`;
 
-      // Post activity message
       await tx.insert(messages).values({
         id: settleMsgId,
         groupId,
@@ -591,19 +541,11 @@ export async function recordSettlementAction(
   }
 }
 
-export async function confirmSettlementAction(
-  prevState: unknown,
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-  const groupId = formData.get("groupId") as string;
-  const settlementId = formData.get("settlementId") as string;
-
-  if (!groupId || !settlementId) {
-    return { success: false, error: "Invalid settlement request" };
-  }
-
-  // Verify group membership
+export async function confirmSettlement(
+  user: ApiUser,
+  groupId: string,
+  settlementId: string
+): Promise<ExpenseActionResult> {
   const membership = await db
     .select({ id: groupMembers.id })
     .from(groupMembers)
@@ -634,7 +576,6 @@ export async function confirmSettlementAction(
     return { success: false, error: `Settlement is already ${settlement.status}` };
   }
 
-  // Counterparty verification
   const counterpartyUserId =
     settlement.createdByUserId === settlement.paidByUserId
       ? settlement.receivedByUserId
@@ -709,18 +650,11 @@ export async function confirmSettlementAction(
   }
 }
 
-export async function rejectSettlementAction(
-  prevState: unknown,
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-  const groupId = formData.get("groupId") as string;
-  const settlementId = formData.get("settlementId") as string;
-
-  if (!groupId || !settlementId) {
-    return { success: false, error: "Invalid settlement request" };
-  }
-
+export async function rejectSettlement(
+  user: ApiUser,
+  groupId: string,
+  settlementId: string
+): Promise<ExpenseActionResult> {
   const [settlement] = await db
     .select()
     .from(settlements)
@@ -800,18 +734,11 @@ export async function rejectSettlementAction(
   }
 }
 
-export async function cancelSettlementAction(
-  prevState: unknown,
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-  const groupId = formData.get("groupId") as string;
-  const settlementId = formData.get("settlementId") as string;
-
-  if (!groupId || !settlementId) {
-    return { success: false, error: "Invalid settlement request" };
-  }
-
+export async function cancelSettlement(
+  user: ApiUser,
+  groupId: string,
+  settlementId: string
+): Promise<ExpenseActionResult> {
   const [settlement] = await db
     .select()
     .from(settlements)
@@ -834,9 +761,7 @@ export async function cancelSettlementAction(
     await db.transaction(async (tx) => {
       await tx
         .update(settlements)
-        .set({
-          status: "cancelled",
-        })
+        .set({ status: "cancelled" })
         .where(eq(settlements.id, settlementId));
 
       const cancelMsgId = crypto.randomUUID();

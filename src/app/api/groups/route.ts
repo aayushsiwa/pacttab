@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserGroups } from "@/lib/queries";
-import { createGroupAction } from "@/actions/groups";
-import { groupDetailsSchema } from "@/lib/group-validation";
+import { authenticateRequest, parseJsonBody, serviceResponse } from "@/lib/api-auth";
+import { createGroup } from "@/lib/group-service";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -15,30 +15,17 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (user.needsUsername) {
-    return NextResponse.json({ error: "Complete onboarding first" }, { status: 403 });
-  }
+  const auth = await authenticateRequest();
+  if (auth.response) return auth.response;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  const parsed = groupDetailsSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request);
+  if (parsed.response) return parsed.response;
 
-  const formData = new FormData();
-  formData.set("name", parsed.data.name);
-  if (parsed.data.description !== undefined) {
-    formData.set("description", parsed.data.description);
-  }
-  const result = await createGroupAction(null, formData);
-  return NextResponse.json(result, { status: result.success ? 201 : 500 });
+  const body = (parsed.data ?? {}) as Record<string, unknown>;
+  const result = await createGroup(auth.user, {
+    name: body.name,
+    description: body.description,
+  });
+
+  return serviceResponse(result, { groupId: result.groupId }, 201);
 }

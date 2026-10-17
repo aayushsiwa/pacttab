@@ -1,24 +1,25 @@
-"use server";
-
 import crypto from "crypto";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
-import { messages, groupMembers, users } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { messages, groupMembers } from "@/db/schema";
 import { broadcastWsEvent } from "@/lib/ws-hub";
+import type { ApiUser } from "@/lib/api-auth";
 
-export async function sendMessageAction(
+export interface ChatActionResult {
+  success: boolean;
+  error?: string;
+}
+
+export async function sendMessage(
+  user: ApiUser,
   groupId: string,
   body: string
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
+): Promise<ChatActionResult> {
   const trimmed = body.trim();
   if (!trimmed) {
     return { success: false, error: "Message cannot be empty" };
   }
 
-  // Verify membership
   const membership = await db
     .select({ id: groupMembers.id })
     .from(groupMembers)
@@ -46,7 +47,6 @@ export async function sendMessageAction(
       type: "user",
     });
 
-    // Broadcast over WebSocket in real time
     await broadcastWsEvent({
       type: "new_message",
       groupId,
@@ -65,41 +65,4 @@ export async function sendMessageAction(
     console.error("Failed to send message:", error);
     return { success: false, error: "Failed to send message" };
   }
-}
-
-export async function getGroupMessages(groupId: string) {
-  const user = await requireUser();
-
-  // Verify membership
-  const membership = await db
-    .select({ id: groupMembers.id })
-    .from(groupMembers)
-    .where(
-      and(
-        eq(groupMembers.groupId, groupId),
-        eq(groupMembers.userId, user.id),
-        eq(groupMembers.status, "active")
-      )
-    )
-    .limit(1);
-
-  if (membership.length === 0) {
-    throw new Error("Unauthorized");
-  }
-
-  const result = await db
-    .select({
-      id: messages.id,
-      body: messages.body,
-      type: messages.type,
-      createdAt: messages.createdAt,
-      authorId: messages.authorId,
-      authorUsername: users.username,
-    })
-    .from(messages)
-    .leftJoin(users, eq(messages.authorId, users.id))
-    .where(eq(messages.groupId, groupId))
-    .orderBy(asc(messages.createdAt));
-
-  return result;
 }
