@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { useGroupDetail, useMessages } from "@/hooks/queries/use-groups";
+import { useCurrentUser } from "@/hooks/queries/use-user";
 import { GroupTabs } from "@/components/group/group-tabs";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -28,10 +29,11 @@ export default function GroupPage({ params }: GroupPageProps) {
     error: detailsError,
   } = useGroupDetail<GroupDetails>(groupId);
   const { data: messages, isLoading: messagesLoading } = useMessages<MessageItem[]>(groupId);
+  const { data: user, isPending: userPending, error: userError } = useCurrentUser();
 
   if (!groupId) return null;
 
-  if (detailsLoading || messagesLoading) {
+  if (detailsLoading || messagesLoading || userPending) {
     return (
       <div className="container mx-auto max-w-5xl px-4 py-6">
         <div className="text-muted-foreground flex h-full flex-col items-center justify-center p-6 text-center">
@@ -44,6 +46,10 @@ export default function GroupPage({ params }: GroupPageProps) {
 
   if (detailsError || !details) {
     notFound();
+  }
+
+  if (userError || !user) {
+    return <p role="alert">Failed to load current user. Please try again.</p>;
   }
 
   const groupForTabs = details.group
@@ -112,8 +118,8 @@ export default function GroupPage({ params }: GroupPageProps) {
       <GroupTabs
         group={groupForTabs!}
         groupId={groupId}
-        currentUserId={""}
-        currentUsername={""}
+        currentUserId={user.id}
+        currentUsername={user.username}
         currentUserRole={details.currentUserRole}
         members={membersForTabs}
         messages={messagesForTabs}

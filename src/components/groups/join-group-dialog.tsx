@@ -52,6 +52,8 @@ export function JoinGroupDialog() {
             setError(res.error || "Join request submitted for approval");
           } else if (res.canRequestJoin) {
             setError(res.error || "Invite expired/capped, you can request to join");
+          } else {
+            setError(res.error || "Failed to join group");
           }
         },
         onError: (err: Error) => {

@@ -18,6 +18,7 @@ export type OnboardingResult = { success: true } | { success: false; error: stri
 export async function completeOnboardingAction(formData: FormData): Promise<OnboardingResult> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Not authenticated" };
+  if (!user.needsUsername) return { success: false, error: "Onboarding already completed" };
 
   const parsed = usernameSchema.safeParse(formData.get("username"));
   if (!parsed.success) return { success: false, error: "Invalid username" };

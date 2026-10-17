@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, Lock, User, Link2 } from "lucide-react";
 import { SocialSignInOptions } from "@/components/auth/social-sign-in-options";
 import type { SocialAuthProvider } from "@/lib/social-auth-config";
+import { safeReturnTo } from "@/lib/safe-return-to";
 
 interface LoginFormProps {
   providers: { id: SocialAuthProvider; label: string }[];
@@ -26,7 +27,7 @@ interface LoginFormProps {
 export function LoginForm({ providers, returnTo }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const effectiveReturnTo = returnTo || searchParams?.get("returnTo") || "/groups";
+  const effectiveReturnTo = safeReturnTo(returnTo || searchParams?.get("returnTo"));
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

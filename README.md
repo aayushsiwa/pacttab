@@ -166,8 +166,6 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 
 ## Architecture
 
-## Architecture
-
 ```
 ├── public/                 # Static assets, PWA manifest, service worker, icons
 ├── scripts/                # Database initialization and maintenance scripts

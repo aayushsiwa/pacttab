@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCreateGroup } from "@/hooks/mutations";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,14 +23,23 @@ export function CreateGroupDialog() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const { mutate, isPending } = useCreateGroup();
+  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    mutate({ name: name.trim(), description: description.trim() || undefined });
-    setOpen(false);
-    setName("");
-    setDescription("");
+    mutate(
+      { name: name.trim(), description: description.trim() || undefined },
+      {
+        onSuccess: (res) => {
+          if (!res.success || !res.groupId) return;
+          setOpen(false);
+          setName("");
+          setDescription("");
+          router.push(`/group/${res.groupId}`);
+        },
+      }
+    );
   };
 
   return (
