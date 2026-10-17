@@ -17,11 +17,10 @@ describe("Custom Invite Links Workflow", () => {
   const customSlug = `summer-retreat-${testRunId}`;
 
   beforeAll(async () => {
-    const adminHash = await hashPassword("AdminPassword123!");
+    await hashPassword("AdminPassword123!"); // hash for future use
     await db.insert(users).values({
       id: adminId,
       username: adminUsername,
-      passwordHash: adminHash,
     });
 
     await db.insert(groups).values({
@@ -38,11 +37,10 @@ describe("Custom Invite Links Workflow", () => {
       status: "active",
     });
 
-    const joinerHash = await hashPassword("JoinerPassword123!");
+    await hashPassword("JoinerPassword123!"); // hash for future use
     await db.insert(users).values({
       id: joinerId,
       username: joinerUsername,
-      passwordHash: joinerHash,
     });
   });
 

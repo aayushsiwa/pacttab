@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { signUpAction, type AuthActionState } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,32 +17,52 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, ShieldAlert, Lock, User, Link2, Check } from "lucide-react";
 import { SocialSignInOptions } from "@/components/auth/social-sign-in-options";
 import type { SocialAuthProvider } from "@/lib/social-auth-config";
+import { safeReturnTo } from "@/lib/safe-return-to";
 
 interface SignUpFormProps {
+  providers: { id: SocialAuthProvider; label: string }[];
   returnTo?: string;
-  socialProviders?: { id: SocialAuthProvider; label: string }[];
 }
 
-export function SignUpForm({ returnTo, socialProviders = [] }: SignUpFormProps) {
-  const [state, formAction, isPending] = useActionState<AuthActionState | null, FormData>(
-    signUpAction,
-    null
-  );
+export function SignUpForm({ providers, returnTo }: SignUpFormProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const effectiveReturnTo = safeReturnTo(returnTo || searchParams?.get("returnTo"));
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [clientError, setClientError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
-  const errorMessage = clientError || state?.error;
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
     if (password !== confirmPassword) {
-      e.preventDefault();
-      setClientError("Passwords do not match. Please ensure both passwords match.");
+      setError("Passwords do not match. Please ensure both passwords match.");
       return;
     }
-    setClientError(null);
+    setIsPending(true);
+
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, confirmPassword }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        router.push(effectiveReturnTo);
+        router.refresh();
+      } else {
+        setError(data.error);
+        if (data.username) setUsername(data.username);
+      }
+    } catch {
+      setError("Failed to create account. Please try again.");
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -59,12 +79,9 @@ export function SignUpForm({ returnTo, socialProviders = [] }: SignUpFormProps) 
         </CardDescription>
       </CardHeader>
 
-      <form action={formAction} onSubmit={handleSubmit}>
-        {/* Preserve returnTo target URL */}
-        {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
-
+      <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4 px-6">
-          {returnTo?.startsWith("/join/") && (
+          {effectiveReturnTo.startsWith("/join/") && (
             <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-medium text-emerald-800 dark:text-emerald-300">
               <Link2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span>
@@ -83,10 +100,10 @@ export function SignUpForm({ returnTo, socialProviders = [] }: SignUpFormProps) 
             </div>
           </div>
 
-          {errorMessage && (
+          {error && (
             <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2.5 rounded-xl border p-3 text-xs font-medium">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{errorMessage}</span>
+              <span>{error}</span>
             </div>
           )}
 
@@ -134,7 +151,7 @@ export function SignUpForm({ returnTo, socialProviders = [] }: SignUpFormProps) 
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
-                  if (clientError) setClientError(null);
+                  if (error) setError(null);
                 }}
                 placeholder="••••••••"
                 autoComplete="new-password"
@@ -162,7 +179,7 @@ export function SignUpForm({ returnTo, socialProviders = [] }: SignUpFormProps) 
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value);
-                  if (clientError) setClientError(null);
+                  if (error) setError(null);
                 }}
                 placeholder="••••••••"
                 autoComplete="new-password"
@@ -191,12 +208,16 @@ export function SignUpForm({ returnTo, socialProviders = [] }: SignUpFormProps) 
             {isPending ? "Creating account..." : "Create Account"}
           </Button>
 
-          <SocialSignInOptions providers={socialProviders} returnTo={returnTo} />
+          <SocialSignInOptions providers={providers} returnTo={effectiveReturnTo} />
 
           <div className="text-muted-foreground text-center text-xs font-medium">
             Already have an account?{" "}
             <Link
-              href={returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : "/login"}
+              href={
+                effectiveReturnTo
+                  ? `/login?returnTo=${encodeURIComponent(effectiveReturnTo)}`
+                  : "/login"
+              }
               className="text-foreground hover:text-primary font-bold underline underline-offset-4 transition-colors"
             >
               Sign in

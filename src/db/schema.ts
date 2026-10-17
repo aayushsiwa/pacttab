@@ -13,7 +13,6 @@ import { relations } from "drizzle-orm";
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   username: varchar("username", { length: 50 }).notNull().unique(),
-  passwordHash: text("password_hash"),
   name: text("name"),
   email: text("email").unique(),
   emailVerified: boolean("email_verified").notNull().default(false),

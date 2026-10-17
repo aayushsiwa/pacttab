@@ -1,13 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  updateGroupAction,
-  transferAdminAction,
-  leaveGroupAction,
-  deleteGroupAction,
-} from "@/actions/groups";
+import { useUpdateGroup, useTransferAdmin, useLeaveGroup, useDeleteGroup } from "@/hooks/mutations";
 import {
   Dialog,
   DialogContent,
@@ -66,7 +61,6 @@ export function GroupSettingsDialog({
   const [selectedAdminId, setSelectedAdminId] = useState("");
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isConfirmLeaveOpen, setIsConfirmLeaveOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
 
   const router = useRouter();
   const isAdmin = currentUserRole === "admin";
@@ -75,6 +69,11 @@ export function GroupSettingsDialog({
   const hasUnsettledBalance = Math.abs(userNetBalance) > 0.01;
   const isBlockedFromLeaving = hasUnsettledBalance || (isAdmin && otherMembers.length > 0);
 
+  const updateGroup = useUpdateGroup();
+  const transferAdmin = useTransferAdmin();
+  const leaveGroup = useLeaveGroup();
+  const deleteGroup = useDeleteGroup();
+
   const handleUpdateDetails = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -82,16 +81,19 @@ export function GroupSettingsDialog({
       return;
     }
 
-    startTransition(async () => {
-      const res = await updateGroupAction(groupId, name, description);
-      if (res.success) {
-        toast.success("Group details updated!");
-        onOpenChange(false);
-        router.refresh();
-      } else {
-        toast.error(res.error || "Failed to update group details");
+    updateGroup.mutate(
+      { groupId, name: name.trim(), description: description.trim() || undefined },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success("Group details updated!");
+            onOpenChange(false);
+          } else {
+            toast.error(res.error || "Failed to update group details");
+          }
+        },
       }
-    });
+    );
   };
 
   const handleTransferAdmin = () => {
@@ -100,46 +102,55 @@ export function GroupSettingsDialog({
       return;
     }
 
-    startTransition(async () => {
-      const res = await transferAdminAction(groupId, selectedAdminId);
-      if (res.success) {
-        toast.success("Admin rights transferred successfully!");
-        onOpenChange(false);
-        router.refresh();
-      } else {
-        toast.error(res.error || "Failed to transfer admin rights");
+    transferAdmin.mutate(
+      { groupId, newAdminUserId: selectedAdminId },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success("Admin rights transferred successfully!");
+            onOpenChange(false);
+          } else {
+            toast.error(res.error || "Failed to transfer admin rights");
+          }
+        },
       }
-    });
+    );
   };
 
   const handleLeaveGroup = () => {
-    startTransition(async () => {
-      const res = await leaveGroupAction(groupId);
-      if (res.success) {
-        toast.success("You have left the group.");
-        setIsConfirmLeaveOpen(false);
-        onOpenChange(false);
-        router.push("/groups");
-        router.refresh();
-      } else {
-        toast.error(res.error || "Failed to leave group");
+    leaveGroup.mutate(
+      { groupId },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success("You have left the group.");
+            setIsConfirmLeaveOpen(false);
+            onOpenChange(false);
+            router.push("/groups");
+          } else {
+            toast.error(res.error || "Failed to leave group");
+          }
+        },
       }
-    });
+    );
   };
 
   const handleDeleteGroup = () => {
-    startTransition(async () => {
-      const res = await deleteGroupAction(groupId);
-      if (res.success) {
-        toast.success("Group deleted permanently.");
-        setIsConfirmDeleteOpen(false);
-        onOpenChange(false);
-        router.push("/groups");
-        router.refresh();
-      } else {
-        toast.error(res.error || "Failed to delete group");
+    deleteGroup.mutate(
+      { groupId },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success("Group deleted permanently.");
+            setIsConfirmDeleteOpen(false);
+            onOpenChange(false);
+            router.push("/groups");
+          } else {
+            toast.error(res.error || "Failed to delete group");
+          }
+        },
       }
-    });
+    );
   };
 
   return (
@@ -191,10 +202,10 @@ export function GroupSettingsDialog({
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isPending}
+                  disabled={updateGroup.isPending}
                   className="rounded-xl text-xs font-bold"
                 >
-                  {isPending ? "Saving..." : "Save Changes"}
+                  {updateGroup.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </form>
             ) : (
@@ -238,7 +249,7 @@ export function GroupSettingsDialog({
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={!selectedAdminId || isPending}
+                    disabled={!selectedAdminId || transferAdmin.isPending}
                     onClick={handleTransferAdmin}
                     className="shrink-0 rounded-xl text-xs font-semibold"
                   >
@@ -301,7 +312,7 @@ export function GroupSettingsDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={isBlockedFromLeaving || isPending}
+                    disabled={isBlockedFromLeaving || leaveGroup.isPending}
                     onClick={() => setIsConfirmLeaveOpen(true)}
                     className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 rounded-xl text-xs font-semibold"
                   >
@@ -329,7 +340,7 @@ export function GroupSettingsDialog({
                   type="button"
                   variant="destructive"
                   size="sm"
-                  disabled={isPending}
+                  disabled={deleteGroup.isPending}
                   onClick={() => setIsConfirmDeleteOpen(true)}
                   className="gap-1.5 rounded-xl text-xs font-bold"
                 >
@@ -370,11 +381,11 @@ export function GroupSettingsDialog({
               type="button"
               variant="destructive"
               size="sm"
-              disabled={isPending}
+              disabled={leaveGroup.isPending}
               onClick={handleLeaveGroup}
               className="rounded-xl text-xs font-bold"
             >
-              {isPending ? "Leaving..." : "Leave Group"}
+              {leaveGroup.isPending ? "Leaving..." : "Leave Group"}
             </Button>
           </div>
         </DialogContent>
@@ -408,11 +419,11 @@ export function GroupSettingsDialog({
               type="button"
               variant="destructive"
               size="sm"
-              disabled={isPending}
+              disabled={deleteGroup.isPending}
               onClick={handleDeleteGroup}
               className="rounded-xl text-xs font-bold"
             >
-              {isPending ? "Deleting..." : "Permanently Delete"}
+              {deleteGroup.isPending ? "Deleting..." : "Permanently Delete"}
             </Button>
           </div>
         </DialogContent>

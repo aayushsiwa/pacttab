@@ -1,17 +1,66 @@
-import { completeOnboardingAction } from "@/actions/onboarding";
-import { getCurrentUser } from "@/lib/auth";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default async function OnboardingPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (!user.needsUsername) redirect("/groups");
+export default function OnboardingPage() {
+  const router = useRouter();
+  const [username, setUsername] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+
+    const trimmed = username.trim();
+    if (!trimmed) {
+      setError("Please enter a username");
+      return;
+    }
+
+    if (trimmed.length < 3 || trimmed.length > 30) {
+      setError("Username must be 3–30 characters");
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+      setError("Username can only contain letters, numbers, and underscores");
+      return;
+    }
+
+    setIsPending(true);
+
+    try {
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: trimmed.toLowerCase() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        router.push("/groups");
+        router.refresh();
+      } else {
+        setError(
+          data.error === "username-taken"
+            ? "Username is already taken."
+            : data.error || "Failed to complete onboarding"
+        );
+      }
+    } catch {
+      setError("Failed to complete onboarding. Please try again.");
+    } finally {
+      setIsPending(false);
+    }
+  };
+
   return (
     <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md items-center px-4">
       <form
-        action={completeOnboardingAction}
+        onSubmit={handleSubmit}
         className="bg-card w-full space-y-4 rounded-2xl border p-6 shadow-sm"
       >
         <div>
@@ -20,16 +69,20 @@ export default async function OnboardingPage() {
             This is what your groups will see. Your provider email stays private.
           </p>
         </div>
+        {error && <div className="text-destructive text-sm">{error}</div>}
         <Input
           name="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           required
           minLength={3}
           maxLength={30}
           autoComplete="username"
           placeholder="e.g. arjun_99"
+          disabled={isPending}
         />
-        <Button className="w-full" type="submit">
-          Continue
+        <Button className="w-full" type="submit" disabled={isPending}>
+          {isPending ? "Continuing..." : "Continue"}
         </Button>
       </form>
     </main>

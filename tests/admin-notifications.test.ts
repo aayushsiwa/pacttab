@@ -17,11 +17,11 @@ describe("Admin Action Notifications & Pending Request Indicators", () => {
   const settlementId = crypto.randomUUID();
 
   beforeAll(async () => {
-    const pwdHash = await hashPassword("TestPassword123!");
+    await hashPassword("TestPassword123!"); // kept for future account creation if needed
     await db.insert(users).values([
-      { id: adminId, username: `admin_notif_${testRunId}`, passwordHash: pwdHash },
-      { id: memberId, username: `member_notif_${testRunId}`, passwordHash: pwdHash },
-      { id: joinerId, username: `joiner_notif_${testRunId}`, passwordHash: pwdHash },
+      { id: adminId, username: `admin_notif_${testRunId}` },
+      { id: memberId, username: `member_notif_${testRunId}` },
+      { id: joinerId, username: `joiner_notif_${testRunId}` },
     ]);
 
     await db.insert(groups).values({

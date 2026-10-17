@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { signOutAction } from "@/actions/auth";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { GradientTile } from "@/components/shared/gradient-tile";
@@ -44,6 +44,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -56,7 +57,9 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
 
   const handleSignOut = () => {
     startTransition(async () => {
-      await signOutAction();
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
     });
   };
 

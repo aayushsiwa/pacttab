@@ -49,10 +49,10 @@ Existing expense-splitting applications often demand email addresses, phone numb
 
 | Layer                | Technology                                                                                                                                                                                                                              |
 | :------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Framework**        | [Next.js 16](https://nextjs.org) (App Router, Server Actions)                                                                                                                                                                           |
+| **Framework**        | [Next.js 16](https://nextjs.org) (App Router, TanStack Query, API Routes)                                                                                                                                                               |
 | **UI & Styling**     | [React 19](https://react.dev), [Tailwind CSS v4](https://tailwindcss.com), [Base UI](https://base-ui.com), [Lucide React](https://lucide.dev), [Sonner](https://sonner.emilkowal.ski)                                                   |
 | **Database**         | [PostgreSQL](https://www.postgresql.org) with [Drizzle ORM](https://orm.drizzle.team)                                                                                                                                                   |
-| **Real-Time & Sync** | [WebSockets](https://github.com/websockets/ws) (`ws`), [Redis Pub/Sub](https://redis.io) (`ioredis`)                                                                                                                                    |
+| **Real-Time & Sync** | [WebSockets](https://github.com/websockets/ws) (`ws`), [Redis Pub/Sub](https://redis.io) (`ioredis`), [TanStack Query](https://tanstack.com/query) for client-side caching                                                              |
 | **Authentication**   | [Better Auth](https://www.better-auth.com) session-based credentials                                                                                                                                                                    |
 | **Testing**          | [Vitest](https://vitest.dev) (44 integration & flow test cases across 10 test suites)                                                                                                                                                   |
 | **Tooling & Hooks**  | [pnpm](https://pnpm.io), [ESLint 9](https://eslint.org), [Prettier](https://prettier.io), [Husky](https://typicode.github.io/husky), [lint-staged](https://github.com/lint-staged/lint-staged), [commitlint](https://commitlint.js.org) |
@@ -170,18 +170,22 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 ├── public/                 # Static assets, PWA manifest, service worker, icons
 ├── scripts/                # Database initialization and maintenance scripts
 ├── src/
-│   ├── actions/            # Next.js Server Actions (auth, chat, expenses, groups)
+│   ├── actions/            # Server Actions (auth, onboarding - minimal)
 │   ├── app/                # App Router pages and API routes
-│   │   ├── (auth)/         # Login and signup pages
+│   │   ├── (auth)/         # Login and signup pages (CSR with fetch)
+│   │   ├── api/            # REST API routes (groups, user, auth, ws)
 │   │   ├── group/[id]/     # Main group dashboard (chat, expenses, balances, settings)
-│   │   ├── groups/         # Groups list & join flows
+│   │   ├── groups/         # Groups list & join flows (client components)
 │   │   └── join/[token]/   # Invite link resolver & preview page
 │   ├── components/         # Reusable UI components & dialogs
 │   │   ├── group/          # Group sub-views (expenses, chat, balances, members)
 │   │   └── ui/             # Radix / Base UI styled primitives
 │   ├── db/                 # Drizzle ORM schema definitions and database connection
-│   ├── hooks/              # Custom React hooks (e.g., useGroupSocket)
-│   └── lib/                # Shared utilities (auth, balances, Redis, ws-hub, CSV export)
+│   ├── hooks/              # Custom React hooks (queries, mutations, useGroupSocket)
+│   │   ├── queries/        # TanStack Query hooks (useGroups, useExpenses, etc.)
+│   │   └── mutations/      # TanStack Query mutation hooks
+│   ├── lib/                # Shared utilities (auth, balances, Redis, ws-hub, CSV export)
+│   └── types/              # TypeScript types for API responses
 ├── tests/                  # Vitest integration test suites
 ├── server.ts               # Custom Node HTTP server binding Next.js + WebSocket Hub
 └── vitest.config.mts       # Vitest configuration with path aliases

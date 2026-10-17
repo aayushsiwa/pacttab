@@ -1,9 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getEnabledSocialAuthProviderOptions,
   getEnabledSocialAuthProviders,
-  getSocialAuthProviderFlags,
-  isSocialAuthProviderEnabled,
 } from "../src/lib/social-auth-config";
 
 describe("social auth configuration", () => {
@@ -31,23 +29,17 @@ describe("social auth configuration", () => {
   });
 
   it("exposes only safe provider metadata", () => {
-    const environment = {
-      GOOGLE_CLIENT_ID: "google-id",
-      GOOGLE_CLIENT_SECRET: "google-secret",
-      GITHUB_CLIENT_ID: "github-id",
-      GITHUB_CLIENT_SECRET: "github-secret",
-    };
-
-    expect(getEnabledSocialAuthProviderOptions(environment)).toEqual([
+    expect(
+      getEnabledSocialAuthProviderOptions({
+        GOOGLE_CLIENT_ID: "google-id",
+        GOOGLE_CLIENT_SECRET: "google-secret",
+        GITHUB_CLIENT_ID: "github-id",
+        GITHUB_CLIENT_SECRET: "github-secret",
+      })
+    ).toEqual([
       { id: "google", label: "Google" },
       { id: "github", label: "GitHub" },
     ]);
-    expect(isSocialAuthProviderEnabled("google", environment)).toBe(true);
-    expect(isSocialAuthProviderEnabled("github", environment)).toBe(true);
-    expect(getSocialAuthProviderFlags(environment)).toEqual({
-      googleOauthEnabled: true,
-      githubOauthEnabled: true,
-    });
   });
 
   it("treats whitespace-only credentials as absent", () => {

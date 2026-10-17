@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { joinGroupAction } from "@/actions/groups";
+import { useJoinGroup } from "@/hooks/mutations";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,8 +21,8 @@ export function JoinGroupDialog() {
   const [open, setOpen] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const { mutate, isPending } = useJoinGroup();
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,16 +39,28 @@ export function JoinGroupDialog() {
       return;
     }
 
-    startTransition(async () => {
-      const res = await joinGroupAction(token);
-      if (res.success && res.groupId) {
-        setOpen(false);
-        setTokenInput("");
-        router.push(`/group/${res.groupId}`);
-      } else {
-        setError(res.error || "Failed to join group");
+    mutate(
+      { token },
+      {
+        onSuccess: (res) => {
+          if (res.success && res.groupId) {
+            setOpen(false);
+            setTokenInput("");
+            router.push(`/group/${res.groupId}`);
+            router.refresh();
+          } else if (res.pendingApproval) {
+            setError(res.error || "Join request submitted for approval");
+          } else if (res.canRequestJoin) {
+            setError(res.error || "Invite expired/capped, you can request to join");
+          } else {
+            setError(res.error || "Failed to join group");
+          }
+        },
+        onError: (err: Error) => {
+          setError(err.message);
+        },
       }
-    });
+    );
   };
 
   return (

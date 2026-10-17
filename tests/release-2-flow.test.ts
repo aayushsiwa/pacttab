@@ -50,13 +50,13 @@ describe("Release 2 End-to-End Flow Verification", () => {
 
   beforeAll(async () => {
     adminHash = await hashPassword(adminPassword);
-    const memberHash = await hashPassword(memberPassword);
-    const joinerHash = await hashPassword(joinerPassword);
+    await hashPassword(memberPassword);
+    await hashPassword(joinerPassword);
 
     await db.insert(users).values([
-      { id: adminId, username: adminUsername, passwordHash: adminHash },
-      { id: memberId, username: memberUsername, passwordHash: memberHash },
-      { id: joinerId, username: joinerUsername, passwordHash: joinerHash },
+      { id: adminId, username: adminUsername },
+      { id: memberId, username: memberUsername },
+      { id: joinerId, username: joinerUsername },
     ]);
 
     await db.insert(groups).values({

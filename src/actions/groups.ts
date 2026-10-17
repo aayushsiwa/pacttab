@@ -1,10 +1,7 @@
 "use server";
 
-import { z } from "zod";
 import crypto from "crypto";
 import { eq, and, isNull, sql, inArray } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { db } from "@/db";
 import {
   groups,
@@ -20,15 +17,7 @@ import {
 import { requireUser } from "@/lib/auth";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
 import { broadcastWsEvent } from "@/lib/ws-hub";
-
-const CreateGroupSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Group name is required")
-    .max(100, "Group name must be 100 characters or fewer"),
-  description: z.string().trim().max(500, "Description must be 500 characters or fewer").optional(),
-});
+import { groupDetailsSchema } from "@/lib/group-validation";
 
 // Reserved routes and words disallowed as custom invite slugs
 const RESERVED_SLUGS = new Set([
@@ -47,17 +36,10 @@ const RESERVED_SLUGS = new Set([
   "about",
 ]);
 
-function safeRevalidatePath(path: string) {
-  try {
-    revalidatePath(path);
-  } catch {
-    // Ignore when executed outside Next.js request scope (e.g. tests)
-  }
-}
-
 export type GroupActionState = {
   error?: string;
   success?: boolean;
+  groupId?: string;
 };
 
 export async function createGroupAction(
@@ -69,7 +51,7 @@ export async function createGroupAction(
   const rawName = formData.get("name");
   const rawDescription = formData.get("description");
 
-  const validation = CreateGroupSchema.safeParse({
+  const validation = groupDetailsSchema.safeParse({
     name: rawName,
     description: rawDescription || undefined,
   });
@@ -124,8 +106,7 @@ export async function createGroupAction(
     return { error: "Failed to create group. Please try again." };
   }
 
-  revalidatePath("/groups");
-  redirect(`/group/${groupId}`);
+  return { success: true, groupId };
 }
 
 export async function createInviteLinkAction(
@@ -206,7 +187,6 @@ export async function createInviteLinkAction(
       requiresApproval: options?.requiresApproval ?? false,
     });
 
-    safeRevalidatePath(`/group/${groupId}`);
     return { success: true, token };
   } catch (error) {
     console.error("Failed to rotate invite link:", error);
@@ -251,7 +231,6 @@ export async function rotateInviteLinkAction(
       createdBy: user.id,
     });
 
-    safeRevalidatePath(`/group/${groupId}`);
     return { success: true, token };
   } catch (error) {
     console.error("Failed to rotate invite link:", error);
@@ -281,7 +260,6 @@ export async function revokeInviteLinkAction(
       .set({ revokedAt: new Date() })
       .where(and(eq(inviteLinks.id, inviteId), eq(inviteLinks.groupId, groupId)));
 
-    safeRevalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to revoke invite link:", error);
@@ -343,7 +321,6 @@ export async function joinGroupAction(token: string): Promise<{
       .set({ status: "active" })
       .where(eq(groupMembers.id, existingMember[0].id));
 
-    safeRevalidatePath(`/group/${invite.groupId}`);
     return { success: true, groupId: invite.groupId, groupName: invite.groupName };
   }
 
@@ -424,8 +401,6 @@ export async function joinGroupAction(token: string): Promise<{
         groupId: invite.groupId,
         username: user.username,
       });
-
-      revalidatePath("/groups");
     }
 
     return {
@@ -486,7 +461,6 @@ export async function joinGroupAction(token: string): Promise<{
       });
     });
 
-    safeRevalidatePath(`/group/${invite.groupId}`);
     return { success: true, groupId: invite.groupId };
   } catch (error) {
     console.error("Failed to join group:", error);
@@ -563,8 +537,6 @@ export async function createJoinRequestAction(
     username: user.username,
   });
 
-  revalidatePath(`/group/${groupId}`);
-  revalidatePath("/groups");
   return { success: true };
 }
 
@@ -677,7 +649,6 @@ export async function reviewJoinRequestAction(
       });
     });
 
-    safeRevalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to review join request:", error);
@@ -746,8 +717,6 @@ export async function updateGroupAction(
       });
     });
 
-    safeRevalidatePath(`/group/${groupId}`);
-    safeRevalidatePath("/groups");
     return { success: true };
   } catch (error) {
     console.error("Failed to update group:", error);
@@ -831,7 +800,6 @@ export async function transferAdminAction(
       });
     });
 
-    safeRevalidatePath(`/group/${groupId}`);
     return { success: true };
   } catch (error) {
     console.error("Failed to transfer admin rights:", error);
@@ -983,7 +951,6 @@ export async function leaveGroupAction(
     });
   });
 
-  revalidatePath("/groups");
   return { success: true };
 }
 
@@ -1004,7 +971,6 @@ export async function deleteGroupAction(
 
   try {
     await db.delete(groups).where(eq(groups.id, groupId));
-    safeRevalidatePath("/groups");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete group:", error);

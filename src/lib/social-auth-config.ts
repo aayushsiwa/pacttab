@@ -9,11 +9,6 @@ export interface SocialAuthProviderConfig {
   clientSecret: string;
 }
 
-export interface SocialAuthProviderFlags {
-  googleOauthEnabled: boolean;
-  githubOauthEnabled: boolean;
-}
-
 type Environment = Readonly<Record<string, string | undefined>>;
 
 const providerMetadata: Record<
@@ -49,24 +44,7 @@ export function getEnabledSocialAuthProviders(
   });
 }
 
-/** Provider-specific flags intended for server-side conditional rendering. */
-export function getSocialAuthProviderFlags(
-  environment: Environment = process.env
-): SocialAuthProviderFlags {
-  return {
-    googleOauthEnabled: isSocialAuthProviderEnabled("google", environment),
-    githubOauthEnabled: isSocialAuthProviderEnabled("github", environment),
-  };
-}
-
 /** Public metadata safe to pass from a Server Component to a Client Component. */
 export function getEnabledSocialAuthProviderOptions(environment: Environment = process.env) {
   return getEnabledSocialAuthProviders(environment).map(({ id, label }) => ({ id, label }));
-}
-
-export function isSocialAuthProviderEnabled(
-  provider: SocialAuthProvider,
-  environment: Environment = process.env
-): boolean {
-  return getEnabledSocialAuthProviders(environment).some(({ id }) => id === provider);
 }
