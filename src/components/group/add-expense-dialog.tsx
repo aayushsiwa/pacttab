@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { createExpenseAction } from "@/actions/expenses";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCreateExpense } from "@/hooks/mutations";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,8 +42,8 @@ export function AddExpenseDialog({ groupId, currentUserId, members }: AddExpense
   const [shareValues, setShareValues] = useState<Record<string, string>>({});
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { mutate, isPending } = useCreateExpense();
 
   const numAmount = parseFloat(amount) || 0;
   const participantCount = participantIds.length;
@@ -100,15 +100,7 @@ export function AddExpenseDialog({ groupId, currentUserId, members }: AddExpense
       return;
     }
 
-    const formData = new FormData();
-    formData.append("groupId", groupId);
-    formData.append("description", description.trim());
-    formData.append("amount", numAmount.toString());
-    formData.append("paidByUserId", paidByUserId);
-    formData.append("expenseDate", expenseDate);
-    formData.append("splitType", splitType);
-
-    participantIds.forEach((id) => formData.append("participantUserIds", id));
+    let customSplits: string | null = null;
 
     if (splitType === "exact") {
       if (Math.abs(exactRemaining) > 0.01) {
@@ -117,49 +109,68 @@ export function AddExpenseDialog({ groupId, currentUserId, members }: AddExpense
         );
         return;
       }
-      const customSplits = participantIds.map((id) => ({
-        userId: id,
-        amount: parseFloat(exactValues[id]) || 0,
-      }));
-      formData.append("customSplits", JSON.stringify(customSplits));
+      customSplits = JSON.stringify(
+        participantIds.map((id) => ({
+          userId: id,
+          amount: parseFloat(exactValues[id]) || 0,
+        }))
+      );
     } else if (splitType === "percentage") {
       if (Math.abs(percentRemaining) > 0.01) {
         setError(`Percentages must sum to 100%. Current sum: ${percentSum.toFixed(2)}%`);
         return;
       }
-      const customSplits = participantIds.map((id) => ({
-        userId: id,
-        percentage: parseFloat(percentValues[id]) || 0,
-      }));
-      formData.append("customSplits", JSON.stringify(customSplits));
+      customSplits = JSON.stringify(
+        participantIds.map((id) => ({
+          userId: id,
+          percentage: parseFloat(percentValues[id]) || 0,
+        }))
+      );
     } else if (splitType === "shares") {
       if (totalShares <= 0) {
         setError("Total shares must be greater than zero");
         return;
       }
-      const customSplits = participantIds.map((id) => ({
-        userId: id,
-        shares: parseInt(shareValues[id], 10) || 1,
-      }));
-      formData.append("customSplits", JSON.stringify(customSplits));
+      customSplits = JSON.stringify(
+        participantIds.map((id) => ({
+          userId: id,
+          shares: parseInt(shareValues[id], 10) || 1,
+        }))
+      );
     }
 
-    startTransition(async () => {
-      const res = await createExpenseAction(null, formData);
-      if (res.success) {
-        toast.success(`Added expense: ${description}`);
-        setOpen(false);
-        setDescription("");
-        setAmount("");
-        setExactValues({});
-        setPercentValues({});
-        setShareValues({});
-        setParticipantIds(members.map((m) => m.id));
-        router.refresh();
-      } else {
-        setError(res.error || "Failed to add expense");
+    mutate(
+      {
+        groupId,
+        description: description.trim(),
+        amount: numAmount,
+        paidByUserId,
+        participantUserIds: participantIds,
+        splitType,
+        customSplits,
+        expenseDate,
+      },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success(`Added expense: ${description}`);
+            setOpen(false);
+            setDescription("");
+            setAmount("");
+            setExactValues({});
+            setPercentValues({});
+            setShareValues({});
+            setParticipantIds(members.map((m) => m.id));
+            queryClient.invalidateQueries();
+          } else {
+            setError(res.error || "Failed to add expense");
+          }
+        },
+        onError: (err: Error) => {
+          setError(err.message);
+        },
       }
-    });
+    );
   };
 
   return (

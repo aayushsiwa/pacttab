@@ -8,6 +8,8 @@ import { getUserPendingAdminActionsCount } from "@/lib/queries";
 import { Navbar } from "@/components/navbar";
 import { OfflineBanner } from "@/components/offline-banner";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
+import { Providers } from "@/app/providers";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -67,19 +69,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="bg-background text-foreground flex min-h-full flex-col">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <PwaProvider>
-            <OfflineBanner />
-            <Navbar user={user} pendingAdminActionsCount={pendingAdminActionsCount} />
-            <main className="flex-1">{children}</main>
-            <Toaster position="top-center" richColors />
-          </PwaProvider>
-        </ThemeProvider>
+        <Providers>
+          <Analytics />
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <PwaProvider>
+              <OfflineBanner />
+              <Navbar user={user} pendingAdminActionsCount={pendingAdminActionsCount} />
+              <main className="flex-1">{children}</main>
+              <Toaster position="top-center" richColors />
+            </PwaProvider>
+          </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

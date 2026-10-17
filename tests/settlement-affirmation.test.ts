@@ -46,8 +46,8 @@ describe("Settlement Affirmation Lifecycle Flow", () => {
   beforeAll(async () => {
     // 1. Setup test users and group
     await db.insert(users).values([
-      { id: userAId, username: usernameA, passwordHash: "hashA" },
-      { id: userBId, username: usernameB, passwordHash: "hashB" },
+      { id: userAId, username: usernameA },
+      { id: userBId, username: usernameB },
     ]);
 
     await db.insert(groups).values({

@@ -47,7 +47,6 @@ describe("Release 1 End-to-End Flow Verification", () => {
     await db.insert(users).values({
       id: userAId,
       username: usernameA,
-      passwordHash: hashA,
     });
     const verifiedA = await verifyPassword(password, hashA);
     expect(verifiedA).toBe(true);
@@ -56,7 +55,6 @@ describe("Release 1 End-to-End Flow Verification", () => {
     await db.insert(users).values({
       id: userBId,
       username: usernameB,
-      passwordHash: hashB,
     });
     const verifiedB = await verifyPassword(password, hashB);
     expect(verifiedB).toBe(true);

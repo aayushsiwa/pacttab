@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { signInAction, type AuthActionState } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,19 +15,49 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Lock, User, Link2 } from "lucide-react";
+import { SocialSignInOptions } from "@/components/auth/social-sign-in-options";
+import type { SocialAuthProvider } from "@/lib/social-auth-config";
+import { safeReturnTo } from "@/lib/safe-return-to";
 
 interface LoginFormProps {
+  providers: { id: SocialAuthProvider; label: string }[];
   returnTo?: string;
 }
 
-export function LoginForm({ returnTo }: LoginFormProps) {
-  const [state, formAction, isPending] = useActionState<AuthActionState | null, FormData>(
-    signInAction,
-    null
-  );
+export function LoginForm({ providers, returnTo }: LoginFormProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const effectiveReturnTo = safeReturnTo(returnTo || searchParams?.get("returnTo"));
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setIsPending(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        router.push(effectiveReturnTo);
+        router.refresh();
+      } else {
+        setError(data.error);
+      }
+    } catch {
+      setError("Failed to sign in. Please try again.");
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   return (
     <Card className="border-border/80 bg-card/90 w-full max-w-md overflow-hidden rounded-2xl shadow-xl backdrop-blur-sm">
@@ -43,22 +73,19 @@ export function LoginForm({ returnTo }: LoginFormProps) {
         </CardDescription>
       </CardHeader>
 
-      <form action={formAction}>
-        {/* Preserve returnTo target URL */}
-        {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
-
+      <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4 px-6">
-          {returnTo?.startsWith("/join/") && (
+          {effectiveReturnTo.startsWith("/join/") && (
             <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-medium text-emerald-800 dark:text-emerald-300">
               <Link2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span>You will be redirected back to your group invitation after signing in.</span>
             </div>
           )}
 
-          {state?.error && (
+          {error && (
             <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2.5 rounded-xl border p-3 text-xs font-medium">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{state.error}</span>
+              <span>{error}</span>
             </div>
           )}
 
@@ -121,10 +148,16 @@ export function LoginForm({ returnTo }: LoginFormProps) {
             {isPending ? "Signing in..." : "Sign In"}
           </Button>
 
+          <SocialSignInOptions providers={providers} returnTo={effectiveReturnTo} />
+
           <div className="text-muted-foreground text-center text-xs font-medium">
             Don&apos;t have an account?{" "}
             <Link
-              href={returnTo ? `/signup?returnTo=${encodeURIComponent(returnTo)}` : "/signup"}
+              href={
+                effectiveReturnTo
+                  ? `/signup?returnTo=${encodeURIComponent(effectiveReturnTo)}`
+                  : "/signup"
+              }
               className="text-foreground hover:text-primary font-bold underline underline-offset-4 transition-colors"
             >
               Create one

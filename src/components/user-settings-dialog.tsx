@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { deleteAccountAction } from "@/actions/auth";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,7 @@ interface UserSettingsDialogProps {
 }
 
 export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsDialogProps) {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -38,11 +39,21 @@ export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsD
     }
 
     startTransition(async () => {
-      const formData = new FormData();
-      formData.append("password", password);
-      const res = await deleteAccountAction(null, formData);
-      if (res?.error) {
-        toast.error(res.error);
+      try {
+        const res = await fetch("/api/auth/delete-account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          router.push("/login");
+          router.refresh();
+        } else {
+          toast.error(data.error);
+        }
+      } catch {
+        toast.error("Failed to delete account. Please try again.");
       }
     });
   };

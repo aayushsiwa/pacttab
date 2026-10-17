@@ -1,5 +1,7 @@
-import { requireUser } from "@/lib/auth";
-import { getUserGroups, getUserPendingJoinRequests } from "@/lib/queries";
+"use client";
+
+import { useGroups, useUserPendingJoinRequests } from "@/hooks/queries/use-groups";
+import { useCurrentUser } from "@/hooks/queries/use-user";
 import { CreateGroupDialog } from "@/components/groups/create-group-dialog";
 import { JoinGroupDialog } from "@/components/groups/join-group-dialog";
 import { GroupCard } from "@/components/groups/group-card";
@@ -7,13 +9,12 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/comp
 import { Badge } from "@/components/ui/badge";
 import { FolderPlus, Clock } from "lucide-react";
 import { formatRelativeTime } from "@/lib/date";
+import type { PendingRequest, UserGroup } from "@/types/api";
 
-export default async function GroupsPage() {
-  const user = await requireUser();
-  const [userGroups, pendingRequests] = await Promise.all([
-    getUserGroups(user.id),
-    getUserPendingJoinRequests(user.id),
-  ]);
+export default function GroupsPage() {
+  const { data: userGroups } = useGroups<UserGroup[]>();
+  const { data: pendingRequests } = useUserPendingJoinRequests<PendingRequest[]>();
+  const { data: user } = useCurrentUser();
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
@@ -33,12 +34,12 @@ export default async function GroupsPage() {
       </div>
 
       {/* Pending Group Requests for the Current User */}
-      {pendingRequests.length > 0 && (
+      {pendingRequests && pendingRequests.length > 0 && (
         <div className="mt-8 space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-foreground flex items-center gap-2 text-base font-bold tracking-tight">
               <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <span>Pending Group Requests</span>
+              <span>Pending Group Requests ({pendingRequests.length})</span>
             </h2>
             <Badge
               variant="outline"
@@ -99,7 +100,9 @@ export default async function GroupsPage() {
 
       {/* Active Groups Grid */}
       <div className="mt-8">
-        {userGroups.length === 0 && pendingRequests.length === 0 ? (
+        {userGroups &&
+        userGroups.length === 0 &&
+        (!pendingRequests || pendingRequests.length === 0) ? (
           <div className="border-border/80 bg-card/40 flex flex-col items-center justify-center rounded-2xl border border-dashed p-12 text-center shadow-2xs">
             <div className="ring-border mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500/15 to-indigo-500/15 text-emerald-600 shadow-2xs ring-1 dark:text-emerald-400">
               <FolderPlus className="h-7 w-7" />
@@ -115,6 +118,8 @@ export default async function GroupsPage() {
             </div>
           </div>
         ) : (
+          user &&
+          userGroups &&
           userGroups.length > 0 && (
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
               {userGroups.map((g, idx) => {

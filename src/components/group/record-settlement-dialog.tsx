@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { recordSettlementAction } from "@/actions/expenses";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRecordSettlement } from "@/hooks/mutations";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -63,8 +63,8 @@ function SettlementForm({
   const [receivedByUserId, setReceivedByUserId] = useState(defaultRecipient);
   const [amount, setAmount] = useState(prefill?.amount ? prefill.amount.toString() : "");
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { mutate, isPending } = useRecordSettlement();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,25 +81,27 @@ function SettlementForm({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("groupId", groupId);
-    formData.append("paidByUserId", paidByUserId);
-    formData.append("receivedByUserId", receivedByUserId);
-    formData.append("amount", numAmount.toString());
-
-    startTransition(async () => {
-      const res = await recordSettlementAction(null, formData);
-      if (res.success) {
-        const payerName = members.find((m) => m.id === paidByUserId)?.username || "Member";
-        const recipientName = members.find((m) => m.id === receivedByUserId)?.username || "Member";
-        const counterpartyName = currentUserId === paidByUserId ? recipientName : payerName;
-        toast.success(`Settlement recorded! Waiting for @${counterpartyName} to confirm.`);
-        onClose();
-        router.refresh();
-      } else {
-        setError(res.error || "Failed to record settlement");
+    mutate(
+      { groupId, paidByUserId, receivedByUserId, amount: numAmount },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            const payerName = members.find((m) => m.id === paidByUserId)?.username || "Member";
+            const recipientName =
+              members.find((m) => m.id === receivedByUserId)?.username || "Member";
+            const counterpartyName = currentUserId === paidByUserId ? recipientName : payerName;
+            toast.success(`Settlement recorded! Waiting for @${counterpartyName} to confirm.`);
+            onClose();
+            queryClient.invalidateQueries();
+          } else {
+            setError(res.error || "Failed to record settlement");
+          }
+        },
+        onError: (err: Error) => {
+          setError(err.message);
+        },
       }
-    });
+    );
   };
 
   return (

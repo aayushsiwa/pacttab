@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  createInviteLinkAction,
-  revokeInviteLinkAction,
-  rotateInviteLinkAction,
-  reviewJoinRequestAction,
-} from "@/actions/groups";
+  useCreateInviteLink,
+  useRevokeInviteLink,
+  useRotateInviteLink,
+  useReviewJoinRequest,
+} from "@/hooks/mutations";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Dialog,
@@ -81,15 +81,25 @@ export function MembersView({
   pendingJoinRequests = [],
 }: MembersViewProps) {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [customSlug, setCustomSlug] = useState("");
   const [expiresInHours, setExpiresInHours] = useState<number | null>(null);
   const [maxUses, setMaxUses] = useState<number | null>(null);
   const [requiresApproval, setRequiresApproval] = useState(false);
 
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const isAdmin = currentUserRole === "admin";
+
+  const createInviteLink = useCreateInviteLink();
+  const revokeInviteLink = useRevokeInviteLink();
+  const rotateInviteLink = useRotateInviteLink();
+  const reviewJoinRequest = useReviewJoinRequest();
+
+  const isPending =
+    createInviteLink.isPending ||
+    revokeInviteLink.isPending ||
+    rotateInviteLink.isPending ||
+    reviewJoinRequest.isPending;
 
   const handleCopy = (token: string) => {
     const fullUrl = `${window.location.origin}/join/${token}`;
@@ -100,62 +110,93 @@ export function MembersView({
   };
 
   const handleCreateCustomInvite = () => {
-    startTransition(async () => {
-      const res = await createInviteLinkAction(groupId, {
+    createInviteLink.mutate(
+      {
+        groupId,
         expiresInHours,
         maxUses,
         requiresApproval,
         customSlug: customSlug.trim() || undefined,
-      });
-      if (res.success && res.token) {
-        toast.success("Generated new invite link!");
-        setIsCreateModalOpen(false);
-        setCustomSlug("");
-        handleCopy(res.token);
-        router.refresh();
-      } else {
-        toast.error(res.error || "Failed to create invite link");
+      },
+      {
+        onSuccess: (res) => {
+          if (res.success && res.token) {
+            toast.success("Generated new invite link!");
+            setIsCreateModalOpen(false);
+            setCustomSlug("");
+            handleCopy(res.token);
+            queryClient.invalidateQueries();
+          } else {
+            toast.error(res.error || "Failed to create invite link");
+          }
+        },
+        onError: (err: Error) => {
+          toast.error(err.message);
+        },
       }
-    });
+    );
   };
 
   const handleRotateInvite = () => {
-    startTransition(async () => {
-      const res = await rotateInviteLinkAction(groupId);
-      if (res.success && res.token) {
-        toast.success("Rotated invite link! Previous links invalidated.");
-        handleCopy(res.token);
-        router.refresh();
-      } else {
-        toast.error(res.error || "Failed to rotate invite link");
+    rotateInviteLink.mutate(
+      { groupId },
+      {
+        onSuccess: (res) => {
+          if (res.success && res.token) {
+            toast.success("Rotated invite link! Previous links invalidated.");
+            handleCopy(res.token);
+            queryClient.invalidateQueries();
+          } else {
+            toast.error(res.error || "Failed to rotate invite link");
+          }
+        },
+        onError: (err: Error) => {
+          toast.error(err.message);
+        },
       }
-    });
+    );
   };
 
   const handleRevokeInvite = (inviteId: string) => {
-    startTransition(async () => {
-      const res = await revokeInviteLinkAction(groupId, inviteId);
-      if (res.success) {
-        toast.success("Revoked invite link");
-        router.refresh();
-      } else {
-        toast.error(res.error || "Failed to revoke invite link");
+    revokeInviteLink.mutate(
+      { groupId, inviteId },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success("Revoked invite link");
+            queryClient.invalidateQueries();
+          } else {
+            toast.error(res.error || "Failed to revoke invite link");
+          }
+        },
+        onError: (err: Error) => {
+          toast.error(err.message);
+        },
       }
-    });
+    );
   };
 
   const handleReviewRequest = (requestId: string, decision: "approved" | "declined") => {
-    startTransition(async () => {
-      const res = await reviewJoinRequestAction(groupId, requestId, decision);
-      if (res.success) {
-        toast.success(
-          decision === "approved" ? "Member approved and added to group!" : "Join request declined."
-        );
-        router.refresh();
-      } else {
-        toast.error(res.error || "Failed to process request");
+    reviewJoinRequest.mutate(
+      { groupId, requestId, decision },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            toast.success(
+              decision === "approved"
+                ? "Member approved and added to group!"
+                : "Join request declined."
+            );
+            queryClient.invalidateQueries();
+          } else {
+            toast.error(res.error || "Failed to process request");
+          }
+        },
+        onError: (err: Error) => {
+          toast.error(err.message);
+        },
       }
-    });
+    );
   };
 
   return (

@@ -3,7 +3,7 @@
 # PactTab
 
 **Split expenses & chat with friends in closed circles.**<br />
-Zero personal data. Zero email or phone numbers. 100% Private.
+No email required. Optional Google or GitHub sign-in. Privacy-first by default.
 
 <br />
 
@@ -27,14 +27,14 @@ Zero personal data. Zero email or phone numbers. 100% Private.
 
 Existing expense-splitting applications often demand email addresses, phone numbers, contact address-book uploads, and aggressive social graph building. **PactTab** is designed specifically for flatmates, trips, dinner clubs, and close friends who want a simple, lightweight shared tab without surrendering personal privacy.
 
-- **Zero Personal Data**: Sign up with just a unique username and password. No email, phone numbers, or third-party tracking.
+- **Privacy-First Sign-In**: Create an account with just a unique username and password—no email or phone number required. Google and GitHub sign-in are planned as optional convenience choices for people comfortable sharing provider identity details.
 - **Closed Circles**: Groups are private and non-discoverable by default. Only users with valid invite tokens can join or request entry.
 
 ---
 
 ## Features
 
-- 🔒 **Zero-Data Privacy**: Accounts require only a username and password. Cookie-based session authentication with secure password hashing.
+- 🔒 **Privacy-First Authentication**: Accounts can use only a username and password, with no email or phone number required. Optional Google and GitHub sign-in is planned for those who prefer it; PactTab will not request contacts or unrelated provider permissions.
 - 💬 **Real-Time Group Chat & @Mentions**: In-group discussion with instant WebSocket message broadcasting, user mention autocomplete (`@username`), and contextual notification pills.
 - 🔗 **Configurable Invite Links**: Create custom invite links with optional expiration dates, maximum use caps, custom slug tokens, and require-admin-approval toggles.
 - 👥 **Join Request Queue & Admin Notifications**: Admins receive a real-time notification indicator for pending group join requests, with the ability to approve or decline requesters.
@@ -49,10 +49,10 @@ Existing expense-splitting applications often demand email addresses, phone numb
 
 | Layer                | Technology                                                                                                                                                                                                                              |
 | :------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Framework**        | [Next.js 16](https://nextjs.org) (App Router, Server Actions)                                                                                                                                                                           |
+| **Framework**        | [Next.js 16](https://nextjs.org) (App Router, TanStack Query, API Routes)                                                                                                                                                               |
 | **UI & Styling**     | [React 19](https://react.dev), [Tailwind CSS v4](https://tailwindcss.com), [Base UI](https://base-ui.com), [Lucide React](https://lucide.dev), [Sonner](https://sonner.emilkowal.ski)                                                   |
 | **Database**         | [PostgreSQL](https://www.postgresql.org) with [Drizzle ORM](https://orm.drizzle.team)                                                                                                                                                   |
-| **Real-Time & Sync** | [WebSockets](https://github.com/websockets/ws) (`ws`), [Redis Pub/Sub](https://redis.io) (`ioredis`)                                                                                                                                    |
+| **Real-Time & Sync** | [WebSockets](https://github.com/websockets/ws) (`ws`), [Redis Pub/Sub](https://redis.io) (`ioredis`), [TanStack Query](https://tanstack.com/query) for client-side caching                                                              |
 | **Authentication**   | [Better Auth](https://www.better-auth.com) session-based credentials                                                                                                                                                                    |
 | **Testing**          | [Vitest](https://vitest.dev) (44 integration & flow test cases across 10 test suites)                                                                                                                                                   |
 | **Tooling & Hooks**  | [pnpm](https://pnpm.io), [ESLint 9](https://eslint.org), [Prettier](https://prettier.io), [Husky](https://typicode.github.io/husky), [lint-staged](https://github.com/lint-staged/lint-staged), [commitlint](https://commitlint.js.org) |
@@ -100,6 +100,11 @@ DATABASE_URL="postgresql://user:password@localhost:5432/pacttab"
 SESSION_SECRET="pacttab-super-secret-key-change-in-production-min-32-chars"
 BETTER_AUTH_SECRET="pacttab-super-secret-key-change-in-production-min-32-chars"
 BETTER_AUTH_URL="http://localhost:3000"
+# Optional Google/GitHub sign-in: a provider is shown only when its ID and secret are set.
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 REDIS_URL="redis://127.0.0.1:6379"
 ```
@@ -121,6 +126,10 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Optional Google and GitHub sign-in
+
+Local handle-and-password accounts remain the default. Social providers are opt-in per provider: provide both the client ID and secret for Google and/or GitHub. A provider with missing or blank credentials is not activated or shown. See the [Optional Social Sign-In POC](docs/social-auth-poc.md) for the Better Auth migration, privacy, and rollout requirements.
 
 ---
 
@@ -161,18 +170,22 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 ├── public/                 # Static assets, PWA manifest, service worker, icons
 ├── scripts/                # Database initialization and maintenance scripts
 ├── src/
-│   ├── actions/            # Next.js Server Actions (auth, chat, expenses, groups)
+│   ├── actions/            # Server Actions (auth, onboarding - minimal)
 │   ├── app/                # App Router pages and API routes
-│   │   ├── (auth)/         # Login and signup pages
+│   │   ├── (auth)/         # Login and signup pages (CSR with fetch)
+│   │   ├── api/            # REST API routes (groups, user, auth, ws)
 │   │   ├── group/[id]/     # Main group dashboard (chat, expenses, balances, settings)
-│   │   ├── groups/         # Groups list & join flows
+│   │   ├── groups/         # Groups list & join flows (client components)
 │   │   └── join/[token]/   # Invite link resolver & preview page
 │   ├── components/         # Reusable UI components & dialogs
 │   │   ├── group/          # Group sub-views (expenses, chat, balances, members)
 │   │   └── ui/             # Radix / Base UI styled primitives
 │   ├── db/                 # Drizzle ORM schema definitions and database connection
-│   ├── hooks/              # Custom React hooks (e.g., useGroupSocket)
-│   └── lib/                # Shared utilities (auth, balances, Redis, ws-hub, CSV export)
+│   ├── hooks/              # Custom React hooks (queries, mutations, useGroupSocket)
+│   │   ├── queries/        # TanStack Query hooks (useGroups, useExpenses, etc.)
+│   │   └── mutations/      # TanStack Query mutation hooks
+│   ├── lib/                # Shared utilities (auth, balances, Redis, ws-hub, CSV export)
+│   └── types/              # TypeScript types for API responses
 ├── tests/                  # Vitest integration test suites
 ├── server.ts               # Custom Node HTTP server binding Next.js + WebSocket Hub
 └── vitest.config.mts       # Vitest configuration with path aliases
@@ -206,6 +219,7 @@ docker compose up -d
 
 - [Self-Hosting Guide](docs/self-hosting.md): Complete instructions for Docker Compose, low-memory mode, Caddy/Nginx reverse proxies, automated migrations, backups, and bare-metal systemd.
 - [Web MCP Implementation POC](docs/web-mcp-poc.md): Architectural design, use cases, security safeguards, and implementation roadmap for Model Context Protocol (Web MCP) support over SSE and in-browser agents.
+- [Optional Social Sign-In POC](docs/social-auth-poc.md): Google and GitHub provider architecture, privacy commitments, migration strategy, and rollout criteria.
 - [MVP Specification & Roadmap](MVP.md): Detailed product requirements, data entities, and shipped milestone tracking.
 
 ---
