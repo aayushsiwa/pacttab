@@ -659,7 +659,7 @@ export async function reviewJoinRequestAction(
 export async function updateGroupAction(
   groupId: string,
   name: string,
-  description?: string
+  description?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   const user = await requireUser();
 
@@ -684,7 +684,7 @@ export async function updateGroupAction(
         .update(groups)
         .set({
           name: trimmedName,
-          description: description?.trim() || null,
+          description: description === undefined ? undefined : description?.trim() || null,
         })
         .where(eq(groups.id, groupId));
 

@@ -23,4 +23,17 @@ describe("safeReturnTo", () => {
   ])("falls back for unsafe destination %s", (destination) => {
     expect(safeReturnTo(destination)).toBe("/groups");
   });
+
+  it("rejects a decoded newline between leading slashes", () => {
+    const destination = new URLSearchParams("returnTo=%2F%0A%2Fexample.com").get("returnTo");
+    expect(destination).toBe("/\n/example.com");
+    expect(safeReturnTo(destination)).toBe("/groups");
+  });
+
+  it.each(Array.from({ length: 33 }, (_, index) => (index === 32 ? 127 : index)))(
+    "rejects control character %i in a local destination",
+    (code) => {
+      expect(safeReturnTo(`/groups${String.fromCharCode(code)}`)).toBe("/groups");
+    }
+  );
 });

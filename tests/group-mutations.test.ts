@@ -111,10 +111,42 @@ describe("group mutation APIs and onboarding authorization", () => {
     ]);
   });
 
+  it("preserves the stored description when PATCH omits it", async () => {
+    process.env.TEST_CURRENT_USER_ID = adminId;
+    const response = await PATCH(request("PATCH", { name: "Renamed Trip" }), props());
+    expect(response.status).toBe(200);
+    expect(await db.select().from(groups).where(eq(groups.id, groupId))).toMatchObject([
+      { name: "Renamed Trip", description: "Weekend" },
+    ]);
+  });
+
+  it.each([null, "", "   "])(
+    "clears the description with explicit value %j",
+    async (description) => {
+      process.env.TEST_CURRENT_USER_ID = adminId;
+      await db.update(groups).set({ description: "Weekend" }).where(eq(groups.id, groupId));
+      const response = await PATCH(request("PATCH", { name: "Trip", description }), props());
+      expect(response.status).toBe(200);
+      expect(await db.select().from(groups).where(eq(groups.id, groupId))).toMatchObject([
+        { name: "Trip", description: null },
+      ]);
+    }
+  );
+
+  it("creates a group with a null description", async () => {
+    process.env.TEST_CURRENT_USER_ID = adminId;
+    const response = await POST(request("POST", { name: "No description", description: null }));
+    expect(response.status).toBe(201);
+    const result = await response.json();
+    expect(await db.select().from(groups).where(eq(groups.id, result.groupId))).toMatchObject([
+      { name: "No description", description: null },
+    ]);
+  });
+
   it("persists admin updates and deletion", async () => {
     process.env.TEST_CURRENT_USER_ID = adminId;
     const updated = await PATCH(
-      request("PATCH", { name: "New Trip", description: "Updated" }),
+      request("PATCH", { name: "New Trip", description: " Updated " }),
       props()
     );
     expect(updated.status).toBe(200);

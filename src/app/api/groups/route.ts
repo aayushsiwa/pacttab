@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   const formData = new FormData();
   formData.set("name", parsed.data.name);
-  if (parsed.data.description !== undefined) {
+  if (parsed.data.description != null) {
     formData.set("description", parsed.data.description);
   }
   const result = await createGroupAction(null, formData);
