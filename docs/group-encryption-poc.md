@@ -63,31 +63,31 @@ Threat assumptions:
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│                    Per-Member Identity Keys                 │
+│                  Per-Member Identity Keys                  │
 │                                                            │
-│  AccountPassword ──(PBKDF2-SHA256)→ KEK (256-bit)           │
-│  KEK ─(AES-256-GCM)→ wraps  PrivateKey (Ed25519 / ECDH)     │
-│  PublicKey  = stored plaintext on `user_keys`               │
-│  EncryptedPrivateKey = stored on `user_keys`                │
+│  AccountPassword ──(PBKDF2-SHA256)→ KEK (256-bit)          │
+│  KEK ─(AES-256-GCM)→ wraps  PrivateKey (Ed25519 / ECDH)    │
+│  PublicKey  = stored plaintext on `user_keys`              │
+│  EncryptedPrivateKey = stored on `user_keys`               │
 └────────────────────────────────────────────────────────────┘
                     │
                     │ wrap / unwrap via ECDH (X25519) or
                     │ direct AES-KW with shared secret
                     ▼
 ┌────────────────────────────────────────────────────────────┐
-│                    Group Keys (per group)                   │
+│                   Group Keys (per group)                   │
 │                                                            │
-│  GroupEncryptionKey (GEK) = random 256-bit AES key          │
-│  GEK_wrapped[member] = wrap(GEK, memberPublicKey)           │
-│   stored on `group_key_wraps` (one row per member/version)  │
+│  GroupEncryptionKey (GEK) = random 256-bit AES key         │
+│  GEK_wrapped[member] = wrap(GEK, memberPublicKey)          │
+│   stored on `group_key_wraps` (one row per member/version) │
 └────────────────────────────────────────────────────────────┘
                     │
                     ▼
 ┌────────────────────────────────────────────────────────────┐
-│              Encrypted Content (AES-256-GCM)                │
-│  messages.body         → ciphertext + iv                    │
-│  expenses.description  → ciphertext + iv                    │
-│  store: key_version for rotation awareness                  │
+│              Encrypted Content (AES-256-GCM)               │
+│  messages.body         → ciphertext + iv                   │
+│  expenses.description  → ciphertext + iv                   │
+│  store: key_version for rotation awareness                 │
 └────────────────────────────────────────────────────────────┘
 ```
 

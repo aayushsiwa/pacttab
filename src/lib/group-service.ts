@@ -123,7 +123,7 @@ export async function updateGroup(
 ): Promise<GroupActionResult> {
   const validation = groupDetailsSchema.safeParse({
     name: input.name,
-    description: input.description || undefined,
+    description: input.description,
   });
 
   if (!validation.success) {
@@ -149,7 +149,10 @@ export async function updateGroup(
         .update(groups)
         .set({
           name: validation.data.name,
-          description: validation.data.description || null,
+          description:
+            validation.data.description === undefined
+              ? undefined
+              : validation.data.description || null,
         })
         .where(eq(groups.id, groupId));
 
