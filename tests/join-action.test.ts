@@ -3,10 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import JoinPage from "../src/app/join/[token]/page";
 import { getCurrentUser } from "../src/lib/auth";
 import { createJoinRequest, joinGroup } from "../src/lib/group-service";
+import { getInviteLinkByToken } from "../src/lib/queries";
 import { redirect } from "next/navigation";
 
 vi.mock("../src/lib/auth", () => ({ getCurrentUser: vi.fn() }));
-vi.mock("../src/lib/group-service", () => ({ createJoinRequest: vi.fn(), joinGroup: vi.fn() }));
+vi.mock("../src/lib/group-service", () => ({
+  createJoinRequest: vi.fn(),
+  joinGroup: vi.fn(),
+  respondToDirectInvite: vi.fn(),
+  resolveDirectInviteByToken: vi.fn(),
+}));
+vi.mock("../src/lib/queries", () => ({ getInviteLinkByToken: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((path: string) => {
     throw new Error(`redirect:${path}`);
@@ -33,6 +40,7 @@ describe("join request server action authentication", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getCurrentUser).mockResolvedValue(renderUser);
+    vi.mocked(getInviteLinkByToken).mockResolvedValue({ id: "link-id" });
     vi.mocked(joinGroup).mockResolvedValue({
       success: false,
       canRequestJoin: true,
@@ -51,7 +59,7 @@ describe("join request server action authentication", () => {
   it("redirects to login if the session expires after rendering", async () => {
     const action = await renderAction();
     vi.mocked(getCurrentUser).mockResolvedValue(null);
-    await expect(action()).rejects.toThrow("redirect:/login?returnTo=/join/invite-token");
+    await expect(action()).rejects.toThrow("redirect:/login?returnTo=%2Fjoin%2Finvite-token");
     expect(createJoinRequest).not.toHaveBeenCalled();
   });
 
