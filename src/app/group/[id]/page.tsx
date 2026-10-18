@@ -93,6 +93,11 @@ export default function GroupPage({ params }: GroupPageProps) {
     ...r,
     createdAt: new Date(r.createdAt),
   }));
+  const directInvitesForTabs = (details.directInvites ?? []).map((i) => ({
+    ...i,
+    createdAt: new Date(i.createdAt),
+    expiresAt: i.expiresAt ? new Date(i.expiresAt) : null,
+  }));
   const messagesForTabs = (messages ?? []).map((m) => ({
     ...m,
     createdAt: typeof m.createdAt === "string" ? new Date(m.createdAt) : m.createdAt,
@@ -129,6 +134,7 @@ export default function GroupPage({ params }: GroupPageProps) {
         suggestedSettlements={suggestedSettlementsForTabs}
         activeInvites={activeInvitesForTabs}
         pendingJoinRequests={pendingJoinRequestsForTabs}
+        directInvites={directInvitesForTabs}
       />
     </div>
   );

@@ -1,11 +1,13 @@
 import crypto from "crypto";
 import { eq, and, isNull, sql, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
   groups,
   groupMembers,
   inviteLinks,
   joinRequests,
+  directInvites,
   messages,
   expenses,
   expenseSplits,
@@ -14,7 +16,7 @@ import {
 } from "@/db/schema";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
 import { broadcastWsEvent } from "@/lib/ws-hub";
-import { groupDetailsSchema } from "@/lib/group-validation";
+import { groupDetailsSchema, directInviteSchema } from "@/lib/group-validation";
 import type { ApiUser } from "@/lib/api-auth";
 
 // Reserved routes and words disallowed as custom invite slugs
@@ -54,6 +56,25 @@ export interface JoinGroupResult extends GroupActionResult {
 export interface InviteLinkResult extends GroupActionResult {
   token?: string;
 }
+
+export interface DirectInviteResult extends GroupActionResult {
+  inviteId?: string;
+  token?: string;
+  inviteeUsername?: string;
+}
+
+export interface ResolvedDirectInvite {
+  id: string;
+  groupId: string;
+  groupName: string;
+  inviterUsername: string;
+  inviteeId: string;
+  inviteeUsername: string;
+  status: string;
+  expiresAt: Date | null;
+}
+
+const DIRECT_INVITE_EXPIRY_HOURS = 7 * 24;
 
 export async function createGroup(
   user: ApiUser,
@@ -374,6 +395,337 @@ export async function revokeInviteLink(
   }
 }
 
+export async function createDirectInvite(
+  user: ApiUser,
+  groupId: string,
+  input: { username: unknown }
+): Promise<DirectInviteResult> {
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
+    .limit(1);
+
+  if (membership.length === 0 || membership[0].role !== "admin") {
+    return { success: false, error: "Only admins can invite members by username", status: 403 };
+  }
+
+  const validation = directInviteSchema.safeParse({ username: input.username });
+  if (!validation.success) {
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message || "Invalid username",
+      status: 400,
+    };
+  }
+
+  const normalizedUsername = validation.data.username.toLowerCase();
+
+  const [invitee] = await db
+    .select({ id: users.id, username: users.username })
+    .from(users)
+    .where(
+      and(sql`lower(${users.username}) = ${normalizedUsername}`, eq(users.needsUsername, false))
+    )
+    .limit(1);
+
+  if (!invitee) {
+    return { success: false, error: "User not found", status: 404 };
+  }
+
+  if (invitee.id === user.id) {
+    return { success: false, error: "You cannot invite yourself", status: 400 };
+  }
+
+  const [existingMember] = await db
+    .select({ id: groupMembers.id, status: groupMembers.status })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, invitee.id)))
+    .limit(1);
+
+  if (existingMember && existingMember.status === "active") {
+    return {
+      success: false,
+      error: "That user is already a member of this group",
+      status: 409,
+    };
+  }
+
+  const token = crypto.randomBytes(16).toString("hex");
+  const expiresAt = new Date(Date.now() + DIRECT_INVITE_EXPIRY_HOURS * 3600 * 1000);
+
+  const [existingInvite] = await db
+    .select({
+      id: directInvites.id,
+      status: directInvites.status,
+      expiresAt: directInvites.expiresAt,
+    })
+    .from(directInvites)
+    .where(and(eq(directInvites.groupId, groupId), eq(directInvites.inviteeId, invitee.id)))
+    .limit(1);
+
+  if (existingInvite && existingInvite.status === "pending") {
+    const stillValid = existingInvite.expiresAt === null || existingInvite.expiresAt > new Date();
+    if (stillValid) {
+      return {
+        success: false,
+        error: `@${invitee.username} already has a pending invite for this group`,
+        status: 409,
+      };
+    }
+  }
+
+  try {
+    let inviteId: string;
+
+    if (existingInvite) {
+      inviteId = existingInvite.id;
+      await db
+        .update(directInvites)
+        .set({
+          inviterId: user.id,
+          token,
+          status: "pending",
+          expiresAt,
+          createdAt: new Date(),
+        })
+        .where(eq(directInvites.id, inviteId));
+    } else {
+      inviteId = crypto.randomUUID();
+      await db.insert(directInvites).values({
+        id: inviteId,
+        groupId,
+        inviterId: user.id,
+        inviteeId: invitee.id,
+        token,
+        expiresAt,
+      });
+    }
+
+    return { success: true, inviteId, token, inviteeUsername: invitee.username };
+  } catch (error) {
+    console.error("Failed to create direct invite:", error);
+    return { success: false, error: "Failed to send invite. Please try again.", status: 500 };
+  }
+}
+
+export async function respondToDirectInvite(
+  user: ApiUser,
+  inviteId: string,
+  decision: "accepted" | "declined"
+): Promise<GroupActionResult> {
+  const inviteeUsers = alias(users, "direct_invitee_users");
+  const inviterUsers = alias(users, "direct_invite_inviter_users");
+
+  const [invite] = await db
+    .select({
+      id: directInvites.id,
+      groupId: directInvites.groupId,
+      inviterId: directInvites.inviterId,
+      inviteeId: directInvites.inviteeId,
+      status: directInvites.status,
+      expiresAt: directInvites.expiresAt,
+      inviterUsername: inviterUsers.username,
+    })
+    .from(directInvites)
+    .innerJoin(inviterUsers, eq(directInvites.inviterId, inviterUsers.id))
+    .innerJoin(inviteeUsers, eq(directInvites.inviteeId, inviteeUsers.id))
+    .where(eq(directInvites.id, inviteId))
+    .limit(1);
+
+  if (!invite) {
+    return { success: false, error: "Invite not found", status: 404 };
+  }
+
+  if (invite.inviteeId !== user.id) {
+    return { success: false, error: "You can only respond to invites sent to you", status: 403 };
+  }
+
+  if (invite.status !== "pending") {
+    return { success: false, error: `This invite is already ${invite.status}`, status: 409 };
+  }
+
+  const [membership] = await db
+    .select({ status: groupMembers.status })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.groupId, invite.groupId), eq(groupMembers.userId, user.id)))
+    .limit(1);
+
+  if (membership && membership.status === "active") {
+    await db.delete(directInvites).where(eq(directInvites.id, inviteId));
+    return { success: true };
+  }
+
+  if (invite.expiresAt !== null && invite.expiresAt < new Date()) {
+    await db.delete(directInvites).where(eq(directInvites.id, inviteId));
+    return { success: false, error: "This invite has expired", status: 409 };
+  }
+
+  if (decision === "declined") {
+    try {
+      await db.delete(directInvites).where(eq(directInvites.id, inviteId));
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to decline direct invite:", error);
+      return { success: false, error: "Failed to decline invite", status: 500 };
+    }
+  }
+
+  const inviteConsumedError = new Error("This invite is no longer pending");
+  try {
+    await db.transaction(async (tx) => {
+      const [consumedInvite] = await tx
+        .delete(directInvites)
+        .where(and(eq(directInvites.id, inviteId), eq(directInvites.status, "pending")))
+        .returning({ id: directInvites.id });
+
+      if (!consumedInvite) throw inviteConsumedError;
+
+      const [existingMember] = await tx
+        .select({ id: groupMembers.id })
+        .from(groupMembers)
+        .where(and(eq(groupMembers.groupId, invite.groupId), eq(groupMembers.userId, user.id)))
+        .limit(1);
+
+      if (existingMember) {
+        await tx
+          .update(groupMembers)
+          .set({ status: "active", role: "member" })
+          .where(eq(groupMembers.id, existingMember.id));
+      } else {
+        await tx.insert(groupMembers).values({
+          id: crypto.randomUUID(),
+          groupId: invite.groupId,
+          userId: user.id,
+          role: "member",
+          status: "active",
+        });
+      }
+
+      const acceptMsgId = crypto.randomUUID();
+      const body = `${user.username} accepted the invite from @${invite.inviterUsername}.`;
+      await tx.insert(messages).values({
+        id: acceptMsgId,
+        groupId: invite.groupId,
+        authorId: null,
+        body,
+        type: "system",
+      });
+
+      await broadcastWsEvent({
+        type: "new_message",
+        groupId: invite.groupId,
+        message: {
+          id: acceptMsgId,
+          body,
+          type: "system",
+          createdAt: new Date().toISOString(),
+          authorId: null,
+          authorUsername: null,
+        },
+      });
+
+      await broadcastWsEvent({
+        type: "member_joined",
+        groupId: invite.groupId,
+        username: user.username,
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    if (error === inviteConsumedError) {
+      return { success: false, error: inviteConsumedError.message, status: 409 };
+    }
+    console.error("Failed to accept direct invite:", error);
+    return { success: false, error: "Failed to accept invite. Please try again.", status: 500 };
+  }
+}
+
+export async function revokeDirectInvite(
+  user: ApiUser,
+  groupId: string,
+  inviteId: string
+): Promise<GroupActionResult> {
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
+    .limit(1);
+
+  if (membership.length === 0 || membership[0].role !== "admin") {
+    return { success: false, error: "Only admins can revoke invites", status: 403 };
+  }
+
+  const [invite] = await db
+    .select({ id: directInvites.id, status: directInvites.status })
+    .from(directInvites)
+    .where(and(eq(directInvites.id, inviteId), eq(directInvites.groupId, groupId)))
+    .limit(1);
+
+  if (!invite) {
+    return { success: false, error: "Invite not found", status: 404 };
+  }
+
+  if (invite.status !== "pending") {
+    return { success: false, error: `Invite is already ${invite.status}`, status: 409 };
+  }
+
+  try {
+    await db.update(directInvites).set({ status: "revoked" }).where(eq(directInvites.id, inviteId));
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to revoke direct invite:", error);
+    return { success: false, error: "Failed to revoke invite", status: 500 };
+  }
+}
+
+export async function resolveDirectInviteByToken(
+  token: string
+): Promise<ResolvedDirectInvite | null> {
+  const inviteeUsers = alias(users, "direct_invitee_users");
+  const inviterUsers = alias(users, "direct_invite_inviter_users");
+
+  const [invite] = await db
+    .select({
+      id: directInvites.id,
+      groupId: directInvites.groupId,
+      groupName: groups.name,
+      inviterUsername: inviterUsers.username,
+      inviteeId: directInvites.inviteeId,
+      inviteeUsername: inviteeUsers.username,
+      status: directInvites.status,
+      expiresAt: directInvites.expiresAt,
+    })
+    .from(directInvites)
+    .innerJoin(groups, eq(directInvites.groupId, groups.id))
+    .innerJoin(inviterUsers, eq(directInvites.inviterId, inviterUsers.id))
+    .innerJoin(inviteeUsers, eq(directInvites.inviteeId, inviteeUsers.id))
+    .where(eq(directInvites.token, token))
+    .limit(1);
+
+  if (!invite) return null;
+
+  if (invite.status === "pending" && invite.expiresAt !== null && invite.expiresAt < new Date()) {
+    await db.delete(directInvites).where(eq(directInvites.id, invite.id));
+    return { ...invite, status: "expired" };
+  }
+
+  return invite;
+}
+
 export async function joinGroup(token: string, user: ApiUser): Promise<JoinGroupResult> {
   const now = new Date();
   const validInvites = await db
@@ -409,13 +761,20 @@ export async function joinGroup(token: string, user: ApiUser): Promise<JoinGroup
     .limit(1);
 
   if (existingMember.length > 0) {
+    const staleDirectInvites = and(
+      eq(directInvites.groupId, invite.groupId),
+      eq(directInvites.inviteeId, user.id)
+    );
+
     if (existingMember[0].status === "active") {
+      await db.delete(directInvites).where(staleDirectInvites);
       return { success: true, groupId: invite.groupId, groupName: invite.groupName };
     }
     await db
       .update(groupMembers)
       .set({ status: "active" })
       .where(eq(groupMembers.id, existingMember[0].id));
+    await db.delete(directInvites).where(staleDirectInvites);
 
     return { success: true, groupId: invite.groupId, groupName: invite.groupName };
   }
@@ -517,6 +876,12 @@ export async function joinGroup(token: string, user: ApiUser): Promise<JoinGroup
         role: "member",
         status: "active",
       });
+
+      await tx
+        .delete(directInvites)
+        .where(
+          and(eq(directInvites.groupId, invite.groupId), eq(directInvites.inviteeId, user.id))
+        );
 
       await tx
         .update(inviteLinks)
@@ -701,6 +1066,10 @@ export async function reviewJoinRequest(
             status: "active",
           });
         }
+
+        await tx
+          .delete(directInvites)
+          .where(and(eq(directInvites.groupId, groupId), eq(directInvites.inviteeId, req.userId)));
 
         const approvedMsgId = crypto.randomUUID();
         const body = `${user.username} approved @${req.username}'s request to join.`;

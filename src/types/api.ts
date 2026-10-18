@@ -73,6 +73,17 @@ export interface GroupDetails {
     username: string;
     createdAt: string;
   }>;
+  directInvites: Array<DirectInviteItem>;
+}
+
+export interface DirectInviteItem {
+  id: string;
+  token: string;
+  status: string;
+  createdAt: string;
+  expiresAt: string | null;
+  inviteeUsername: string;
+  inviterUsername: string;
 }
 
 export interface MessageItem {
@@ -89,6 +100,17 @@ export interface PendingRequest {
   groupName: string;
   groupDescription?: string | null;
   username: string;
+  createdAt: string;
+}
+
+export interface PendingDirectInvite {
+  id: string;
+  groupId: string;
+  groupName: string;
+  groupDescription?: string | null;
+  token: string;
+  inviterUsername: string;
+  expiresAt: string | null;
   createdAt: string;
 }
 

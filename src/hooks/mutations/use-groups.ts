@@ -142,6 +142,114 @@ export function useRevokeInviteLink() {
   });
 }
 
+interface SendDirectInviteInput {
+  groupId: string;
+  username: string;
+}
+
+export function useSendDirectInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: SendDirectInviteInput) => {
+      const res = await fetch(`/api/groups/${data.groupId}/direct-invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: data.username }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to send invite");
+      }
+      return res.json() as Promise<{
+        success: boolean;
+        inviteId?: string;
+        token?: string;
+        inviteeUsername?: string;
+        error?: string;
+      }>;
+    },
+    onSuccess: (data, variables) => {
+      if (data.success) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(variables.groupId) });
+        toast.success(`Invite sent to @${data.inviteeUsername || variables.username}`);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+interface RevokeDirectInviteInput {
+  groupId: string;
+  inviteId: string;
+}
+
+export function useRevokeDirectInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: RevokeDirectInviteInput) => {
+      const res = await fetch(`/api/groups/${data.groupId}/direct-invites/${data.inviteId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to revoke invite");
+      }
+      return res.json() as Promise<{ success: boolean; error?: string }>;
+    },
+    onSuccess: (data, variables) => {
+      if (data.success) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(variables.groupId) });
+        toast.success("Invite revoked");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+interface RespondToDirectInviteInput {
+  inviteId: string;
+  decision: "accepted" | "declined";
+}
+
+export function useRespondToDirectInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: RespondToDirectInviteInput) => {
+      const res = await fetch(`/api/user/direct-invites/${data.inviteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: data.decision }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to respond to invite");
+      }
+      return res.json() as Promise<{ success: boolean; error?: string }>;
+    },
+    onSuccess: (data, variables) => {
+      if (data.success) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.user.pendingDirectInvites });
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups.lists() });
+        toast.success(
+          variables.decision === "accepted"
+            ? "Invite accepted — welcome to the group!"
+            : "Invite declined"
+        );
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
 interface JoinGroupInput {
   token: string;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "direct_invites" DROP COLUMN "responded_at";

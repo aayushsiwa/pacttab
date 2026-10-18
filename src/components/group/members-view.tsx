@@ -7,6 +7,8 @@ import {
   useRevokeInviteLink,
   useRotateInviteLink,
   useReviewJoinRequest,
+  useSendDirectInvite,
+  useRevokeDirectInvite,
 } from "@/hooks/mutations";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -34,6 +36,9 @@ import {
   ShieldCheck,
   UserCheck,
   UserX,
+  UserPlus,
+  Send,
+  MailOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/date";
@@ -63,6 +68,16 @@ interface PendingJoinRequest {
   createdAt: Date;
 }
 
+interface DirectInvite {
+  id: string;
+  token: string;
+  status: string;
+  createdAt: Date;
+  expiresAt: Date | null;
+  inviteeUsername: string;
+  inviterUsername: string;
+}
+
 interface MembersViewProps {
   groupId: string;
   currentUserId: string;
@@ -70,6 +85,7 @@ interface MembersViewProps {
   members: Member[];
   invites: Invite[];
   pendingJoinRequests?: PendingJoinRequest[];
+  directInvites?: DirectInvite[];
 }
 
 export function MembersView({
@@ -79,6 +95,7 @@ export function MembersView({
   members,
   invites,
   pendingJoinRequests = [],
+  directInvites = [],
 }: MembersViewProps) {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -86,6 +103,21 @@ export function MembersView({
   const [expiresInHours, setExpiresInHours] = useState<number | null>(null);
   const [maxUses, setMaxUses] = useState<number | null>(null);
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [isUsernameModalOpen, setIsUsernameModalOpen] = useState(false);
+  const [inviteUsername, setInviteUsername] = useState("");
+
+  const inviteTarget = inviteUsername.trim().toLowerCase();
+  const inviteTargetIsMember =
+    inviteTarget.length > 0 && members.some((m) => m.username.toLowerCase() === inviteTarget);
+  const inviteTargetAlreadyInvited =
+    inviteTarget.length > 0 &&
+    directInvites.some(
+      (i) =>
+        i.status === "pending" &&
+        i.inviteeUsername.toLowerCase() === inviteTarget &&
+        (i.expiresAt === null || i.expiresAt > new Date())
+    );
+  const inviteTargetBlocked = inviteTargetIsMember || inviteTargetAlreadyInvited;
 
   const queryClient = useQueryClient();
   const isAdmin = currentUserRole === "admin";
@@ -94,12 +126,16 @@ export function MembersView({
   const revokeInviteLink = useRevokeInviteLink();
   const rotateInviteLink = useRotateInviteLink();
   const reviewJoinRequest = useReviewJoinRequest();
+  const sendDirectInvite = useSendDirectInvite();
+  const revokeDirectInvite = useRevokeDirectInvite();
 
   const isPending =
     createInviteLink.isPending ||
     revokeInviteLink.isPending ||
     rotateInviteLink.isPending ||
-    reviewJoinRequest.isPending;
+    reviewJoinRequest.isPending ||
+    sendDirectInvite.isPending ||
+    revokeDirectInvite.isPending;
 
   const handleCopy = (token: string) => {
     const fullUrl = `${window.location.origin}/join/${token}`;
@@ -171,6 +207,52 @@ export function MembersView({
         },
         onError: (err: Error) => {
           toast.error(err.message);
+        },
+      }
+    );
+  };
+
+  const handleCopyDirectLink = (token: string) => {
+    const fullUrl = `${window.location.origin}/join/${token}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedToken(`direct-${token}`);
+    toast.success("Invite link copied to clipboard!");
+    setTimeout(() => setCopiedToken(null), 2500);
+  };
+
+  const handleSendUsernameInvite = () => {
+    const username = inviteUsername.trim().replace(/^@/, "");
+    if (!username || inviteTargetBlocked) return;
+
+    sendDirectInvite.mutate(
+      { groupId, username },
+      {
+        onSuccess: (res) => {
+          if (res.success && res.token) {
+            setIsUsernameModalOpen(false);
+            setInviteUsername("");
+            handleCopyDirectLink(res.token);
+            queryClient.invalidateQueries();
+          }
+        },
+        onError: () => {
+          // Toast handled by the mutation hook
+        },
+      }
+    );
+  };
+
+  const handleRevokeDirectInvite = (inviteId: string) => {
+    revokeDirectInvite.mutate(
+      { groupId, inviteId },
+      {
+        onSuccess: (res) => {
+          if (res.success) {
+            queryClient.invalidateQueries();
+          }
+        },
+        onError: () => {
+          // Toast handled by the mutation hook
         },
       }
     );
@@ -346,6 +428,18 @@ export function MembersView({
                 <Button
                   size="sm"
                   variant="outline"
+                  onClick={() => setIsUsernameModalOpen(true)}
+                  disabled={isPending}
+                  className="border-border/80 h-9 shrink-0 gap-1.5 rounded-xl px-3 text-xs font-semibold"
+                  title="Invite a specific person by their username"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span>By Username</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={handleRotateInvite}
                   disabled={isPending}
                   className="border-border/80 h-9 shrink-0 gap-1.5 rounded-xl px-3 text-xs font-semibold"
@@ -480,10 +574,115 @@ export function MembersView({
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-border/80 bg-muted/20 rounded-2xl border">
+        <Card className="border-border/80 bg-muted/15 rounded-2xl border">
           <CardContent className="text-muted-foreground flex items-center gap-3 p-4 text-xs">
             <Lock className="text-muted-foreground h-4 w-4 shrink-0" />
             <span>Invite links and group settings are managed by the group admin.</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Direct Invites (sent by username) for Admins */}
+      {isAdmin && directInvites.length > 0 && (
+        <Card className="border-border/80 bg-card/80 rounded-2xl border pt-2 shadow-2xs md:pt-5">
+          <CardHeader className="pt-0 pb-1 md:p-5 md:pb-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <Send className="text-primary h-4 w-4" />
+                <span>Direct Invites ({directInvites.length})</span>
+              </CardTitle>
+              <CardDescription className="text-xs leading-relaxed">
+                Invites sent to specific usernames. Each link only works for that person.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-1 p-0 pt-0 md:space-y-2.5 md:p-5">
+            {directInvites.map((inv) => {
+              const isCopied = copiedToken === `direct-${inv.token}`;
+              const isExpired =
+                inv.status === "pending" && inv.expiresAt !== null && inv.expiresAt < new Date();
+
+              return (
+                <div
+                  key={inv.id}
+                  className="border-border/60 bg-muted/20 flex flex-col justify-between gap-3 rounded-xl border p-3.5 sm:flex-row sm:items-center"
+                >
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-foreground flex items-center gap-1 text-xs font-bold sm:text-sm">
+                        <MailOpen className="text-primary h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">@{inv.inviteeUsername}</span>
+                      </span>
+
+                      {inv.status === "pending" && !isExpired && (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/40 bg-amber-500/10 text-[10px] font-semibold text-amber-600 dark:text-amber-400"
+                        >
+                          Pending
+                        </Badge>
+                      )}
+                      {inv.status === "revoked" && (
+                        <Badge variant="destructive" className="text-[10px] font-semibold">
+                          Revoked
+                        </Badge>
+                      )}
+                      {isExpired && (
+                        <Badge variant="destructive" className="text-[10px] font-semibold">
+                          Expired
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-[11px]">
+                      <span>
+                        Invited by @{inv.inviterUsername} {formatRelativeTime(inv.createdAt)}
+                      </span>
+                      {inv.status === "pending" && inv.expiresAt && !isExpired && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Expires {formatRelativeTime(inv.expiresAt)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {inv.status === "pending" && !isExpired && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopyDirectLink(inv.token)}
+                        className={`h-8 gap-1.5 rounded-lg px-3 text-xs font-semibold ${
+                          isCopied ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : ""
+                        }`}
+                      >
+                        {isCopied ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                        <span>{isCopied ? "Copied" : "Copy Link"}</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleRevokeDirectInvite(inv.id)}
+                        disabled={isPending}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 rounded-lg px-2.5 text-xs font-semibold"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Revoke</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -612,6 +811,81 @@ export function MembersView({
               className="rounded-xl text-xs font-bold"
             >
               {isPending ? "Creating..." : "Generate Invite"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite by Username Modal */}
+      <Dialog open={isUsernameModalOpen} onOpenChange={setIsUsernameModalOpen}>
+        <DialogContent className="bg-background border-border/80 rounded-2xl p-6 shadow-xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <UserPlus className="text-primary h-5 w-5" />
+              <span>Invite by Username</span>
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs">
+              Send a private invite to a specific person. It lands in their inbox and the share link
+              only works for them. Expires in 7 days.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-username-input" className="text-xs font-semibold">
+                Username
+              </Label>
+              <div className="relative">
+                <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 font-mono text-xs select-none">
+                  @
+                </span>
+                <Input
+                  id="invite-username-input"
+                  value={inviteUsername}
+                  onChange={(e) => setInviteUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSendUsernameInvite();
+                  }}
+                  placeholder="e.g. maya"
+                  maxLength={50}
+                  className="bg-card rounded-xl pl-7 text-xs"
+                />
+              </div>
+              {inviteTargetIsMember ? (
+                <p className="text-destructive text-[10px] font-medium">
+                  @{inviteUsername.trim()} is already a member of this group
+                </p>
+              ) : inviteTargetAlreadyInvited ? (
+                <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                  @{inviteUsername.trim()} already has a pending invite
+                </p>
+              ) : (
+                <p className="text-muted-foreground text-[10px]">
+                  Must match their exact PactTab username. Letters, numbers, and underscores.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsUsernameModalOpen(false)}
+              className="rounded-xl text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isPending || !inviteUsername.trim() || inviteTargetBlocked}
+              onClick={handleSendUsernameInvite}
+              className="rounded-xl text-xs font-bold"
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>{sendDirectInvite.isPending ? "Sending..." : "Send Invite"}</span>
             </Button>
           </DialogFooter>
         </DialogContent>
