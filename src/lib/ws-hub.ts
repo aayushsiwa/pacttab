@@ -81,7 +81,7 @@ const INSTANCE_ID = crypto.randomUUID();
 const REDIS_EVENT_CHANNEL = "pacttab:ws:events";
 
 class WebSocketHub {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   private groupSockets = new Map<string, Set<WebSocket | any>>();
   private subscriberInitialized = false;
 
@@ -119,7 +119,7 @@ class WebSocketHub {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   register(groupId: string, ws: WebSocket | any) {
     if (!this.groupSockets.has(groupId)) {
       this.groupSockets.set(groupId, new Set());
@@ -137,7 +137,7 @@ class WebSocketHub {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   unregister(groupId: string, ws: WebSocket | any) {
     const sockets = this.groupSockets.get(groupId);
     if (sockets) {

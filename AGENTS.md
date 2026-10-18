@@ -14,8 +14,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - `pnpm dev`: Start custom Next.js dev server with WebSockets & Redis pub/sub (`tsx server.ts`)
 - `pnpm test`: Run the full Vitest suite (`vitest run`)
-- `pnpm run lint`: Run ESLint 9
-- `pnpm run format`: Format all files with Prettier
+- `pnpm run lint`: Run oxlint
+- `pnpm run format`: Format all files with oxfmt
 - `pnpm run format:check`: Check formatting
 - `pnpm run db:init`: Run database migrations / initialization (`tsx scripts/init-db.ts`)
 - `pnpm run db:push`: Push the Drizzle schema to PostgreSQL
@@ -30,4 +30,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Real-Time Layer**: Custom HTTP server (`server.ts`) combines the `ws` WebSocket server with the Redis pub/sub hub (`src/lib/ws-hub.ts`).
 - **Database**: PostgreSQL with Drizzle ORM (`src/db/schema.ts`).
 - **Auth**: Better Auth session cookies (`username` plugin) in `src/lib/auth.ts`; optional social providers resolved by `src/lib/social-auth-config.ts`.
-- **Git Hooks**: Pre-commit runs `lint-staged` (ESLint + Prettier on staged files), pre-push runs lint + format:check + vitest, and commit-msg enforces Conventional Commits via Commitlint.
+- **Git Hooks**: Pre-commit runs `lint-staged` (oxlint + oxfmt on staged files), pre-push runs lint + format:check + vitest, and commit-msg enforces Conventional Commits via Commitlint.

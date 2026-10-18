@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateInviteLink,
@@ -106,6 +106,12 @@ export function MembersView({
   const [isUsernameModalOpen, setIsUsernameModalOpen] = useState(false);
   const [inviteUsername, setInviteUsername] = useState("");
 
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const inviteTarget = inviteUsername.trim().toLowerCase();
   const inviteTargetIsMember =
     inviteTarget.length > 0 && members.some((m) => m.username.toLowerCase() === inviteTarget);
@@ -115,7 +121,7 @@ export function MembersView({
       (i) =>
         i.status === "pending" &&
         i.inviteeUsername.toLowerCase() === inviteTarget &&
-        (i.expiresAt === null || i.expiresAt > new Date())
+        (i.expiresAt === null || i.expiresAt > now)
     );
   const inviteTargetBlocked = inviteTargetIsMember || inviteTargetAlreadyInvited;
 
@@ -474,7 +480,7 @@ export function MembersView({
             ) : (
               invites.map((inv) => {
                 const isCopied = copiedToken === inv.token;
-                const isExpired = inv.expiresAt && new Date(inv.expiresAt) < new Date();
+                const isExpired = inv.expiresAt && inv.expiresAt < now;
                 const isCapped = inv.maxUses !== null && inv.useCount >= inv.maxUses;
 
                 return (
@@ -600,7 +606,7 @@ export function MembersView({
             {directInvites.map((inv) => {
               const isCopied = copiedToken === `direct-${inv.token}`;
               const isExpired =
-                inv.status === "pending" && inv.expiresAt !== null && inv.expiresAt < new Date();
+                inv.status === "pending" && inv.expiresAt !== null && inv.expiresAt < now;
 
               return (
                 <div

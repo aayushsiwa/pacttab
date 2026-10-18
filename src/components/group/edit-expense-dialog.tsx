@@ -111,10 +111,11 @@ function EditExpenseForm({
   const [percentValues, setPercentValues] = useState<Record<string, string>>({});
   const [shareValues, setShareValues] = useState<Record<string, string>>({});
 
-  const formattedDate = expense.expenseDate
-    ? new Date(expense.expenseDate).toISOString().split("T")[0]
-    : new Date().toISOString().split("T")[0];
-  const [expenseDate, setExpenseDate] = useState(formattedDate);
+  const [expenseDate, setExpenseDate] = useState(() =>
+    expense.expenseDate
+      ? new Date(expense.expenseDate).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0]
+  );
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { mutate, isPending } = useUpdateExpense();

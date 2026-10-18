@@ -7,7 +7,8 @@ export interface ApiUser {
 }
 
 export type ApiAuthResult =
-  { user: ApiUser; response?: undefined } | { user?: undefined; response: NextResponse };
+  | { user: ApiUser; response?: undefined }
+  | { user?: undefined; response: NextResponse };
 
 /** Resolves the authenticated user for a route handler, or a JSON error response. */
 export async function authenticateRequest(): Promise<ApiAuthResult> {
