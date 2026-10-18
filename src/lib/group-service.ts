@@ -403,7 +403,13 @@ export async function createDirectInvite(
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (membership.length === 0 || membership[0].role !== "admin") {
@@ -571,8 +577,16 @@ export async function respondToDirectInvite(
     }
   }
 
+  const inviteConsumedError = new Error("This invite is no longer pending");
   try {
     await db.transaction(async (tx) => {
+      const [consumedInvite] = await tx
+        .delete(directInvites)
+        .where(and(eq(directInvites.id, inviteId), eq(directInvites.status, "pending")))
+        .returning({ id: directInvites.id });
+
+      if (!consumedInvite) throw inviteConsumedError;
+
       const [existingMember] = await tx
         .select({ id: groupMembers.id })
         .from(groupMembers)
@@ -582,7 +596,7 @@ export async function respondToDirectInvite(
       if (existingMember) {
         await tx
           .update(groupMembers)
-          .set({ status: "active" })
+          .set({ status: "active", role: "member" })
           .where(eq(groupMembers.id, existingMember.id));
       } else {
         await tx.insert(groupMembers).values({
@@ -593,8 +607,6 @@ export async function respondToDirectInvite(
           status: "active",
         });
       }
-
-      await tx.delete(directInvites).where(eq(directInvites.id, inviteId));
 
       const acceptMsgId = crypto.randomUUID();
       const body = `${user.username} accepted the invite from @${invite.inviterUsername}.`;
@@ -628,6 +640,9 @@ export async function respondToDirectInvite(
 
     return { success: true };
   } catch (error) {
+    if (error === inviteConsumedError) {
+      return { success: false, error: inviteConsumedError.message, status: 409 };
+    }
     console.error("Failed to accept direct invite:", error);
     return { success: false, error: "Failed to accept invite. Please try again.", status: 500 };
   }
@@ -641,7 +656,13 @@ export async function revokeDirectInvite(
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
     .limit(1);
 
   if (membership.length === 0 || membership[0].role !== "admin") {
