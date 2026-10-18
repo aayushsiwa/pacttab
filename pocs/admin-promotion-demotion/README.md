@@ -33,8 +33,9 @@ admins.
   "transfer dance".
 - **Small-group reality**: flatmates and trip crews share management duties; one-admin-for-life is
   an artificial constraint.
-- **Dependency**: the [direct-invite POC](../invite-by-username) gates inviting by username to
-  admins — multi-admin widens who can send those invites, so it is the natural follow-up.
+- **Dependency**: the [direct-invite decision](../../docs/adr/adr-002-direct-invites-by-username.md)
+  gates inviting by username to admins — multi-admin widens who can send those invites, so it is the
+  natural follow-up.
 
 ## 4. Data Model
 

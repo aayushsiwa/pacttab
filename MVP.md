@@ -48,7 +48,7 @@ The MVP should let a group go from creation to a settled balance in a few minute
 - Sign-in and sign-out
 - Secure password hashing and cookie-based sessions
 - No email address, phone number, contact importing, or public user search
-  (group admins may look up an exact username solely to send a private direct invite — see `pocs/invite-by-username/`)
+  (group admins may look up an exact username solely to send a private direct invite — see `docs/adr/adr-002-direct-invites-by-username.md`)
 - Clear notice: passwords cannot be recovered in the MVP
 - Optional one-time recovery codes can be added after the initial release
 
