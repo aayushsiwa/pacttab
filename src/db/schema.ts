@@ -124,6 +124,27 @@ export const joinRequests = pgTable("join_requests", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const directInvites = pgTable(
+  "direct_invites",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    inviterId: text("inviter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    inviteeId: text("invitee_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: varchar("token", { length: 64 }).notNull().unique(),
+    status: varchar("status", { length: 20 }).notNull().default("pending"), // "pending" | "revoked" — rows are deleted on accept, decline, and expiry
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("direct_invite_unique_idx").on(table.groupId, table.inviteeId)]
+);
+
 export const messages = pgTable("messages", {
   id: text("id").primaryKey(),
   groupId: text("group_id")
@@ -200,6 +221,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   createdSettlements: many(settlements, { relationName: "settlementCreator" }),
   joinRequests: many(joinRequests, { relationName: "joinRequester" }),
   reviewedJoinRequests: many(joinRequests, { relationName: "joinReviewer" }),
+  sentDirectInvites: many(directInvites, { relationName: "directInviter" }),
+  receivedDirectInvites: many(directInvites, { relationName: "directInvitee" }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -217,6 +240,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   members: many(groupMembers),
   inviteLinks: many(inviteLinks),
   joinRequests: many(joinRequests),
+  directInvites: many(directInvites),
   messages: many(messages),
   expenses: many(expenses),
   settlements: many(settlements),
@@ -318,5 +342,22 @@ export const joinRequestsRelations = relations(joinRequests, ({ one }) => ({
     fields: [joinRequests.reviewedBy],
     references: [users.id],
     relationName: "joinReviewer",
+  }),
+}));
+
+export const directInvitesRelations = relations(directInvites, ({ one }) => ({
+  group: one(groups, {
+    fields: [directInvites.groupId],
+    references: [groups.id],
+  }),
+  inviter: one(users, {
+    fields: [directInvites.inviterId],
+    references: [users.id],
+    relationName: "directInviter",
+  }),
+  invitee: one(users, {
+    fields: [directInvites.inviteeId],
+    references: [users.id],
+    relationName: "directInvitee",
   }),
 }));
