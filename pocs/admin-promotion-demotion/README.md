@@ -112,16 +112,24 @@ the existing `[id]/transfer-admin` handler.
 
 ## 8. Edge Cases
 
-| Case                                       | Behavior                                                                      |
-| :----------------------------------------- | :---------------------------------------------------------------------------- |
-| Promote a non-member / inactive member     | 404                                                                           |
-| Promote someone already admin              | 409                                                                           |
-| Demote the last active admin               | 409 (group must keep ≥ 1 admin)                                               |
-| Admin leaves with a fellow admin present   | Allowed; leaver's row → `inactive`                                            |
-| Admin leaves as sole admin                 | Blocked with the updated message                                              |
-| Sole admin transfers via existing endpoint | Still works (target becomes admin, caller becomes member — never zero admins) |
-| Inactive (`status: "inactive"`) admins     | Not counted toward the active-admin total for the last-admin guard            |
-| Concurrent demote/leave race               | Last-admin check runs inside the same transaction as the write                |
+| Case                                       | Behavior                                                                                                               |
+| :----------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| Promote a non-member / inactive member     | 404                                                                                                                    |
+| Promote someone already admin              | 409                                                                                                                    |
+| Demote the last active admin               | 409 (group must keep ≥ 1 admin)                                                                                        |
+| Admin leaves with a fellow admin present   | Allowed; leaver's row → `inactive`                                                                                     |
+| Admin leaves as sole admin                 | Blocked with the updated message                                                                                       |
+| Sole admin transfers via existing endpoint | Still works (target becomes admin, caller becomes member — never zero admins)                                          |
+| Inactive (`status: "inactive"`) admins     | Not counted toward the active-admin total for the last-admin guard                                                     |
+| Concurrent demote/leave race               | Serialize the last-admin check with role/status changes using a group-scoped lock or SERIALIZABLE isolation with retry |
+
+All operations that change admin roles or active membership (including demotion, leaving,
+and transfer) must use the same serialization strategy. With a group-scoped lock, lock the
+group row before re-reading caller/target membership and counting active admins, then hold
+the lock through the role/status write and commit. Alternatively, use SERIALIZABLE isolation
+and retry the entire transaction on serialization failures, rechecking authorization and the
+last-admin guard on every attempt. A transaction alone at the default isolation level does
+not prevent two operations from each observing another admin and removing both.
 
 ## 9. Tests (`tests/admin-roles.test.ts`)
 
@@ -137,6 +145,12 @@ Mirroring `tests/service-authorization.test.ts` and `tests/group-mutations.test.
 5. Multi-admin invite governance: a promoted admin can create invite links and review join
    requests (the checks already test `role !== "admin"`, so this should pass without changes —
    worth asserting explicitly since it is the motivation for the feature)
+6. Concurrent admin removal: start with exactly two active admins and synchronize requests
+   to overlap. Cover two self-demotions, two admin leaves, and self-demotion racing the other
+   admin's leave. After both operations settle (including serialization retries), query the
+   database and assert at least one active admin remains; at most one removal may succeed,
+   and the other must be rejected by the last-admin or authorization guard. Use real
+   PostgreSQL transactions so the tests exercise the chosen serialization strategy.
 
 ## 10. Out of Scope
 

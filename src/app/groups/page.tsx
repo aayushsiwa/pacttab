@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FolderPlus, Clock, MailOpen, UserCheck, UserX } from "lucide-react";
 import { formatRelativeTime } from "@/lib/date";
+import { queryKeys } from "@/lib/query-keys";
 import type { PendingRequest, PendingDirectInvite, UserGroup } from "@/types/api";
 
 export default function GroupsPage() {
@@ -35,9 +36,10 @@ export default function GroupsPage() {
         onSuccess: () => {
           if (decision === "accepted") {
             router.push(`/group/${groupId}`);
-          } else {
-            queryClient.invalidateQueries({ queryKey: ["groups"] });
           }
+        },
+        onSettled: () => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.user.pendingDirectInvites });
         },
       }
     );
