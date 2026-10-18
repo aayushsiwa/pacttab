@@ -76,6 +76,16 @@ interface PendingJoinRequestItem {
   createdAt: Date;
 }
 
+interface DirectInviteItem {
+  id: string;
+  token: string;
+  status: string;
+  createdAt: Date;
+  expiresAt: Date | null;
+  inviteeUsername: string;
+  inviterUsername: string;
+}
+
 interface GroupTabsProps {
   group: GroupInfo;
   groupId: string;
@@ -90,6 +100,7 @@ interface GroupTabsProps {
   suggestedSettlements: SuggestedSettlement[];
   activeInvites: InviteItem[];
   pendingJoinRequests?: PendingJoinRequestItem[];
+  directInvites?: DirectInviteItem[];
 }
 
 export function GroupTabs({
@@ -106,6 +117,7 @@ export function GroupTabs({
   suggestedSettlements,
   activeInvites,
   pendingJoinRequests = [],
+  directInvites = [],
 }: GroupTabsProps) {
   const [activeTab, setActiveTab] = useState<"chat" | "expenses" | "balances">("chat");
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
@@ -165,6 +177,7 @@ export function GroupTabs({
               members={members}
               invites={activeInvites}
               pendingJoinRequests={pendingJoinRequests}
+              directInvites={directInvites}
             />
           </div>
         </DialogContent>
