@@ -14,14 +14,14 @@ unique, and immutable (`src/db/schema.ts:15`), making them the natural addressin
 
 ## 2. Product Decisions
 
-| Decision                    | Choice                                                                                                                         |
-| :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
-| Who can send direct invites | **Group admins only** (consistent with `createInviteLink`, `src/lib/group-service.ts:240`)                                     |
-| Delivery                    | **Both** an in-app inbox entry and a copyable share link pre-bound to the invitee                                              |
-| Invitee flow                | **Explicit accept / decline** (mirrors the `join_requests` pattern)                                                            |
-| Existence feedback          | **Show "User not found"** — accepted trade-off for typo detection, even though it makes username existence probeable by admins |
-| Default expiry              | **7 days**, enforced at read/respond time                                                                                      |
-| Re-invite                   | Resets the existing row to `pending` with a fresh token and expiry (same approach as `src/lib/group-service.ts:589-593`)       |
+| Decision                    | Choice                                                                                                                                           |
+| :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Who can send direct invites | **Group admins only** (consistent with `createInviteLink`, `src/lib/group-service.ts:240`)                                                       |
+| Delivery                    | **Both** an in-app inbox entry and a copyable share link pre-bound to the invitee                                                                |
+| Invitee flow                | **Explicit accept / decline** (mirrors the `join_requests` pattern)                                                                              |
+| Existence feedback          | **Show "User not found"** — accepted trade-off for typo detection, even though it makes username existence probeable by admins                   |
+| Default expiry              | **7 days**, enforced at read/respond time                                                                                                        |
+| Re-invite                   | After decline/accept the row is already deleted, so re-invite inserts fresh; a `revoked` row is reset to `pending` with a fresh token and expiry |
 
 Privacy note: this intentionally refines the "no public user search" rule in `MVP.md:50`. There is
 still no search, browsing, or discovery — only an **exact-username lookup performed by a group
@@ -44,9 +44,9 @@ admin for the purpose of inviting**, which requires already knowing the username
 
 1. Invitee opens **Your Groups** → **Group Invitations** section (styled like the existing
    **Pending Group Requests**, `src/app/groups/page.tsx:36-99`), showing group name, inviter, age.
-2. **Accept** → joins the group (system message + `member_joined` WebSocket broadcast),
-   **Deny** → status becomes `declined`, no system message posted to the group (the decline is
-   private; the inviter sees it in the members view instead).
+2. **Accept** → joins the group (system message + `member_joined` WebSocket broadcast) and the
+   invite row is **deleted**, **Deny** → the invite row is **deleted**, no system message posted to
+   the group (the decline is private; there is simply nothing left to show).
 
 ### C. Invitee opens the share link
 
@@ -55,7 +55,9 @@ admin for the purpose of inviting**, which requires already knowing the username
 - Logged out → existing sign-in/sign-up card with `returnTo=/join/<token>`
 - Logged in as the invitee → accept / decline card → accept redirects to `/group/[id]`
 - Logged in as someone else → "This invite was sent to @maya."
-- Declined / revoked / expired → error card
+- Revoked → revoked error card; expired → one-time "Invite Expired" card (the row is deleted, so
+  later visits get the generic "Invite Unavailable"); declined / already accepted → generic
+  "Invite Unavailable" (rows are deleted on respond)
 
 ## 4. Data Model
 
@@ -66,22 +68,30 @@ New table in `src/db/schema.ts` (+ generated migration via `pnpm run db:generate
 DirectInvite
   id, groupId, inviterId, inviteeId,
   token (varchar 64, unique — backs the share link),
-  status: pending | accepted | declined | revoked | expired,
-  expiresAt, respondedAt, createdAt
-  UNIQUE (groupId, inviteeId)   -- one invite per user per group; re-invite resets the row
+  status: pending | revoked,
+  expiresAt, createdAt
+  UNIQUE (groupId, inviteeId)   -- one invite per user per group
 ```
 
-Relations added to `groups` and `users`. No changes to `invite_links` or `join_requests`.
+Rows are **deleted** as soon as they are consumed: acceptance, decline, and first-detected expiry
+all remove the row, so only `pending` (and admin-`revoked`) rows ever persist. Relations added to
+`groups` and `users`. No changes to `invite_links` or `join_requests`.
 
 ## 5. Service Layer (`src/lib/group-service.ts`)
 
-| Function                                          | Authorization                                            | Notes                                                                                                                                                                                |
-| :------------------------------------------------ | :------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createDirectInvite(user, groupId, { username })` | Admin only (same membership check as `createInviteLink`) | Case-insensitive exact match on `lower(users.username)`; excludes `needsUsername` users; returns `{ inviteId, token, inviteeUsername }`                                              |
-| `respondToDirectInvite(user, inviteId, decision)` | Invitee only; must be `pending` and unexpired            | Accept: transaction reactivates/inserts `groupMembers`, system message, `new_message` + `member_joined` broadcasts (mirrors `reviewJoinRequest`, line 672-741). Decline: status only |
-| `revokeDirectInvite(user, groupId, inviteId)`     | Admin only                                               | `pending` → `revoked`                                                                                                                                                                |
-| `resolveDirectInviteByToken(token)`               | Public (join page)                                       | Returns invite + group + inviter for token resolution                                                                                                                                |
-| `getUserPendingDirectInvites(userId)`             | Self                                                     | Inbox query; joins group name and inviter username                                                                                                                                   |
+| Function                                          | Authorization                                            | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| :------------------------------------------------ | :------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createDirectInvite(user, groupId, { username })` | Admin only (same membership check as `createInviteLink`) | Case-insensitive exact match on `lower(users.username)`; excludes `needsUsername` users; returns `{ inviteId, token, inviteeUsername }`                                                                                                                                                                                                                                                                                                              |
+| `respondToDirectInvite(user, inviteId, decision)` | Invitee only; must be `pending` and unexpired            | Already an active member (joined via another path): row **deleted** silently, `success` returned with no membership change or system message. Otherwise accept: transaction reactivates/inserts `groupMembers`, posts the system message, fires `new_message` + `member_joined` broadcasts (mirrors `reviewJoinRequest`, line 672-741), then **deletes the invite row**. Decline: **row deleted**, no system message. Expired: **row deleted** + 409 |
+| `revokeDirectInvite(user, groupId, inviteId)`     | Admin only                                               | `pending` → `revoked` (kept, so the link explains itself)                                                                                                                                                                                                                                                                                                                                                                                            |
+| `resolveDirectInviteByToken(token)`               | Public (join page)                                       | Returns invite + group + inviter for token resolution; an expired row is **deleted** and still reported as `expired` for that one view (later views → `null`)                                                                                                                                                                                                                                                                                        |
+| `getUserPendingDirectInvites(userId)`             | Self                                                     | Inbox query; joins group name and inviter username; excludes rows whose invitee is already an active member (`NOT EXISTS` guard)                                                                                                                                                                                                                                                                                                                     |
+
+Stale-invite cleanup beyond direct responses: `joinGroup` deletes any direct invite row for
+`(groupId, user.id)` on all success paths (active shortcut, reactivation, fresh insert), and
+`reviewJoinRequest` deletes the requestor's rows when the request is approved — a pending invite
+can never outlive the membership it was created for. `getGroupDetails` filters out rows for active
+members on the admin list as well.
 
 Validation input added to `src/lib/group-validation.ts`:
 
@@ -123,8 +133,11 @@ active invites are already fetched), so no extra read route is needed and invali
 **UI**
 
 - `src/components/group/members-view.tsx` — "Invite by Username" button + dialog (success state
-  shows the copyable pre-bound link); a "Pending Direct Invites" list under the Invite Links card
-  with status badges, copy-link, and revoke actions.
+  shows the copyable pre-bound link); the typed username is checked live against `members` and
+  `directInvites` — an active member gets an inline "already a member" hint and a disabled Send
+  (a pending invite gets "already has a pending invite"), so the admin sees the 409 condition
+  before pressing Send; the server-side 409 remains authoritative. A "Pending Direct Invites" list
+  under the Invite Links card with status badges, copy-link, and revoke actions.
 - `src/app/groups/page.tsx` — "Group Invitations" section: amber cards mirroring
   "Pending Group Requests" with **Accept** / **Deny** buttons.
 - `src/app/join/[token]/page.tsx` — token resolution branch described in §3C.
@@ -134,9 +147,14 @@ active invites are already fetched), so no extra read route is needed and invali
 
 - Self-invite rejected; inviting an already-active member rejected; inviting an inactive
   (left/removed) member reactivates membership on accept, like `reviewJoinRequest` does.
+- Stale invites are impossible to observe: joining through a share link, an approved join request,
+  or accepting directly all delete the invite row, and the inbox/admin-list queries hide any
+  leftover row for an active member. Accepting while already an active member is a silent cleanup
+  (success, no duplicate system message).
 - Provisional onboarding accounts (`needsUsername: true`) are invisible to username lookup —
   their `user_<hex>` handles are internal, not shareable identities.
-- Accepting twice, or responding to a revoked/expired invite → 409 with a clear message.
+- Responding to an invite whose row is already gone (accepted/declined earlier) → 404; responding
+  to a revoked/expired invite → 409 with a clear message.
 - Share-link token lookup order: `invite_links` first, then `direct_invites` (collision with a
   custom invite slug is practically impossible — tokens are `crypto.randomBytes(16).toString("hex")`,
   but ordering makes it deterministic anyway).
@@ -149,17 +167,23 @@ Mirroring `tests/custom-invite-links.test.ts` and `tests/join-action.test.ts`:
 
 1. Create: non-admin → 403; unknown username → 404; active member → 409; success returns token
 2. Create excludes `needsUsername` users; case-insensitive match works
-3. Respond: wrong user → 403; accept adds membership + posts system message; decline sets status
-   without a system message; double-respond → 409; expired → 409
+3. Respond: wrong user → 403; accept adds membership + posts system message and deletes the row;
+   decline deletes the row silently; responding again → 404; expired → 409 + row deleted
 4. Revoke: non-admin → 403; pending → revoked
-5. Token link: valid invitee → join; wrong user → clear error; revoked/declined → error cards
+5. Token link: valid invitee → join; wrong user → clear error; revoked → error card; expired →
+   one-time expired card, then `null` on later resolution
+6. Stale cleanup: invitee joins via share link → invite row deleted, inbox empty; join request
+   approved → invite row deleted, inbox empty; invitee already active → inbox and admin list hide
+   the row, direct accept is a silent cleanup (row gone, no new "accepted" system message)
 
 ## 10. Out of Scope
 
 - **Multi-admin promotion/demotion** — see [`pocs/admin-promotion-demotion`](../admin-promotion-demotion).
   Because direct invites are admin-gated, that follow-up widens who can send them.
 - Real-time inbox push notifications.
-- Expiry cron/lazy flip (expiry is enforced at read/respond time).
+- Expiry cron (expiry is enforced lazily at read/respond time; the row is deleted when expiry is
+  first detected — an invite nobody ever opens again still lingers as `pending` until the next
+  re-invite attempt, which resets it).
 
 ## 11. Verification
 
