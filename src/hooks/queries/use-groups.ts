@@ -35,6 +35,17 @@ export function useUserPendingJoinRequests<TData = unknown>() {
   });
 }
 
+export function useUserPendingDirectInvites<TData = unknown>() {
+  return useQuery<TData>({
+    queryKey: queryKeys.user.pendingDirectInvites,
+    queryFn: async () => {
+      const res = await fetch("/api/user/direct-invites");
+      if (!res.ok) throw new Error("Failed to fetch pending invites");
+      return res.json();
+    },
+  });
+}
+
 export function useUserPendingAdminActionsCount<TData = unknown>() {
   return useQuery<TData>({
     queryKey: queryKeys.user.pendingAdminActions,

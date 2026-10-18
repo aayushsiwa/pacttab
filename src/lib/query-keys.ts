@@ -31,6 +31,7 @@ export const queryKeys = {
   },
   user: {
     pendingJoinRequests: ["user", "pendingJoinRequests"] as const,
+    pendingDirectInvites: ["user", "pendingDirectInvites"] as const,
     pendingAdminActions: ["user", "pendingAdminActions"] as const,
   },
 } as const;
