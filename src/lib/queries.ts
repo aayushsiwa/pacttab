@@ -1,4 +1,5 @@
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, or, desc, gt, isNull, sql, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
   groups,
@@ -9,6 +10,7 @@ import {
   settlements,
   inviteLinks,
   joinRequests,
+  directInvites,
   messages,
 } from "@/db/schema";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
@@ -240,7 +242,7 @@ export async function getGroupDetails(groupId: string, userId: string) {
     }))
   );
 
-  // 7. If admin, fetch active invite links & pending join requests
+  // 7. If admin, fetch active invite links, pending join requests & direct invites
   let activeInvites: {
     id: string;
     token: string;
@@ -255,6 +257,15 @@ export async function getGroupDetails(groupId: string, userId: string) {
     userId: string;
     username: string;
     createdAt: Date;
+  }[] = [];
+  let directInvitesForGroup: {
+    id: string;
+    token: string;
+    status: string;
+    createdAt: Date;
+    expiresAt: Date | null;
+    inviteeUsername: string;
+    inviterUsername: string;
   }[] = [];
 
   if (currentUserRole === "admin") {
@@ -283,6 +294,33 @@ export async function getGroupDetails(groupId: string, userId: string) {
       .innerJoin(users, eq(joinRequests.userId, users.id))
       .where(and(eq(joinRequests.groupId, groupId), eq(joinRequests.status, "pending")))
       .orderBy(desc(joinRequests.createdAt));
+
+    const inviteeUsers = alias(users, "direct_invitee");
+    directInvitesForGroup = await db
+      .select({
+        id: directInvites.id,
+        token: directInvites.token,
+        status: directInvites.status,
+        createdAt: directInvites.createdAt,
+        expiresAt: directInvites.expiresAt,
+        inviteeUsername: inviteeUsers.username,
+        inviterUsername: users.username,
+      })
+      .from(directInvites)
+      .innerJoin(users, eq(directInvites.inviterId, users.id))
+      .innerJoin(inviteeUsers, eq(directInvites.inviteeId, inviteeUsers.id))
+      .where(
+        and(
+          eq(directInvites.groupId, groupId),
+          sql`NOT EXISTS (
+            SELECT 1 FROM "group_members" gm
+            WHERE gm."group_id" = ${directInvites.groupId}
+              AND gm."user_id" = ${directInvites.inviteeId}
+              AND gm."status" = 'active'
+          )`
+        )
+      )
+      .orderBy(desc(directInvites.createdAt));
   }
 
   return {
@@ -295,6 +333,7 @@ export async function getGroupDetails(groupId: string, userId: string) {
     suggestedSettlements,
     activeInvites,
     pendingJoinRequests,
+    directInvites: directInvitesForGroup,
   };
 }
 
@@ -311,6 +350,46 @@ export async function getUserPendingJoinRequests(userId: string) {
     .innerJoin(groups, eq(joinRequests.groupId, groups.id))
     .where(and(eq(joinRequests.userId, userId), eq(joinRequests.status, "pending")))
     .orderBy(desc(joinRequests.createdAt));
+}
+
+export async function getUserPendingDirectInvites(userId: string) {
+  return db
+    .select({
+      id: directInvites.id,
+      groupId: directInvites.groupId,
+      groupName: groups.name,
+      groupDescription: groups.description,
+      token: directInvites.token,
+      inviterUsername: users.username,
+      expiresAt: directInvites.expiresAt,
+      createdAt: directInvites.createdAt,
+    })
+    .from(directInvites)
+    .innerJoin(groups, eq(directInvites.groupId, groups.id))
+    .innerJoin(users, eq(directInvites.inviterId, users.id))
+    .where(
+      and(
+        eq(directInvites.inviteeId, userId),
+        eq(directInvites.status, "pending"),
+        or(isNull(directInvites.expiresAt), gt(directInvites.expiresAt, new Date())),
+        sql`NOT EXISTS (
+          SELECT 1 FROM "group_members" gm
+          WHERE gm."group_id" = ${directInvites.groupId}
+            AND gm."user_id" = ${userId}
+            AND gm."status" = 'active'
+        )`
+      )
+    )
+    .orderBy(desc(directInvites.createdAt));
+}
+
+export async function getInviteLinkByToken(token: string) {
+  const [row] = await db
+    .select({ id: inviteLinks.id })
+    .from(inviteLinks)
+    .where(eq(inviteLinks.token, token))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function getUserPendingAdminActionsCount(userId: string): Promise<number> {
