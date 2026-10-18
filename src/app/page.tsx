@@ -30,6 +30,7 @@ import {
   Smartphone,
   ArrowDown,
 } from "lucide-react";
+import { ScrollToSection } from "@/components/navbar/scroll-into-view";
 
 const useCases = [
   { icon: Utensils, label: "Dinners" },
@@ -152,16 +153,9 @@ export default async function HomePage() {
         </p>
 
         <div className="mt-8 flex w-full max-w-xs flex-col justify-center gap-3.5 sm:max-w-md sm:flex-row">
-          <Link href="#how-it-works" className="w-full sm:w-auto">
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-border/80 hover:bg-muted/60 h-12 w-full rounded-xl px-6 font-semibold transition-all active:scale-[0.98]"
-            >
-              How it works
-              <ArrowDown />
-            </Button>
-          </Link>
+          <div className="w-full sm:w-auto">
+            <ScrollToSection />
+          </div>
         </div>
 
         <div className="mt-5 flex flex-col items-center gap-2">
@@ -287,7 +281,7 @@ export default async function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="container mb-16 max-w-5xl px-4">
+      <section id="how-it-works" className="container mb-16 max-w-5xl scroll-mt-24 px-4">
         <div className="container max-w-5xl px-4">
           <SectionHeading
             className="mb-10"

@@ -110,19 +110,20 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {user ? (
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   disabled={isPending}
-                  className="border-border/80 bg-card/80 hover:bg-muted/80 focus-visible:ring-ring flex cursor-pointer items-center gap-2 rounded-full border py-1 pr-2.5 pl-1 shadow-2xs transition-all outline-none select-none focus-visible:ring-2"
+                  aria-label="Open user menu"
+                  className="border-border/80 bg-card/80 hover:bg-muted/80 focus-visible:ring-ring flex cursor-pointer items-center gap-2 rounded-full border py-1 pr-2 pl-1 shadow-2xs transition-all outline-none select-none focus-visible:ring-2 sm:pr-2.5"
                 >
                   <div className="relative">
                     <UserAvatar username={user.username} size="sm" className="h-6 w-6" />
                     {pendingAdminActionsCount > 0 && <PingIndicator size="sm" tone="amber" />}
                   </div>
-                  <span className="text-foreground/90 max-w-[120px] truncate text-xs font-semibold">
+                  <span className="text-foreground/90 hidden max-w-[120px] truncate text-xs font-semibold sm:inline">
                     @{user.username}
                   </span>
                   <ChevronDown className="text-muted-foreground h-3 w-3 transition-transform" />
@@ -325,7 +326,8 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
                 href="https://github.com/aayushsiwa/pacttab"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/60 inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-colors"
+                aria-label="Star on GitHub"
+                className="border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/60 hidden h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-colors sm:inline-flex"
               >
                 <svg
                   viewBox="0 0 24 24"
