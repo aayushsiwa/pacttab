@@ -1,5 +1,10 @@
 # Proof of Concept (POC): Admin Promotion & Demotion (Multiple Admins)
 
+## Status
+
+Proposed — not implemented on `master`. Role changes are still only possible through the
+single-admin `transferAdmin` handover described below.
+
 ## 1. Summary
 
 PactTab groups currently behave as if they have exactly one admin. The schema allows more

@@ -111,7 +111,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Optional Google and GitHub sign-in
 
-Local handle-and-password accounts remain the default. Social providers are opt-in per provider: provide both the client ID and secret for Google and/or GitHub. A provider with missing or blank credentials is not activated or shown. See the [Optional Social Sign-In POC](docs/pocs/social-auth/README.md) for the Better Auth migration, privacy, and rollout requirements.
+Local handle-and-password accounts remain the default. Social providers are opt-in per provider: provide both the client ID and secret for Google and/or GitHub. A provider with missing or blank credentials is not activated or shown. See the [ADR](docs/adr/adr-001-better-auth-and-optional-oauth.md) for the Better Auth migration, provider gating, identity, and privacy commitments.
 
 ---
 
@@ -180,7 +180,7 @@ docker compose up -d
 
 - [Self-Hosting Guide](docs/self-hosting.md): Complete instructions for Docker Compose, low-memory mode, Caddy/Nginx reverse proxies, automated migrations, backups, and bare-metal systemd.
 - [Web MCP Implementation POC](docs/pocs/web-mcp/README.md): Architectural design, use cases, security safeguards, and implementation roadmap for Model Context Protocol (Web MCP) support over SSE and in-browser agents.
-- [Optional Social Sign-In POC](docs/pocs/social-auth/README.md): Google and GitHub provider architecture, privacy commitments, migration strategy, and rollout criteria.
+- [Architecture Decision Records](docs/adr/): Better Auth with optional Google/GitHub sign-in (001), direct invites by username (002).
 - [MVP Specification & Roadmap](MVP.md): Detailed product requirements, data entities, and shipped milestone tracking.
 
 ---

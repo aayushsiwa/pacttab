@@ -1,5 +1,10 @@
 # Proof of Concept (POC): Web MCP Implementation for PactTab
 
+## Status
+
+Design only — not implemented on `master`. Planned for Release 4 in `MVP.md`; exploratory work
+lives on the `poc/web-mcp` branch.
+
 ## 1. Executive Summary
 
 This document outlines the architecture, design, and proof-of-concept (POC) plan for introducing **Web Model Context Protocol (Web MCP)** support into **PactTab**.

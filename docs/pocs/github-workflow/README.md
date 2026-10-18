@@ -1,5 +1,11 @@
 # Proof of Concept (POC): GitHub Workflows (CI Quality Gate + Merge-Time DB Migration)
 
+## Status
+
+Partially implemented. Phase 1 (the oxlint/oxfmt tooling migration) has landed; Phase 2 — the two
+workflows below, plus the `db:migrate:apply` script they depend on — is not implemented yet. This
+document is the implementation plan for Phase 2.
+
 ## 1. Summary
 
 PactTab has no `.github/` directory — there are no CI checks on pull requests today; lint, format,

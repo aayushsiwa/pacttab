@@ -1,5 +1,10 @@
 # Proof of Concept (POC): End-to-End Group Encryption for PactTab
 
+## Status
+
+Design only — not implemented on `master`. Exploratory work lives on the `poc/e2e-encryption`
+branch; the code paths in §8 are the proposed prototype, not the current codebase.
+
 ## 1. Executive Summary
 
 This document outlines the architecture, design, and proof-of-concept (POC) plan for introducing **end-to-end group encryption (E2EE)** into **PactTab**.
@@ -342,7 +347,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 }
 ```
 
-The handler stays thin; `attachWrappedGroupKey` in `src/lib/group-encryption-service.ts` enforces active membership and inserts the `group_key_wraps` row, mirroring the other domain services.
+The handler stays thin; in this prototype `attachWrappedGroupKey` in `src/lib/group-encryption-service.ts` enforces active membership and inserts the `group_key_wraps` row, mirroring the other domain services.
 
 ### 8.5 Message write path (Client → Server)
 

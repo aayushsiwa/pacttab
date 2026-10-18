@@ -46,9 +46,10 @@ The MVP should let a group go from creation to a settled balance in a few minute
 
 - Username and password sign-up
 - Sign-in and sign-out
+- Optional Google and GitHub sign-in, enabled per provider only when its credentials are configured (see `docs/adr/adr-001-better-auth-and-optional-oauth.md`)
 - Secure password hashing and cookie-based sessions
 - No email address, phone number, contact importing, or public user search
-  (group admins may look up an exact username solely to send a private direct invite — see `docs/adr/adr-002-direct-invites-by-username.md`)
+  (local accounts never need an email; an optional provider may share a provider email with the auth layer only — it never appears in groups; group admins may look up an exact username solely to send a private direct invite — see `docs/adr/adr-002-direct-invites-by-username.md`)
 - Clear notice: passwords cannot be recovered in the MVP
 - Optional one-time recovery codes can be added after the initial release
 
@@ -126,19 +127,19 @@ The MVP explicitly does not include:
 
 ## Privacy principles
 
-- Collect the minimum information: username and password only
-- Never request contacts, a phone number, or an email address
+- Collect the minimum information: username and password for local accounts
+- Never request contacts, a phone number, or a required email address; optional Google/GitHub sign-in exposes only the provider's minimal scopes to the authentication layer (see `docs/adr/adr-001-better-auth-and-optional-oauth.md`)
 - Make groups private by default and permanently non-discoverable
 - Use opaque random identifiers for invite links
 - Never expose a group’s membership, messages, or expenses to non-members
-- Provide group deletion and account deletion as a planned early post-MVP feature
+- Group deletion and account deletion are available from settings
 - Avoid behavioral advertising and unnecessary third-party tracking
 
 ## Technical approach
 
 - Framework: Next.js 16 (App Router), full-stack application
 - PWA: web manifest, installable experience, mobile-first responsive UI, basic offline shell
-- Authentication: Better Auth with username/password credentials (CSR login/signup via fetch)
+- Authentication: Better Auth with username/password credentials (CSR login/signup via fetch), plus optional Google/GitHub sign-in gated by credential presence (see `docs/adr/adr-001-better-auth-and-optional-oauth.md`)
 - Database: PostgreSQL
 - ORM: Drizzle ORM
 - Client Data: TanStack Query v5 for all client-side data fetching, optimistic updates, cache
@@ -150,6 +151,7 @@ The MVP explicitly does not include:
 ```text
 User
   id, username, passwordHash, createdAt
+  email (internal, non-deliverable for local accounts; provider email for OAuth — ADR 001)
 
 Group
   id, name, description, createdBy, createdAt
@@ -204,6 +206,12 @@ Authentication, private groups, direct invite links, equal-split expenses, balan
 - Installable PWA with offline fallback shell and manifest
 - Automated test coverage via Vitest
 
-### Release 3 (Planned)
+### Release 3 (Shipped)
+
+- Direct invites by exact username for group admins (see `docs/adr/adr-002-direct-invites-by-username.md`)
+- Optional Google and GitHub sign-in with server-side provider gating (see `docs/adr/adr-001-better-auth-and-optional-oauth.md`)
+- Group deletion and account deletion from settings
+
+### Release 4 (Planned)
 
 Offline expense drafts, external push notifications, attachments/receipt uploads, recurring expenses, multiple currencies, Web MCP (Model Context Protocol) agent connectivity ([POC](docs/pocs/web-mcp/README.md)), and optional payment-link integrations.
