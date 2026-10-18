@@ -43,15 +43,15 @@ Existing expense-splitting applications often demand email addresses, phone numb
 
 ## Tech Stack
 
-| Layer                | Technology                                                                                                                                                                                                                              |
-| :------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Framework**        | [Next.js 16](https://nextjs.org) (App Router, TanStack Query, API Routes)                                                                                                                                                               |
-| **UI & Styling**     | [React 19](https://react.dev), [Tailwind CSS v4](https://tailwindcss.com), [Base UI](https://base-ui.com), [Lucide React](https://lucide.dev), [Sonner](https://sonner.emilkowal.ski)                                                   |
-| **Database**         | [PostgreSQL](https://www.postgresql.org) with [Drizzle ORM](https://orm.drizzle.team)                                                                                                                                                   |
-| **Real-Time & Sync** | [WebSockets](https://github.com/websockets/ws) (`ws`), [Redis Pub/Sub](https://redis.io) (`ioredis`), [TanStack Query](https://tanstack.com/query) for client-side caching                                                              |
-| **Authentication**   | [Better Auth](https://www.better-auth.com) session-based credentials                                                                                                                                                                    |
-| **Testing**          | [Vitest](https://vitest.dev)                                                                                                                                                                                                            |
-| **Tooling & Hooks**  | [pnpm](https://pnpm.io), [ESLint 9](https://eslint.org), [Prettier](https://prettier.io), [Husky](https://typicode.github.io/husky), [lint-staged](https://github.com/lint-staged/lint-staged), [commitlint](https://commitlint.js.org) |
+| Layer                | Technology                                                                                                                                                                                                                                                                             |
+| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Framework**        | [Next.js 16](https://nextjs.org) (App Router, TanStack Query, API Routes)                                                                                                                                                                                                              |
+| **UI & Styling**     | [React 19](https://react.dev), [Tailwind CSS v4](https://tailwindcss.com), [Base UI](https://base-ui.com), [Lucide React](https://lucide.dev), [Sonner](https://sonner.emilkowal.ski)                                                                                                  |
+| **Database**         | [PostgreSQL](https://www.postgresql.org) with [Drizzle ORM](https://orm.drizzle.team)                                                                                                                                                                                                  |
+| **Real-Time & Sync** | [WebSockets](https://github.com/websockets/ws) (`ws`), [Redis Pub/Sub](https://redis.io) (`ioredis`), [TanStack Query](https://tanstack.com/query) for client-side caching                                                                                                             |
+| **Authentication**   | [Better Auth](https://www.better-auth.com) session-based credentials                                                                                                                                                                                                                   |
+| **Testing**          | [Vitest](https://vitest.dev)                                                                                                                                                                                                                                                           |
+| **Tooling & Hooks**  | [pnpm](https://pnpm.io), [oxlint](https://oxc.rs/docs/guide/usage/linter.html), [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html), [Husky](https://typicode.github.io/husky), [lint-staged](https://github.com/lint-staged/lint-staged), [commitlint](https://commitlint.js.org) |
 
 ---
 
@@ -111,7 +111,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Optional Google and GitHub sign-in
 
-Local handle-and-password accounts remain the default. Social providers are opt-in per provider: provide both the client ID and secret for Google and/or GitHub. A provider with missing or blank credentials is not activated or shown. See the [Optional Social Sign-In POC](docs/social-auth-poc.md) for the Better Auth migration, privacy, and rollout requirements.
+Local handle-and-password accounts remain the default. Social providers are opt-in per provider: provide both the client ID and secret for Google and/or GitHub. A provider with missing or blank credentials is not activated or shown. See the [Optional Social Sign-In POC](pocs/social-auth-poc.md) for the Better Auth migration, privacy, and rollout requirements.
 
 ---
 
@@ -119,7 +119,7 @@ Local handle-and-password accounts remain the default. Social providers are opt-
 
 PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code quality:
 
-- **`pre-commit`**: Automatically runs `eslint --fix` and `prettier --write` exclusively on staged files via `lint-staged`.
+- **`pre-commit`**: Automatically runs `oxlint --fix` and `oxfmt` exclusively on staged files via `lint-staged`.
 - **`commit-msg`**: Validates commit messages following [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`).
 - **`pre-push`**: Runs lint, format check, and the full test suite before pushing.
 
@@ -179,8 +179,8 @@ docker compose up -d
 ## Documentation & Architecture Plans
 
 - [Self-Hosting Guide](docs/self-hosting.md): Complete instructions for Docker Compose, low-memory mode, Caddy/Nginx reverse proxies, automated migrations, backups, and bare-metal systemd.
-- [Web MCP Implementation POC](docs/web-mcp-poc.md): Architectural design, use cases, security safeguards, and implementation roadmap for Model Context Protocol (Web MCP) support over SSE and in-browser agents.
-- [Optional Social Sign-In POC](docs/social-auth-poc.md): Google and GitHub provider architecture, privacy commitments, migration strategy, and rollout criteria.
+- [Web MCP Implementation POC](pocs/web-mcp-poc.md): Architectural design, use cases, security safeguards, and implementation roadmap for Model Context Protocol (Web MCP) support over SSE and in-browser agents.
+- [Optional Social Sign-In POC](pocs/social-auth-poc.md): Google and GitHub provider architecture, privacy commitments, migration strategy, and rollout criteria.
 - [MVP Specification & Roadmap](MVP.md): Detailed product requirements, data entities, and shipped milestone tracking.
 
 ---

@@ -34,7 +34,8 @@ export function useCreateExpense() {
     onMutate: async (newExpense) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.expenses.list(newExpense.groupId) });
       const previous = queryClient.getQueryData(queryKeys.expenses.list(newExpense.groupId)) as
-        unknown[] | undefined;
+        | unknown[]
+        | undefined;
 
       queryClient.setQueryData(
         queryKeys.expenses.list(newExpense.groupId),
@@ -87,7 +88,8 @@ export function useDeleteExpense() {
     onMutate: async (expense) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.expenses.list(expense.groupId) });
       const previous = queryClient.getQueryData(queryKeys.expenses.list(expense.groupId)) as
-        unknown[] | undefined;
+        | unknown[]
+        | undefined;
 
       queryClient.setQueryData(
         queryKeys.expenses.list(expense.groupId),
@@ -144,7 +146,8 @@ export function useUpdateExpense() {
     onMutate: async (updated) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.expenses.list(updated.groupId) });
       const previous = queryClient.getQueryData(queryKeys.expenses.list(updated.groupId)) as
-        unknown[] | undefined;
+        | unknown[]
+        | undefined;
 
       queryClient.setQueryData(
         queryKeys.expenses.list(updated.groupId),

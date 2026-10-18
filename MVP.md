@@ -48,7 +48,7 @@ The MVP should let a group go from creation to a settled balance in a few minute
 - Sign-in and sign-out
 - Secure password hashing and cookie-based sessions
 - No email address, phone number, contact importing, or public user search
-  (group admins may look up an exact username solely to send a private direct invite — see `pocs/invite-by-username/`)
+  (group admins may look up an exact username solely to send a private direct invite — see `docs/invite-by-username/`)
 - Clear notice: passwords cannot be recovered in the MVP
 - Optional one-time recovery codes can be added after the initial release
 
@@ -206,4 +206,4 @@ Authentication, private groups, direct invite links, equal-split expenses, balan
 
 ### Release 3 (Planned)
 
-Offline expense drafts, external push notifications, attachments/receipt uploads, recurring expenses, multiple currencies, Web MCP (Model Context Protocol) agent connectivity ([POC](docs/web-mcp-poc.md)), and optional payment-link integrations.
+Offline expense drafts, external push notifications, attachments/receipt uploads, recurring expenses, multiple currencies, Web MCP (Model Context Protocol) agent connectivity ([POC](pocs/web-mcp-poc.md)), and optional payment-link integrations.

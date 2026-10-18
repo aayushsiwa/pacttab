@@ -28,7 +28,8 @@ export function useSendMessage() {
     onMutate: async (newMessage) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.messages.list(newMessage.groupId) });
       const previous = queryClient.getQueryData(queryKeys.messages.list(newMessage.groupId)) as
-        unknown[] | undefined;
+        | unknown[]
+        | undefined;
 
       queryClient.setQueryData(
         queryKeys.messages.list(newMessage.groupId),

@@ -117,6 +117,8 @@ const githubMark = (
   </svg>
 );
 
+const copyrightYear = new Date().getFullYear();
+
 export default async function HomePage() {
   const user = await getCurrentUser();
   if (user) {
@@ -552,7 +554,7 @@ export default async function HomePage() {
                 </li>
               </ul>
               <p className="text-muted-foreground mt-2 text-[11px]">
-                © {new Date().getFullYear()} PactTab • No cookies. No trackers. Ever.
+                © {copyrightYear} PactTab • No cookies. No trackers. Ever.
               </p>
             </div>
           </div>

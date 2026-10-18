@@ -66,7 +66,7 @@ export function UserAvatar({
     >
       {!showFallbackOnly && !hasError ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {/* oxlint-disable-next-line nextjs/no-img-element */}
           <img
             src={roboUrl}
             alt={`@${cleanName}`}

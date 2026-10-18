@@ -12,7 +12,8 @@ const UsernameSchema = z.object({
 });
 
 export type AuthActionResult =
-  { ok: true; username?: string } | { ok: false; error: string; username?: string };
+  | { ok: true; username?: string }
+  | { ok: false; error: string; username?: string };
 
 function parseErrorStatus(err: { status?: number | string; statusCode?: number }): number {
   if (typeof err.status === "number") return err.status;
