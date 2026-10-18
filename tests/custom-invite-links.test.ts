@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../src/db";
 import { users, groups, groupMembers, inviteLinks } from "../src/db/schema";
 import { hashPassword } from "../src/lib/auth";
-import { createInviteLinkAction, joinGroupAction } from "../src/actions/groups";
+import { createInviteLink, joinGroup } from "../src/lib/group-service";
 
 describe("Custom Invite Links Workflow", () => {
   const testRunId = crypto.randomBytes(3).toString("hex");
@@ -15,6 +15,9 @@ describe("Custom Invite Links Workflow", () => {
   const joinerId = crypto.randomUUID();
   const joinerUsername = `joiner_cust_${testRunId}`;
   const customSlug = `summer-retreat-${testRunId}`;
+
+  const adminUser = { id: adminId, username: adminUsername };
+  const joinerUser = { id: joinerId, username: joinerUsername };
 
   beforeAll(async () => {
     await hashPassword("AdminPassword123!"); // hash for future use
@@ -54,7 +57,7 @@ describe("Custom Invite Links Workflow", () => {
   it("creates custom slug invite link and persists in database", async () => {
     process.env.TEST_CURRENT_USER_ID = adminId;
 
-    const createRes = await createInviteLinkAction(groupId, {
+    const createRes = await createInviteLink(adminUser, groupId, {
       customSlug,
       expiresInHours: 48,
       maxUses: 10,
@@ -73,7 +76,7 @@ describe("Custom Invite Links Workflow", () => {
   it("rejects duplicate custom slugs with collision error", async () => {
     process.env.TEST_CURRENT_USER_ID = adminId;
 
-    const dupRes = await createInviteLinkAction(groupId, {
+    const dupRes = await createInviteLink(adminUser, groupId, {
       customSlug,
     });
 
@@ -84,10 +87,10 @@ describe("Custom Invite Links Workflow", () => {
   it("rejects invalid slug formats (too short, spaces, special symbols)", async () => {
     process.env.TEST_CURRENT_USER_ID = adminId;
 
-    const tooShortRes = await createInviteLinkAction(groupId, { customSlug: "ab" });
+    const tooShortRes = await createInviteLink(adminUser, groupId, { customSlug: "ab" });
     expect(tooShortRes.success).toBe(false);
 
-    const invalidCharRes = await createInviteLinkAction(groupId, {
+    const invalidCharRes = await createInviteLink(adminUser, groupId, {
       customSlug: "bad slug with spaces!",
     });
     expect(invalidCharRes.success).toBe(false);
@@ -96,7 +99,7 @@ describe("Custom Invite Links Workflow", () => {
   it("rejects reserved system route slugs", async () => {
     process.env.TEST_CURRENT_USER_ID = adminId;
 
-    const reservedRes = await createInviteLinkAction(groupId, { customSlug: "login" });
+    const reservedRes = await createInviteLink(adminUser, groupId, { customSlug: "login" });
     expect(reservedRes.success).toBe(false);
     expect(reservedRes.error).toContain("reserved");
   });
@@ -104,7 +107,7 @@ describe("Custom Invite Links Workflow", () => {
   it("generates 32-character random hex token when custom slug is omitted", async () => {
     process.env.TEST_CURRENT_USER_ID = adminId;
 
-    const randomRes = await createInviteLinkAction(groupId);
+    const randomRes = await createInviteLink(adminUser, groupId);
     expect(randomRes.success).toBe(true);
     expect(randomRes.token).toBeDefined();
     expect(randomRes.token).toHaveLength(32);
@@ -113,7 +116,7 @@ describe("Custom Invite Links Workflow", () => {
   it("allows user to join group via custom slug and increments use count", async () => {
     process.env.TEST_CURRENT_USER_ID = joinerId;
 
-    const joinRes = await joinGroupAction(customSlug);
+    const joinRes = await joinGroup(customSlug, joinerUser);
     expect(joinRes.success).toBe(true);
     expect(joinRes.groupId).toBe(groupId);
 

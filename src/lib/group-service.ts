@@ -1,5 +1,3 @@
-"use server";
-
 import crypto from "crypto";
 import { eq, and, isNull, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -14,10 +12,10 @@ import {
   settlements,
   users,
 } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
 import { broadcastWsEvent } from "@/lib/ws-hub";
 import { groupDetailsSchema } from "@/lib/group-validation";
+import type { ApiUser } from "@/lib/api-auth";
 
 // Reserved routes and words disallowed as custom invite slugs
 const RESERVED_SLUGS = new Set([
@@ -36,28 +34,41 @@ const RESERVED_SLUGS = new Set([
   "about",
 ]);
 
-export type GroupActionState = {
+export interface GroupActionResult {
+  success: boolean;
   error?: string;
-  success?: boolean;
+  status?: number;
+}
+
+export interface CreateGroupResult extends GroupActionResult {
   groupId?: string;
-};
+}
 
-export async function createGroupAction(
-  prevState: GroupActionState | null,
-  formData: FormData
-): Promise<GroupActionState> {
-  const user = await requireUser();
+export interface JoinGroupResult extends GroupActionResult {
+  groupId?: string;
+  groupName?: string;
+  canRequestJoin?: boolean;
+  pendingApproval?: boolean;
+}
 
-  const rawName = formData.get("name");
-  const rawDescription = formData.get("description");
+export interface InviteLinkResult extends GroupActionResult {
+  token?: string;
+}
 
+export async function createGroup(
+  user: ApiUser,
+  input: { name: unknown; description?: unknown }
+): Promise<CreateGroupResult> {
   const validation = groupDetailsSchema.safeParse({
-    name: rawName,
-    description: rawDescription || undefined,
+    name: input.name,
+    description: input.description || undefined,
   });
 
   if (!validation.success) {
-    return { error: validation.error.issues[0]?.message || "Invalid group details" };
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message || "Invalid group details",
+    };
   }
 
   const groupId = crypto.randomUUID();
@@ -67,7 +78,6 @@ export async function createGroupAction(
 
   try {
     await db.transaction(async (tx) => {
-      // 1. Create group
       await tx.insert(groups).values({
         id: groupId,
         name: validation.data.name,
@@ -75,7 +85,6 @@ export async function createGroupAction(
         createdBy: user.id,
       });
 
-      // 2. Add creator as admin member
       await tx.insert(groupMembers).values({
         id: crypto.randomUUID(),
         groupId,
@@ -84,7 +93,6 @@ export async function createGroupAction(
         status: "active",
       });
 
-      // 3. Create initial invite link
       await tx.insert(inviteLinks).values({
         id: inviteId,
         groupId,
@@ -92,7 +100,6 @@ export async function createGroupAction(
         createdBy: user.id,
       });
 
-      // 4. Initial system message
       await tx.insert(messages).values({
         id: messageId,
         groupId,
@@ -103,13 +110,119 @@ export async function createGroupAction(
     });
   } catch (error) {
     console.error("Failed to create group:", error);
-    return { error: "Failed to create group. Please try again." };
+    return { success: false, error: "Failed to create group. Please try again.", status: 500 };
   }
 
   return { success: true, groupId };
 }
 
-export async function createInviteLinkAction(
+export async function updateGroup(
+  user: ApiUser,
+  groupId: string,
+  input: { name: unknown; description?: unknown }
+): Promise<GroupActionResult> {
+  const validation = groupDetailsSchema.safeParse({
+    name: input.name,
+    description: input.description,
+  });
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message || "Invalid group details",
+    };
+  }
+
+  const [membership] = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
+    .limit(1);
+
+  if (!membership || membership.role !== "admin") {
+    return { success: false, error: "Only admins can update group settings", status: 403 };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(groups)
+        .set({
+          name: validation.data.name,
+          description:
+            validation.data.description === undefined
+              ? undefined
+              : validation.data.description || null,
+        })
+        .where(eq(groups.id, groupId));
+
+      const msgId = crypto.randomUUID();
+      const body = `${user.username} updated the group settings.`;
+      await tx.insert(messages).values({
+        id: msgId,
+        groupId,
+        authorId: null,
+        body,
+        type: "system",
+      });
+
+      await broadcastWsEvent({
+        type: "new_message",
+        groupId,
+        message: {
+          id: msgId,
+          body,
+          type: "system",
+          createdAt: new Date().toISOString(),
+          authorId: null,
+          authorUsername: null,
+        },
+      });
+
+      await broadcastWsEvent({ type: "refresh", groupId });
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update group:", error);
+    return { success: false, error: "Failed to update group", status: 500 };
+  }
+}
+
+export async function deleteGroup(user: ApiUser, groupId: string): Promise<GroupActionResult> {
+  const [membership] = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.id),
+        eq(groupMembers.status, "active")
+      )
+    )
+    .limit(1);
+
+  if (!membership || membership.role !== "admin") {
+    return { success: false, error: "Only admins can delete a group", status: 403 };
+  }
+
+  try {
+    await db.delete(groups).where(eq(groups.id, groupId));
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete group:", error);
+    return { success: false, error: "Failed to delete group", status: 500 };
+  }
+}
+
+export async function createInviteLink(
+  user: ApiUser,
   groupId: string,
   options?: {
     expiresInHours?: number | null;
@@ -117,10 +230,7 @@ export async function createInviteLinkAction(
     requiresApproval?: boolean;
     customSlug?: string | null;
   }
-): Promise<{ success: boolean; token?: string; error?: string }> {
-  const user = await requireUser();
-
-  // Verify user is admin
+): Promise<InviteLinkResult> {
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
@@ -128,13 +238,12 @@ export async function createInviteLinkAction(
     .limit(1);
 
   if (membership.length === 0 || membership[0].role !== "admin") {
-    return { success: false, error: "Only admins can generate invite links" };
+    return { success: false, error: "Only admins can generate invite links", status: 403 };
   }
 
   let token: string;
   const rawSlug = options?.customSlug?.trim();
 
-  // Validate custom slug if provided, otherwise generate random token
   if (rawSlug) {
     const slug = rawSlug.toLowerCase();
 
@@ -189,17 +298,16 @@ export async function createInviteLinkAction(
 
     return { success: true, token };
   } catch (error) {
-    console.error("Failed to rotate invite link:", error);
-    return { success: false, error: "Failed to rotate invite link" };
+    console.error("Failed to create invite link:", error);
+    return { success: false, error: "Failed to create invite link", status: 500 };
   }
 }
 
-export async function rotateInviteLinkAction(
+export async function rotateInviteLink(
+  user: ApiUser,
   groupId: string,
   oldInviteId?: string
-): Promise<{ success: boolean; token?: string; error?: string }> {
-  const user = await requireUser();
-
+): Promise<InviteLinkResult> {
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
@@ -207,7 +315,7 @@ export async function rotateInviteLinkAction(
     .limit(1);
 
   if (membership.length === 0 || membership[0].role !== "admin") {
-    return { success: false, error: "Only admins can rotate invite links" };
+    return { success: false, error: "Only admins can rotate invite links", status: 403 };
   }
 
   try {
@@ -234,16 +342,15 @@ export async function rotateInviteLinkAction(
     return { success: true, token };
   } catch (error) {
     console.error("Failed to rotate invite link:", error);
-    return { success: false, error: "Failed to rotate invite link" };
+    return { success: false, error: "Failed to rotate invite link", status: 500 };
   }
 }
 
-export async function revokeInviteLinkAction(
+export async function revokeInviteLink(
+  user: ApiUser,
   groupId: string,
   inviteId: string
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
+): Promise<GroupActionResult> {
   const membership = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
@@ -251,7 +358,7 @@ export async function revokeInviteLinkAction(
     .limit(1);
 
   if (membership.length === 0 || membership[0].role !== "admin") {
-    return { success: false, error: "Only admins can revoke invite links" };
+    return { success: false, error: "Only admins can revoke invite links", status: 403 };
   }
 
   try {
@@ -263,20 +370,11 @@ export async function revokeInviteLinkAction(
     return { success: true };
   } catch (error) {
     console.error("Failed to revoke invite link:", error);
-    return { success: false, error: "Failed to revoke invite link" };
+    return { success: false, error: "Failed to revoke invite link", status: 500 };
   }
 }
 
-export async function joinGroupAction(token: string): Promise<{
-  success: boolean;
-  groupId?: string;
-  groupName?: string;
-  canRequestJoin?: boolean;
-  pendingApproval?: boolean;
-  error?: string;
-}> {
-  const user = await requireUser();
-
+export async function joinGroup(token: string, user: ApiUser): Promise<JoinGroupResult> {
   const now = new Date();
   const validInvites = await db
     .select({
@@ -295,16 +393,15 @@ export async function joinGroupAction(token: string): Promise<{
     .limit(1);
 
   if (validInvites.length === 0) {
-    return { success: false, error: "This invite link is invalid or does not exist." };
+    return { success: false, error: "This invite link is invalid or does not exist.", status: 404 };
   }
 
   const invite = validInvites[0];
 
   if (invite.revokedAt !== null) {
-    return { success: false, error: "This invite link has been revoked by an admin." };
+    return { success: false, error: "This invite link has been revoked by an admin.", status: 404 };
   }
 
-  // Check if already a member
   const existingMember = await db
     .select({ id: groupMembers.id, status: groupMembers.status })
     .from(groupMembers)
@@ -315,7 +412,6 @@ export async function joinGroupAction(token: string): Promise<{
     if (existingMember[0].status === "active") {
       return { success: true, groupId: invite.groupId, groupName: invite.groupName };
     }
-    // Re-activate if inactive
     await db
       .update(groupMembers)
       .set({ status: "active" })
@@ -340,7 +436,6 @@ export async function joinGroupAction(token: string): Promise<{
   }
 
   if (invite.requiresApproval) {
-    // Check if user already submitted a join request
     const [existingReq] = await db
       .select()
       .from(joinRequests)
@@ -413,10 +508,8 @@ export async function joinGroupAction(token: string): Promise<{
     };
   }
 
-  // Direct join
   try {
     await db.transaction(async (tx) => {
-      // Add member
       await tx.insert(groupMembers).values({
         id: crypto.randomUUID(),
         groupId: invite.groupId,
@@ -425,14 +518,12 @@ export async function joinGroupAction(token: string): Promise<{
         status: "active",
       });
 
-      // Increment use count
       await tx
         .update(inviteLinks)
         .set({ useCount: sql`${inviteLinks.useCount} + 1` })
         .where(eq(inviteLinks.id, invite.id));
 
       const joinMsgId = crypto.randomUUID();
-      // Post system message to group chat
       await tx.insert(messages).values({
         id: joinMsgId,
         groupId: invite.groupId,
@@ -464,16 +555,14 @@ export async function joinGroupAction(token: string): Promise<{
     return { success: true, groupId: invite.groupId };
   } catch (error) {
     console.error("Failed to join group:", error);
-    return { success: false, error: "Failed to join the group. Please try again." };
+    return { success: false, error: "Failed to join the group. Please try again.", status: 500 };
   }
 }
 
-export async function createJoinRequestAction(
+export async function createJoinRequest(
+  user: ApiUser,
   groupId: string
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
-  // Check if already active member
+): Promise<GroupActionResult> {
   const [existingMember] = await db
     .select({ id: groupMembers.id, status: groupMembers.status })
     .from(groupMembers)
@@ -484,7 +573,6 @@ export async function createJoinRequestAction(
     return { success: true };
   }
 
-  // Check existing join request
   const [existingReq] = await db
     .select()
     .from(joinRequests)
@@ -493,7 +581,11 @@ export async function createJoinRequestAction(
 
   if (existingReq) {
     if (existingReq.status === "pending") {
-      return { success: false, error: "You already have a pending join request for this group." };
+      return {
+        success: false,
+        error: "You already have a pending join request for this group.",
+        status: 409,
+      };
     }
     await db
       .update(joinRequests)
@@ -540,13 +632,12 @@ export async function createJoinRequestAction(
   return { success: true };
 }
 
-export async function reviewJoinRequestAction(
+export async function reviewJoinRequest(
+  user: ApiUser,
   groupId: string,
   requestId: string,
   decision: "approved" | "declined"
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
+): Promise<GroupActionResult> {
   const [adminCheck] = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
@@ -554,7 +645,7 @@ export async function reviewJoinRequestAction(
     .limit(1);
 
   if (!adminCheck || adminCheck.role !== "admin") {
-    return { success: false, error: "Only admins can review join requests" };
+    return { success: false, error: "Only admins can review join requests", status: 403 };
   }
 
   const [req] = await db
@@ -571,11 +662,11 @@ export async function reviewJoinRequestAction(
     .limit(1);
 
   if (!req) {
-    return { success: false, error: "Join request not found" };
+    return { success: false, error: "Join request not found", status: 404 };
   }
 
   if (req.status !== "pending") {
-    return { success: false, error: `Request is already ${req.status}` };
+    return { success: false, error: `Request is already ${req.status}`, status: 409 };
   }
 
   try {
@@ -652,84 +743,15 @@ export async function reviewJoinRequestAction(
     return { success: true };
   } catch (error) {
     console.error("Failed to review join request:", error);
-    return { success: false, error: "Failed to process join request" };
+    return { success: false, error: "Failed to process join request", status: 500 };
   }
 }
 
-export async function updateGroupAction(
-  groupId: string,
-  name: string,
-  description?: string | null
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
-  const [membership] = await db
-    .select({ role: groupMembers.role })
-    .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
-    .limit(1);
-
-  if (!membership || membership.role !== "admin") {
-    return { success: false, error: "Only admins can update group settings" };
-  }
-
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return { success: false, error: "Group name is required" };
-  }
-
-  try {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(groups)
-        .set({
-          name: trimmedName,
-          description: description === undefined ? undefined : description?.trim() || null,
-        })
-        .where(eq(groups.id, groupId));
-
-      const msgId = crypto.randomUUID();
-      const body = `${user.username} updated the group settings.`;
-      await tx.insert(messages).values({
-        id: msgId,
-        groupId,
-        authorId: null,
-        body,
-        type: "system",
-      });
-
-      await broadcastWsEvent({
-        type: "new_message",
-        groupId,
-        message: {
-          id: msgId,
-          body,
-          type: "system",
-          createdAt: new Date().toISOString(),
-          authorId: null,
-          authorUsername: null,
-        },
-      });
-
-      await broadcastWsEvent({
-        type: "refresh",
-        groupId,
-      });
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to update group:", error);
-    return { success: false, error: "Failed to update group" };
-  }
-}
-
-export async function transferAdminAction(
+export async function transferAdmin(
+  user: ApiUser,
   groupId: string,
   newAdminUserId: string
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
+): Promise<GroupActionResult> {
   const [membership] = await db
     .select({ role: groupMembers.role, id: groupMembers.id })
     .from(groupMembers)
@@ -737,7 +759,11 @@ export async function transferAdminAction(
     .limit(1);
 
   if (!membership || membership.role !== "admin") {
-    return { success: false, error: "Only the current group admin can transfer admin rights" };
+    return {
+      success: false,
+      error: "Only the current group admin can transfer admin rights",
+      status: 403,
+    };
   }
 
   const [targetMember] = await db
@@ -754,18 +780,16 @@ export async function transferAdminAction(
     .limit(1);
 
   if (!targetMember) {
-    return { success: false, error: "Target member not found in this group" };
+    return { success: false, error: "Target member not found in this group", status: 404 };
   }
 
   try {
     await db.transaction(async (tx) => {
-      // Step down current admin to member
       await tx
         .update(groupMembers)
         .set({ role: "member" })
         .where(eq(groupMembers.id, membership.id));
 
-      // Promote new admin
       await tx
         .update(groupMembers)
         .set({ role: "admin" })
@@ -794,25 +818,17 @@ export async function transferAdminAction(
         },
       });
 
-      await broadcastWsEvent({
-        type: "refresh",
-        groupId,
-      });
+      await broadcastWsEvent({ type: "refresh", groupId });
     });
 
     return { success: true };
   } catch (error) {
     console.error("Failed to transfer admin rights:", error);
-    return { success: false, error: "Failed to transfer admin rights" };
+    return { success: false, error: "Failed to transfer admin rights", status: 500 };
   }
 }
 
-export async function leaveGroupAction(
-  groupId: string
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
-  // 1. Verify membership
+export async function leaveGroup(user: ApiUser, groupId: string): Promise<GroupActionResult> {
   const [membership] = await db
     .select({ id: groupMembers.id, role: groupMembers.role })
     .from(groupMembers)
@@ -826,10 +842,9 @@ export async function leaveGroupAction(
     .limit(1);
 
   if (!membership) {
-    return { success: false, error: "You are not an active member of this group" };
+    return { success: false, error: "You are not an active member of this group", status: 403 };
   }
 
-  // 2. Fetch all active members, expenses and confirmed settlements for balance calculation
   const members = await db
     .select({ id: users.id, username: users.username })
     .from(groupMembers)
@@ -903,7 +918,6 @@ export async function leaveGroupAction(
     }
   }
 
-  // 3. If admin, check if other active members exist
   if (membership.role === "admin") {
     const otherActiveMembers = members.filter((m) => m.id !== user.id);
     if (otherActiveMembers.length > 0) {
@@ -915,7 +929,6 @@ export async function leaveGroupAction(
     }
   }
 
-  // 4. Mark membership as inactive
   await db.transaction(async (tx) => {
     await tx
       .update(groupMembers)
@@ -945,35 +958,8 @@ export async function leaveGroupAction(
       },
     });
 
-    await broadcastWsEvent({
-      type: "refresh",
-      groupId,
-    });
+    await broadcastWsEvent({ type: "refresh", groupId });
   });
 
   return { success: true };
-}
-
-export async function deleteGroupAction(
-  groupId: string
-): Promise<{ success: boolean; error?: string }> {
-  const user = await requireUser();
-
-  const [membership] = await db
-    .select({ role: groupMembers.role })
-    .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
-    .limit(1);
-
-  if (!membership || membership.role !== "admin") {
-    return { success: false, error: "Only admins can delete a group" };
-  }
-
-  try {
-    await db.delete(groups).where(eq(groups.id, groupId));
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to delete group:", error);
-    return { success: false, error: "Failed to delete group" };
-  }
 }

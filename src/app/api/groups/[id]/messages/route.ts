@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/db";
 import { messages, groupMembers, users } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
+import { authenticateRequest, parseJsonBody, serviceResponse } from "@/lib/api-auth";
+import { sendMessage } from "@/lib/chat-service";
 
 export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -43,4 +45,18 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
     .orderBy(asc(messages.createdAt));
 
   return NextResponse.json(result);
+}
+
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const auth = await authenticateRequest();
+  if (auth.response) return auth.response;
+
+  const parsed = await parseJsonBody(request);
+  if (parsed.response) return parsed.response;
+
+  const { id } = await props.params;
+  const body = (parsed.data ?? {}) as Record<string, unknown>;
+  const result = await sendMessage(auth.user, id, typeof body.body === "string" ? body.body : "");
+
+  return serviceResponse(result);
 }

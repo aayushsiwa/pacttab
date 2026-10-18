@@ -201,7 +201,7 @@ Authentication, private groups, direct invite links, equal-split expenses, balan
 - Settlement affirmation workflow (payer records, receiver affirms/disputes)
 - Real-time WebSockets with Redis pub/sub and group `@mention` autocomplete
 - Installable PWA with offline fallback shell and manifest
-- Automated test coverage via Vitest (10 test suites, 44 tests)
+- Automated test coverage via Vitest
 
 ### Release 3 (Planned)
 

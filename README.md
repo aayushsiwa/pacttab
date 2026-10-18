@@ -15,7 +15,6 @@ No email required. Optional Google or GitHub sign-in. Privacy-first by default.
 <a href="#tech-stack">Tech Stack</a> •
 <a href="#self-hosting">Self-Hosting</a> •
 <a href="#getting-started">Getting Started</a> •
-<a href="#available-scripts">Available Scripts</a> •
 <a href="#git-hooks--contributions">Git Hooks</a> •
 <a href="#architecture">Architecture</a>
 
@@ -25,16 +24,13 @@ No email required. Optional Google or GitHub sign-in. Privacy-first by default.
 
 ## Overview
 
-Existing expense-splitting applications often demand email addresses, phone numbers, contact address-book uploads, and aggressive social graph building. **PactTab** is designed specifically for flatmates, trips, dinner clubs, and close friends who want a simple, lightweight shared tab without surrendering personal privacy.
-
-- **Privacy-First Sign-In**: Create an account with just a unique username and password—no email or phone number required. Google and GitHub sign-in are planned as optional convenience choices for people comfortable sharing provider identity details.
-- **Closed Circles**: Groups are private and non-discoverable by default. Only users with valid invite tokens can join or request entry.
+Existing expense-splitting applications often demand email addresses, phone numbers, contact address-book uploads, and aggressive social graph building. **PactTab** is designed specifically for flatmates, trips, dinner clubs, and close friends who want a simple, lightweight shared tab without surrendering personal privacy. Groups are private and non-discoverable by default—only users with a valid invite token can join or request entry.
 
 ---
 
 ## Features
 
-- 🔒 **Privacy-First Authentication**: Accounts can use only a username and password, with no email or phone number required. Optional Google and GitHub sign-in is planned for those who prefer it; PactTab will not request contacts or unrelated provider permissions.
+- 🔒 **Privacy-First Authentication**: Accounts can use only a username and password, with no email or phone number required. Optional Google and GitHub sign-in is available for those who prefer it; PactTab will not request contacts or unrelated provider permissions.
 - 💬 **Real-Time Group Chat & @Mentions**: In-group discussion with instant WebSocket message broadcasting, user mention autocomplete (`@username`), and contextual notification pills.
 - 🔗 **Configurable Invite Links**: Create custom invite links with optional expiration dates, maximum use caps, custom slug tokens, and require-admin-approval toggles.
 - 👥 **Join Request Queue & Admin Notifications**: Admins receive a real-time notification indicator for pending group join requests, with the ability to approve or decline requesters.
@@ -54,7 +50,7 @@ Existing expense-splitting applications often demand email addresses, phone numb
 | **Database**         | [PostgreSQL](https://www.postgresql.org) with [Drizzle ORM](https://orm.drizzle.team)                                                                                                                                                   |
 | **Real-Time & Sync** | [WebSockets](https://github.com/websockets/ws) (`ws`), [Redis Pub/Sub](https://redis.io) (`ioredis`), [TanStack Query](https://tanstack.com/query) for client-side caching                                                              |
 | **Authentication**   | [Better Auth](https://www.better-auth.com) session-based credentials                                                                                                                                                                    |
-| **Testing**          | [Vitest](https://vitest.dev) (44 integration & flow test cases across 10 test suites)                                                                                                                                                   |
+| **Testing**          | [Vitest](https://vitest.dev)                                                                                                                                                                                                            |
 | **Tooling & Hooks**  | [pnpm](https://pnpm.io), [ESLint 9](https://eslint.org), [Prettier](https://prettier.io), [Husky](https://typicode.github.io/husky), [lint-staged](https://github.com/lint-staged/lint-staged), [commitlint](https://commitlint.js.org) |
 
 ---
@@ -93,21 +89,7 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-Edit `.env` to supply your database and Redis credentials:
-
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/pacttab"
-SESSION_SECRET="pacttab-super-secret-key-change-in-production-min-32-chars"
-BETTER_AUTH_SECRET="pacttab-super-secret-key-change-in-production-min-32-chars"
-BETTER_AUTH_URL="http://localhost:3000"
-# Optional Google/GitHub sign-in: a provider is shown only when its ID and secret are set.
-GOOGLE_CLIENT_ID=""
-GOOGLE_CLIENT_SECRET=""
-GITHUB_CLIENT_ID=""
-GITHUB_CLIENT_SECRET=""
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-REDIS_URL="redis://127.0.0.1:6379"
-```
+Edit `.env` to supply your PostgreSQL and Redis credentials. Every variable—including optional Google/GitHub sign-in keys—is documented inline in [`.env.example`](.env.example).
 
 ### 4. Initialize database schema
 
@@ -133,34 +115,13 @@ Local handle-and-password accounts remain the default. Social providers are opt-
 
 ---
 
-## Available Scripts
-
-| Command                 | Description                                                             |
-| :---------------------- | :---------------------------------------------------------------------- |
-| `pnpm dev`              | Starts development server with WebSocket & Redis sync (`tsx server.ts`) |
-| `pnpm build`            | Builds the production Next.js bundle                                    |
-| `pnpm start`            | Runs the production server                                              |
-| `pnpm test`             | Runs the complete Vitest test suite (10 test files)                     |
-| `pnpm run test:watch`   | Runs Vitest in interactive watch mode                                   |
-| `pnpm run lint`         | Runs ESLint 9 checks across the codebase                                |
-| `pnpm run format`       | Formats all files with Prettier                                         |
-| `pnpm run format:check` | Checks formatting compliance with Prettier                              |
-| `pnpm run db:init`      | Executes schema migration & initialization script                       |
-| `pnpm run db:push`      | Pushes schema changes directly to the PostgreSQL database               |
-| `pnpm run db:generate`  | Generates migration SQL files via Drizzle Kit                           |
-
----
-
 ## Git Hooks & Contributions
 
 PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code quality:
 
 - **`pre-commit`**: Automatically runs `eslint --fix` and `prettier --write` exclusively on staged files via `lint-staged`.
 - **`commit-msg`**: Validates commit messages following [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`).
-- **`pre-push`**: Runs full repository verification before pushing code:
-  1. `pnpm run lint` (ESLint: 0 errors / 0 warnings)
-  2. `pnpm run format:check` (Prettier code style)
-  3. `pnpm test` (Full Vitest test suite execution)
+- **`pre-push`**: Runs lint, format check, and the full test suite before pushing.
 
 ---
 
@@ -170,7 +131,7 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 ├── public/                 # Static assets, PWA manifest, service worker, icons
 ├── scripts/                # Database initialization and maintenance scripts
 ├── src/
-│   ├── actions/            # Server Actions (auth, onboarding - minimal)
+│   ├── actions/            # Server Actions (onboarding - minimal)
 │   ├── app/                # App Router pages and API routes
 │   │   ├── (auth)/         # Login and signup pages (CSR with fetch)
 │   │   ├── api/            # REST API routes (groups, user, auth, ws)
@@ -184,7 +145,7 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 │   ├── hooks/              # Custom React hooks (queries, mutations, useGroupSocket)
 │   │   ├── queries/        # TanStack Query hooks (useGroups, useExpenses, etc.)
 │   │   └── mutations/      # TanStack Query mutation hooks
-│   ├── lib/                # Shared utilities (auth, balances, Redis, ws-hub, CSV export)
+│   ├── lib/                # Shared utilities (auth, api-auth, balances, Redis, ws-hub, CSV export) + domain services (group, expense, chat)
 │   └── types/              # TypeScript types for API responses
 ├── tests/                  # Vitest integration test suites
 ├── server.ts               # Custom Node HTTP server binding Next.js + WebSocket Hub
