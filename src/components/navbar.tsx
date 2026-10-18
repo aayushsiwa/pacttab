@@ -337,6 +337,15 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
                 </svg>
                 Star on GitHub
               </a>
+
+              <Link href="/signup">
+                <Button
+                  size="sm"
+                  className="bg-foreground text-background hover:bg-foreground/90 h-9 rounded-xl px-3.5 text-xs font-bold"
+                >
+                  Sign Up
+                </Button>
+              </Link>
             </div>
           )}
         </div>
