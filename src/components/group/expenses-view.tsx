@@ -24,7 +24,7 @@ import { IconTile } from "@/components/shared/icon-tile";
 import { StatusPill } from "@/components/shared/status-pill";
 import { exportExpensesToCsv } from "@/lib/export-csv";
 
-interface ExpenseItem {
+export interface ExpenseItem {
   id: string;
   description: string;
   amount: string | number;

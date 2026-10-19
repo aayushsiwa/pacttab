@@ -7,7 +7,6 @@ import { GradientTile } from "@/components/shared/gradient-tile";
 import { FeatureCard } from "@/components/shared/feature-card";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { StatusPill } from "@/components/shared/status-pill";
-import { PingIndicator } from "@/components/shared/ping-indicator";
 import {
   Lock,
   Split,
@@ -28,9 +27,9 @@ import {
   UserPlus,
   ShieldCheck,
   Smartphone,
-  ArrowDown,
 } from "lucide-react";
 import { ScrollToSection } from "@/components/navbar/scroll-into-view";
+import { GroupDemo } from "@/components/group/group-demo";
 
 const useCases = [
   { icon: Utensils, label: "Dinners" },
@@ -141,7 +140,7 @@ export default async function HomePage() {
 
         <h1 className="text-foreground max-w-3xl text-4xl leading-[1.15] font-black tracking-tight sm:text-5xl md:text-6xl">
           Split expenses & chat with friends in{" "}
-          <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
             closed circles.
           </span>
         </h1>
@@ -171,95 +170,15 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Hero Visual Showcase Mockup */}
+      {/* Hero Visual Showcase — real group UI */}
       <section className="container max-w-3xl px-4 pb-12">
-        <div className="border-border/80 bg-card/80 relative rounded-2xl border p-4 shadow-lg backdrop-blur-sm sm:p-6">
-          {/* Mock Header */}
-          <div className="border-border/60 mb-4 flex items-center justify-between border-b pb-3">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <GradientTile
-                  size="md"
-                  gradient="from-emerald-600 to-teal-600"
-                  weight="bold"
-                  className="shadow-2xs"
-                >
-                  🌴
-                </GradientTile>
-                <PingIndicator title="New unread activity" />
-              </div>
-              <div className="text-left">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-foreground text-sm font-bold sm:text-base">
-                    Goa Road Trip 2026
-                  </h3>
-                  <StatusPill dot>Live</StatusPill>
-                </div>
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <div className="flex -space-x-1.5 overflow-hidden">
-                    <UserAvatar username="maya" size="xs" className="border-background h-4 w-4" />
-                    <UserAvatar username="arjun" size="xs" className="border-background h-4 w-4" />
-                    <UserAvatar username="rohit" size="xs" className="border-background h-4 w-4" />
-                  </div>
-                  <p className="text-muted-foreground text-[11px]">
-                    3 members • @maya (admin), @arjun, @rohit
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-right">
-              <span className="text-muted-foreground block text-[11px] font-semibold tracking-wider uppercase">
-                Total Spent
-              </span>
-              <span className="text-foreground text-base font-black sm:text-lg">₹4,850.00</span>
-            </div>
-          </div>
-
-          {/* Mock Content Rows */}
-          <div className="mb-4 grid grid-cols-1 gap-3 text-left sm:grid-cols-2">
-            {/* Recent Expense Card */}
-            <div className="border-border/60 bg-muted/30 flex items-center justify-between rounded-xl border p-3">
-              <div>
-                <div className="text-foreground text-xs font-bold">Beach Shack Seafood</div>
-                <div className="text-muted-foreground text-[11px]">
-                  Paid by @maya • Split equally
-                </div>
-              </div>
-              <span className="text-foreground text-sm font-extrabold">₹1,800</span>
-            </div>
-
-            {/* Balances Card */}
-            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
-              <div>
-                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                  Suggested Settle
-                </div>
-                <div className="text-muted-foreground text-[11px]">@arjun pays @maya</div>
-              </div>
-              <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                ₹600.00
-              </span>
-            </div>
-          </div>
-
-          {/* Mock Chat Pill */}
-          <div className="border-border/60 bg-muted/40 flex items-center justify-between gap-3 rounded-xl border p-3 text-left">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-[11px] font-bold text-white">
-                A
-              </span>
-              <p className="text-foreground truncate text-xs">
-                <strong className="font-semibold">@arjun:</strong> Sent ₹600 via UPI{" "}
-                <span className="rounded-xs bg-amber-500/20 px-1 font-bold text-amber-900 dark:text-amber-200">
-                  @maya
-                </span>
-                ! Let’s head to dinner 🍕
-              </p>
-            </div>
-            <span className="text-muted-foreground shrink-0 text-[10px]">Just now</span>
-          </div>
+        <div className="mb-4 flex items-center justify-center gap-2">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          <h2 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+            Live Preview
+          </h2>
         </div>
+        <GroupDemo />
       </section>
 
       {/* Built For Use-Cases */}
