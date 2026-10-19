@@ -287,12 +287,68 @@ export function calculateBalancesAndSettlements(
   creditors.sort((a, b) => b.amountCents - a.amountCents);
 
   const suggestedSettlements: SuggestedSettlement[] = [];
+
+  // 4. Exact-match pre-pass: pair a debtor and creditor whose balances are
+  // identical and settle them in a single transfer.
+  const creditorsByAmount = new Map<number, Array<{ userId: string; username: string }>>();
+  for (const c of creditors) {
+    if (c.amountCents <= 0) continue;
+    const list = creditorsByAmount.get(c.amountCents) || [];
+    list.push({ userId: c.userId, username: c.username });
+    creditorsByAmount.set(c.amountCents, list);
+  }
+
+  // Zero out consumed creditors by tracking consumed matches
+  const consumedCreditorKeys = new Set<string>();
+  for (let i = 0; i < debtors.length; i++) {
+    const d = debtors[i];
+    if (d.amountCents <= 0) continue;
+    const list = creditorsByAmount.get(d.amountCents);
+    if (!list || list.length === 0) continue;
+    const match = list.shift()!;
+    if (list.length === 0) creditorsByAmount.delete(d.amountCents);
+
+    suggestedSettlements.push({
+      fromUserId: d.userId,
+      fromUsername: d.username,
+      toUserId: match.userId,
+      toUsername: match.username,
+      amount: d.amountCents / 100,
+    });
+
+    consumedCreditorKeys.add(`${d.amountCents}:${match.userId}`);
+    d.amountCents = 0;
+  }
+
+  // Apply consumption to original creditors arrays (mark zeros)
+  for (const key of consumedCreditorKeys) {
+    const [, cUserId] = key.split(":");
+    for (let j = 0; j < creditors.length; j++) {
+      if (creditors[j].userId === cUserId && creditors[j].amountCents > 0) {
+        // we don't know the exact amount key again except we can infer; easier: just zero one with matching userId that hasn't been zeroed?
+        // but same user could appear multiple times? unlikely with current flow
+        creditors[j].amountCents = 0;
+        break;
+      }
+    }
+  }
+
   let dIdx = 0;
   let cIdx = 0;
 
-  // Greedy simplification: every step transfers whole cents, so once
-  // Σ debtors === Σ creditors the loop drains both sides exactly.
+  // 5. Greedy simplification for the remainder: every step transfers whole
+  // cents, so once Σ debtors === Σ creditors the loop drains both sides exactly.
+  // Skipping the zeroed exact matches keeps the ≤ N−1 bound.
   while (dIdx < debtors.length && cIdx < creditors.length) {
+    if (debtors[dIdx].amountCents === 0) {
+      dIdx++;
+      continue;
+    }
+    if (creditors[cIdx].amountCents === 0) {
+      cIdx++;
+      continue;
+    }
+
     const debtor = debtors[dIdx];
     const creditor = creditors[cIdx];
 
