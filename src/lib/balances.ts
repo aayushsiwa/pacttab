@@ -168,6 +168,210 @@ function toCents(amount: string | number): number {
   return Math.round(Number(amount) * 100);
 }
 
+interface SettlementNode {
+  userId: string;
+  username: string;
+  amountCents: number;
+}
+
+/**
+ * Largest subset of distinct non-zero balances the exact-cover search will
+ * consider. PactTab groups are flat/trip scale, so a small cap keeps the
+ * subset-sum scan cheap while still capturing the common 1↔many wins.
+ */
+const MAX_EXACT_SUBSET = 4;
+
+/**
+ * Finds a subset of `nodes` (indices into the array, distinct, non-zero) whose
+ * balances sum to exactly `targetCents`. Uses bounded DFS with a running sum,
+ * pruning once the remaining budget cannot be met. `minSize` lets callers skip
+ * trivial pair matches when they are handled by a separate, always-beneficial
+ * pass. Returns the smallest qualifying subset (fewest transfers) or null.
+ */
+function findExactSubset(
+  nodes: SettlementNode[],
+  targetCents: number,
+  minSize: number
+): number[] | null {
+  const indices = nodes
+    .map((n, i) => ({ i, amount: n.amountCents }))
+    .filter((n) => n.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .map((n) => n.i);
+
+  let best: number[] | null = null;
+  const chosen: number[] = [];
+
+  const dfs = (pos: number, remaining: number): void => {
+    if (remaining === 0 && chosen.length >= minSize) {
+      if (!best || chosen.length < best.length) best = [...chosen];
+      return;
+    }
+    if (best && chosen.length >= best.length - 1) return;
+    if (chosen.length >= MAX_EXACT_SUBSET) return;
+
+    for (let k = pos; k < indices.length; k++) {
+      const idx = indices[k];
+      const amount = nodes[idx].amountCents;
+      if (amount <= 0 || amount > remaining) continue;
+      chosen.push(idx);
+      dfs(k + 1, remaining - amount);
+      chosen.pop();
+      if (best && best.length === minSize) return;
+    }
+  };
+
+  dfs(0, targetCents);
+  return best;
+}
+
+/**
+ * Pair pre-pass: a debtor and creditor with identical balances settle in one
+ * transfer. Always beneficial — each match removes two parties at the cost of
+ * one transfer, so it can only shrink the plan. Matching on integer cents makes
+ * equality exact.
+ */
+function matchExactPairs(
+  debtors: SettlementNode[],
+  creditors: SettlementNode[],
+  out: SuggestedSettlement[]
+): void {
+  const creditorsByAmount = new Map<number, SettlementNode[]>();
+  for (const c of creditors) {
+    if (c.amountCents <= 0) continue;
+    const list = creditorsByAmount.get(c.amountCents) || [];
+    list.push(c);
+    creditorsByAmount.set(c.amountCents, list);
+  }
+
+  for (const debtor of debtors) {
+    if (debtor.amountCents <= 0) continue;
+    const list = creditorsByAmount.get(debtor.amountCents);
+    if (!list || list.length === 0) continue;
+
+    const creditor = list.pop()!;
+    if (list.length === 0) creditorsByAmount.delete(debtor.amountCents);
+
+    out.push({
+      fromUserId: debtor.userId,
+      fromUsername: debtor.username,
+      toUserId: creditor.userId,
+      toUsername: creditor.username,
+      amount: debtor.amountCents / 100,
+    });
+    debtor.amountCents = 0;
+    creditor.amountCents = 0;
+  }
+}
+
+/**
+ * Subset pre-pass: settle a debtor whose balance exactly equals a `>2`-sized
+ * subset of creditors (1↔many), and symmetrically a creditor covered by a
+ * subset of debtors (many↔1). Pair matches are left to `matchExactPairs`.
+ */
+function matchExactSubsets(
+  debtors: SettlementNode[],
+  creditors: SettlementNode[],
+  out: SuggestedSettlement[]
+): void {
+  for (const debtor of debtors) {
+    if (debtor.amountCents <= 0) continue;
+    const subset = findExactSubset(creditors, debtor.amountCents, 3);
+    if (!subset) continue;
+
+    for (const idx of subset) {
+      const creditor = creditors[idx];
+      out.push({
+        fromUserId: debtor.userId,
+        fromUsername: debtor.username,
+        toUserId: creditor.userId,
+        toUsername: creditor.username,
+        amount: creditor.amountCents / 100,
+      });
+      creditor.amountCents = 0;
+    }
+    debtor.amountCents = 0;
+  }
+
+  for (const creditor of creditors) {
+    if (creditor.amountCents <= 0) continue;
+    const subset = findExactSubset(debtors, creditor.amountCents, 3);
+    if (!subset) continue;
+
+    for (const idx of subset) {
+      const debtor = debtors[idx];
+      out.push({
+        fromUserId: debtor.userId,
+        fromUsername: debtor.username,
+        toUserId: creditor.userId,
+        toUsername: creditor.username,
+        amount: debtor.amountCents / 100,
+      });
+      debtor.amountCents = 0;
+    }
+    creditor.amountCents = 0;
+  }
+}
+
+/**
+ * Greedy simplification over the remainder: match largest debtor with largest
+ * creditor, settle `min` each step. Each step zeroes at least one party, so the
+ * plan is at most N−1 transfers once Σ debtors === Σ creditors.
+ */
+function greedySettle(
+  debtors: SettlementNode[],
+  creditors: SettlementNode[],
+  out: SuggestedSettlement[]
+): void {
+  const activeDebtors = debtors
+    .filter((d) => d.amountCents > 0)
+    .sort((a, b) => b.amountCents - a.amountCents);
+  const activeCreditors = creditors
+    .filter((c) => c.amountCents > 0)
+    .sort((a, b) => b.amountCents - a.amountCents);
+
+  let dIdx = 0;
+  let cIdx = 0;
+  while (dIdx < activeDebtors.length && cIdx < activeCreditors.length) {
+    const debtor = activeDebtors[dIdx];
+    const creditor = activeCreditors[cIdx];
+    const amountCents = Math.min(debtor.amountCents, creditor.amountCents);
+
+    out.push({
+      fromUserId: debtor.userId,
+      fromUsername: debtor.username,
+      toUserId: creditor.userId,
+      toUsername: creditor.username,
+      amount: amountCents / 100,
+    });
+
+    debtor.amountCents -= amountCents;
+    creditor.amountCents -= amountCents;
+
+    if (debtor.amountCents === 0) dIdx++;
+    if (creditor.amountCents === 0) cIdx++;
+  }
+}
+
+/**
+ * Builds one full settlement plan from the classified debtors/creditors.
+ * `withSubsets` toggles the 1↔many / many↔1 subset pass on top of the
+ * always-applied pair pass. The input nodes are cloned so callers can reuse them.
+ */
+function buildPlan(
+  debtors: SettlementNode[],
+  creditors: SettlementNode[],
+  withSubsets: boolean
+): SuggestedSettlement[] {
+  const d = debtors.map((n) => ({ ...n }));
+  const c = creditors.map((n) => ({ ...n }));
+  const plan: SuggestedSettlement[] = [];
+  matchExactPairs(d, c, plan);
+  if (withSubsets) matchExactSubsets(d, c, plan);
+  greedySettle(d, c, plan);
+  return plan;
+}
+
 /**
  * Calculates member balances and simplified debt repayments.
  *
@@ -286,90 +490,15 @@ export function calculateBalancesAndSettlements(
   debtors.sort((a, b) => b.amountCents - a.amountCents);
   creditors.sort((a, b) => b.amountCents - a.amountCents);
 
-  const suggestedSettlements: SuggestedSettlement[] = [];
-
-  // 4. Exact-match pre-pass: pair a debtor and creditor whose balances are
-  // identical and settle them in a single transfer.
-  const creditorsByAmount = new Map<number, Array<{ userId: string; username: string }>>();
-  for (const c of creditors) {
-    if (c.amountCents <= 0) continue;
-    const list = creditorsByAmount.get(c.amountCents) || [];
-    list.push({ userId: c.userId, username: c.username });
-    creditorsByAmount.set(c.amountCents, list);
-  }
-
-  // Zero out consumed creditors by tracking consumed matches
-  const consumedCreditorKeys = new Set<string>();
-  for (let i = 0; i < debtors.length; i++) {
-    const d = debtors[i];
-    if (d.amountCents <= 0) continue;
-    const list = creditorsByAmount.get(d.amountCents);
-    if (!list || list.length === 0) continue;
-    const match = list.shift()!;
-    if (list.length === 0) creditorsByAmount.delete(d.amountCents);
-
-    suggestedSettlements.push({
-      fromUserId: d.userId,
-      fromUsername: d.username,
-      toUserId: match.userId,
-      toUsername: match.username,
-      amount: d.amountCents / 100,
-    });
-
-    consumedCreditorKeys.add(`${d.amountCents}:${match.userId}`);
-    d.amountCents = 0;
-  }
-
-  // Apply consumption to original creditors arrays (mark zeros)
-  for (const key of consumedCreditorKeys) {
-    const [, cUserId] = key.split(":");
-    for (let j = 0; j < creditors.length; j++) {
-      if (creditors[j].userId === cUserId && creditors[j].amountCents > 0) {
-        // we don't know the exact amount key again except we can infer; easier: just zero one with matching userId that hasn't been zeroed?
-        // but same user could appear multiple times? unlikely with current flow
-        creditors[j].amountCents = 0;
-        break;
-      }
-    }
-  }
-
-  let dIdx = 0;
-  let cIdx = 0;
-
-  // 5. Greedy simplification for the remainder: every step transfers whole
-  // cents, so once Σ debtors === Σ creditors the loop drains both sides exactly.
-  // Skipping the zeroed exact matches keeps the ≤ N−1 bound.
-  while (dIdx < debtors.length && cIdx < creditors.length) {
-    if (debtors[dIdx].amountCents === 0) {
-      dIdx++;
-      continue;
-    }
-    if (creditors[cIdx].amountCents === 0) {
-      cIdx++;
-      continue;
-    }
-
-    const debtor = debtors[dIdx];
-    const creditor = creditors[cIdx];
-
-    const amountCents = Math.min(debtor.amountCents, creditor.amountCents);
-
-    if (amountCents > 0) {
-      suggestedSettlements.push({
-        fromUserId: debtor.userId,
-        fromUsername: debtor.username,
-        toUserId: creditor.userId,
-        toUsername: creditor.username,
-        amount: amountCents / 100,
-      });
-    }
-
-    debtor.amountCents -= amountCents;
-    creditor.amountCents -= amountCents;
-
-    if (debtor.amountCents === 0) dIdx++;
-    if (creditor.amountCents === 0) cIdx++;
-  }
+  // 4. Build candidate plans and keep the shorter one:
+  //    - pair + greedy (pairs are always beneficial)
+  //    - pair + 1↔many/many↔1 subset pass + greedy (can help, but not always)
+  //    Because the first plan is pair+greedy ≤ pure greedy, and we return the
+  //    minimum of the two, the ≤ N−1 guarantee and "never worse than greedy"
+  //    hold on every fixture. Both plans settle exactly the same balances.
+  const greedyPlan = buildPlan(debtors, creditors, false);
+  const subsetPlan = buildPlan(debtors, creditors, true);
+  const suggestedSettlements = subsetPlan.length < greedyPlan.length ? subsetPlan : greedyPlan;
 
   return { balances, suggestedSettlements };
 }
