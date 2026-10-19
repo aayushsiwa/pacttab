@@ -367,7 +367,12 @@ export function BalancesView({
                         )}
                       </div>
                       <div className="text-muted-foreground truncate text-[11px]">
-                        Paid {formatMoney(b.totalPaid)} • Share {formatMoney(b.totalOwed)}
+                        Paid {formatMoney(b.totalExpensePaid)} • Share{" "}
+                        {formatMoney(b.totalExpenseShare)}
+                        {b.settlementsSent > 0 && <> • Sent {formatMoney(b.settlementsSent)}</>}
+                        {b.settlementsReceived > 0 && (
+                          <> • Received {formatMoney(b.settlementsReceived)}</>
+                        )}
                       </div>
                     </div>
                   </div>
