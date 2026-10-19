@@ -47,8 +47,10 @@ export interface GroupDetails {
   balances: Array<{
     userId: string;
     username: string;
-    totalPaid: string;
-    totalOwed: string;
+    totalExpensePaid: string;
+    totalExpenseShare: string;
+    settlementsSent: string;
+    settlementsReceived: string;
     netBalance: string;
   }>;
   suggestedSettlements: Array<{

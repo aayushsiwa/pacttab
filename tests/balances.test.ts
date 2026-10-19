@@ -214,3 +214,88 @@ describe("calculateBalancesAndSettlements (integer cents)", () => {
     }
   });
 });
+
+describe("MemberBalance expense vs settlement metrics", () => {
+  const pair = [
+    { id: "alice", username: "alice" },
+    { id: "bob", username: "bob" },
+  ];
+
+  it("keeps expense totals free of settlement pollution (Alice/Bob example)", () => {
+    // Alice pays ₹1000 for lunch, split ₹500 / ₹500. Bob later repays Alice ₹500.
+    const expenses = [
+      {
+        id: "e1",
+        amount: 1000,
+        paidByUserId: "alice",
+        splits: calculateEqualSplits(1000, ["alice", "bob"]),
+      },
+    ];
+    const settlements = [
+      {
+        id: "s1",
+        amount: 500,
+        paidByUserId: "bob",
+        receivedByUserId: "alice",
+        status: "confirmed",
+      },
+    ];
+
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      pair,
+      expenses,
+      settlements
+    );
+    const alice = balances.find((b) => b.userId === "alice")!;
+    const bob = balances.find((b) => b.userId === "bob")!;
+
+    // Spending and consumption reflect only real expenses.
+    expect(alice.totalExpensePaid).toBe(1000);
+    expect(alice.totalExpenseShare).toBe(500);
+    expect(alice.settlementsReceived).toBe(500);
+    expect(alice.settlementsSent).toBe(0);
+
+    expect(bob.totalExpensePaid).toBe(0);
+    expect(bob.totalExpenseShare).toBe(500);
+    expect(bob.settlementsSent).toBe(500);
+    expect(bob.settlementsReceived).toBe(0);
+
+    // Net position is unchanged from the legacy paid - owed accounting.
+    expect(alice.netBalance).toBe(0);
+    expect(bob.netBalance).toBe(0);
+    expect(suggestedSettlements).toHaveLength(0);
+  });
+
+  it("holds net = paid + sent − share − received while ignoring non-confirmed settlements", () => {
+    const expenses = [
+      {
+        id: "e1",
+        amount: "300.00",
+        paidByUserId: "bob",
+        splits: calculateEqualSplits(300, ["alice", "bob"]),
+      },
+    ];
+    const settlements = [
+      { id: "s1", amount: 50, paidByUserId: "alice", receivedByUserId: "bob", status: "confirmed" },
+      { id: "s2", amount: 40, paidByUserId: "bob", receivedByUserId: "alice", status: "pending" },
+    ];
+
+    const { balances } = calculateBalancesAndSettlements(pair, expenses, settlements);
+
+    for (const b of balances) {
+      const expected =
+        centsOf(b.totalExpensePaid) +
+        centsOf(b.settlementsSent) -
+        (centsOf(b.totalExpenseShare) + centsOf(b.settlementsReceived));
+      expect(centsOf(b.netBalance)).toBe(expected);
+    }
+
+    // The pending ₹40 must not move any settlement metric.
+    const alice = balances.find((b) => b.userId === "alice")!;
+    const bob = balances.find((b) => b.userId === "bob")!;
+    expect(alice.settlementsSent).toBe(50);
+    expect(alice.settlementsReceived).toBe(0);
+    expect(bob.settlementsReceived).toBe(50);
+    expect(bob.settlementsSent).toBe(0);
+  });
+});

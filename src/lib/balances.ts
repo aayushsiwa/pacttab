@@ -2,8 +2,10 @@ export interface MemberBalance {
   userId: string;
   username: string;
   netBalance: number; // positive = owed money, negative = owes money
-  totalPaid: number;
-  totalOwed: number;
+  totalExpensePaid: number; // what the member actually spent on expenses
+  totalExpenseShare: number; // what the member actually consumed
+  settlementsSent: number; // repayments this member sent to others
+  settlementsReceived: number; // repayments this member received from others
 }
 
 export interface SuggestedSettlement {
@@ -195,14 +197,22 @@ export function calculateBalancesAndSettlements(
 } {
   const memberMap = new Map<
     string,
-    { username: string; totalPaidCents: number; totalOwedCents: number }
+    {
+      username: string;
+      expensePaidCents: number;
+      expenseShareCents: number;
+      settlementsSentCents: number;
+      settlementsReceivedCents: number;
+    }
   >();
 
   for (const m of members) {
     memberMap.set(m.id, {
       username: m.username,
-      totalPaidCents: 0,
-      totalOwedCents: 0,
+      expensePaidCents: 0,
+      expenseShareCents: 0,
+      settlementsSentCents: 0,
+      settlementsReceivedCents: 0,
     });
   }
 
@@ -211,13 +221,13 @@ export function calculateBalancesAndSettlements(
     const paidCents = toCents(exp.amount);
     const payer = memberMap.get(exp.paidByUserId);
     if (payer) {
-      payer.totalPaidCents += paidCents;
+      payer.expensePaidCents += paidCents;
     }
 
     for (const split of exp.splits) {
       const debtor = memberMap.get(split.userId);
       if (debtor) {
-        debtor.totalOwedCents += toCents(split.owedAmount);
+        debtor.expenseShareCents += toCents(split.owedAmount);
       }
     }
   }
@@ -231,13 +241,13 @@ export function calculateBalancesAndSettlements(
     const payer = memberMap.get(set.paidByUserId);
     const recipient = memberMap.get(set.receivedByUserId);
 
-    // Payer has paid back debt, so their net balance increases (less debt / more credit)
+    // Payer has repaid debt, so their net balance increases (less debt / more credit)
     if (payer) {
-      payer.totalPaidCents += setCents;
+      payer.settlementsSentCents += setCents;
     }
     // Recipient has received repayment, so their net balance decreases (less credit)
     if (recipient) {
-      recipient.totalOwedCents += setCents;
+      recipient.settlementsReceivedCents += setCents;
     }
   }
 
@@ -247,15 +257,21 @@ export function calculateBalancesAndSettlements(
   const creditors: { userId: string; username: string; amountCents: number }[] = [];
 
   for (const [userId, data] of memberMap.entries()) {
-    const netCents = data.totalPaidCents - data.totalOwedCents;
-    const netBalance = netCents / 100;
+    // Settlement repayments still move the net position, but expense spending
+    // and consumption stay isolated from them in the summary fields.
+    const netCents =
+      data.expensePaidCents +
+      data.settlementsSentCents -
+      (data.expenseShareCents + data.settlementsReceivedCents);
 
     balances.push({
       userId,
       username: data.username,
-      netBalance,
-      totalPaid: data.totalPaidCents / 100,
-      totalOwed: data.totalOwedCents / 100,
+      netBalance: netCents / 100,
+      totalExpensePaid: data.expensePaidCents / 100,
+      totalExpenseShare: data.expenseShareCents / 100,
+      settlementsSent: data.settlementsSentCents / 100,
+      settlementsReceived: data.settlementsReceivedCents / 100,
     });
 
     // 3. Classify: debtor owes money (netCents < 0), creditor is owed money (netCents > 0)
