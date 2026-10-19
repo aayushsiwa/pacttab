@@ -1,10 +1,14 @@
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 RUN apk add --no-cache libc6-compat
-RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
+COPY package.json ./
+ENV COREPACK_HOME=/opt/corepack
+RUN corepack enable \
+ && corepack prepare "$(node -p "require('./package.json').packageManager")" --activate \
+ && pnpm --version >/dev/null
 
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
@@ -24,6 +28,7 @@ RUN adduser --system --uid 1001 pacttab
 
 # Copy runtime assets and dependencies
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
@@ -36,7 +41,7 @@ COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN chmod +x ./docker-entrypoint.sh
-RUN chown -R pacttab:nodejs /app
+RUN chown -R pacttab:nodejs /app /opt/corepack
 
 USER pacttab
 
