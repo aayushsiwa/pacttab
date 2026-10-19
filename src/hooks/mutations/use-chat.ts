@@ -3,17 +3,23 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { toast } from "sonner";
+import { useDemoActions } from "@/providers/demo-mode";
 
-interface SendMessageInput {
+export interface SendMessageInput {
   groupId: string;
   body: string;
 }
 
 export function useSendMessage() {
   const queryClient = useQueryClient();
+  const demoActions = useDemoActions();
 
   return useMutation({
     mutationFn: async (data: SendMessageInput) => {
+      if (demoActions) {
+        demoActions.sendMessage(data);
+        return { success: true };
+      }
       const res = await fetch(`/api/groups/${data.groupId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

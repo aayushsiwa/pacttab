@@ -142,11 +142,12 @@ export function ChatView({
     return () => clearTimeout(timer);
   }, [lastReadTimestamp, unreadCount, markAllAsRead]);
 
-  // Scroll to bottom on updates
+  // Scroll the chat pane to the bottom on updates (only the pane, never the page)
   useEffect(() => {
-    if (!enableRealtime) return;
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, enableRealtime]);
+    const container = messagesEndRef.current?.parentElement;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }, [messages.length]);
 
   // Fallback background sync (every 15s) in case socket reconnects
   useEffect(() => {

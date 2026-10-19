@@ -3,8 +3,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { toast } from "sonner";
+import { useDemoActions } from "@/providers/demo-mode";
 
-interface CreateExpenseInput {
+export interface CreateExpenseInput {
   groupId: string;
   description: string;
   amount: number;
@@ -17,9 +18,14 @@ interface CreateExpenseInput {
 
 export function useCreateExpense() {
   const queryClient = useQueryClient();
+  const demoActions = useDemoActions();
 
   return useMutation({
     mutationFn: async (data: CreateExpenseInput) => {
+      if (demoActions) {
+        demoActions.createExpense(data);
+        return { success: true };
+      }
       const res = await fetch(`/api/groups/${data.groupId}/expenses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,16 +72,21 @@ export function useCreateExpense() {
   });
 }
 
-interface DeleteExpenseInput {
+export interface DeleteExpenseInput {
   groupId: string;
   expenseId: string;
 }
 
 export function useDeleteExpense() {
   const queryClient = useQueryClient();
+  const demoActions = useDemoActions();
 
   return useMutation({
     mutationFn: async (data: DeleteExpenseInput) => {
+      if (demoActions) {
+        demoActions.deleteExpense(data);
+        return { success: true };
+      }
       const res = await fetch(`/api/groups/${data.groupId}/expenses/${data.expenseId}`, {
         method: "DELETE",
       });
@@ -115,7 +126,7 @@ export function useDeleteExpense() {
   });
 }
 
-interface UpdateExpenseInput {
+export interface UpdateExpenseInput {
   groupId: string;
   expenseId: string;
   description: string;
@@ -129,9 +140,14 @@ interface UpdateExpenseInput {
 
 export function useUpdateExpense() {
   const queryClient = useQueryClient();
+  const demoActions = useDemoActions();
 
   return useMutation({
     mutationFn: async (data: UpdateExpenseInput) => {
+      if (demoActions) {
+        demoActions.updateExpense(data);
+        return { success: true };
+      }
       const res = await fetch(`/api/groups/${data.groupId}/expenses/${data.expenseId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -180,7 +196,7 @@ export function useUpdateExpense() {
   });
 }
 
-interface RecordSettlementInput {
+export interface RecordSettlementInput {
   groupId: string;
   paidByUserId: string;
   receivedByUserId: string;
@@ -189,9 +205,14 @@ interface RecordSettlementInput {
 
 export function useRecordSettlement() {
   const queryClient = useQueryClient();
+  const demoActions = useDemoActions();
 
   return useMutation({
     mutationFn: async (data: RecordSettlementInput) => {
+      if (demoActions) {
+        demoActions.recordSettlement(data);
+        return { success: true };
+      }
       const res = await fetch(`/api/groups/${data.groupId}/settlements`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -214,16 +235,21 @@ export function useRecordSettlement() {
   });
 }
 
-interface ConfirmSettlementInput {
+export interface ConfirmSettlementInput {
   groupId: string;
   settlementId: string;
 }
 
 export function useConfirmSettlement() {
   const queryClient = useQueryClient();
+  const demoActions = useDemoActions();
 
   return useMutation({
     mutationFn: async (data: ConfirmSettlementInput) => {
+      if (demoActions) {
+        demoActions.confirmSettlement(data);
+        return { success: true };
+      }
       const res = await fetch(
         `/api/groups/${data.groupId}/settlements/${data.settlementId}/confirm`,
         {
@@ -247,16 +273,21 @@ export function useConfirmSettlement() {
   });
 }
 
-interface RejectSettlementInput {
+export interface RejectSettlementInput {
   groupId: string;
   settlementId: string;
 }
 
 export function useRejectSettlement() {
   const queryClient = useQueryClient();
+  const demoActions = useDemoActions();
 
   return useMutation({
     mutationFn: async (data: RejectSettlementInput) => {
+      if (demoActions) {
+        demoActions.rejectSettlement(data);
+        return { success: true };
+      }
       const res = await fetch(
         `/api/groups/${data.groupId}/settlements/${data.settlementId}/reject`,
         {
@@ -280,16 +311,21 @@ export function useRejectSettlement() {
   });
 }
 
-interface CancelSettlementInput {
+export interface CancelSettlementInput {
   groupId: string;
   settlementId: string;
 }
 
 export function useCancelSettlement() {
   const queryClient = useQueryClient();
+  const demoActions = useDemoActions();
 
   return useMutation({
     mutationFn: async (data: CancelSettlementInput) => {
+      if (demoActions) {
+        demoActions.cancelSettlement(data);
+        return { success: true };
+      }
       const res = await fetch(
         `/api/groups/${data.groupId}/settlements/${data.settlementId}/cancel`,
         {

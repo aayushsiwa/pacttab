@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GroupHeader } from "@/components/group/group-header";
 import { GroupTabStrip, type GroupTab } from "@/components/group/group-tab-strip";
 import { ChatView } from "@/components/group/chat-view";
 import { ExpensesView, type ExpenseItem } from "@/components/group/expenses-view";
 import { BalancesView, type SettlementItem } from "@/components/group/balances-view";
-import { calculateBalancesAndSettlements, calculateEqualSplits } from "@/lib/balances";
+import { DemoModeProvider, type DemoActions } from "@/providers/demo-mode";
+import type { CreateExpenseInput } from "@/hooks/mutations/use-expenses";
+import type { ChatMessage } from "@/hooks/use-group-socket";
+import {
+  calculateBalancesAndSettlements,
+  calculateEqualSplits,
+  calculateExactSplits,
+  calculatePercentageSplits,
+  calculateShareSplits,
+} from "@/lib/balances";
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
 
@@ -28,6 +37,8 @@ const currentUserId = "u-maya";
 const currentUsername = "maya";
 const currentUserRole = "admin";
 
+const memberById = (id: string) => demoMembers.find((m) => m.id === id);
+
 function equalSplitExpense(
   id: string,
   description: string,
@@ -35,13 +46,12 @@ function equalSplitExpense(
   paidByUserId: string,
   minutesSince: number
 ): ExpenseItem {
-  const payer = demoMembers.find((m) => m.id === paidByUserId);
   return {
     id,
     description,
     amount,
     paidByUserId,
-    payerUsername: payer?.username ?? "",
+    payerUsername: memberById(paidByUserId)?.username ?? "",
     expenseDate: minutesAgo(minutesSince),
     createdBy: paidByUserId,
     createdAt: minutesAgo(minutesSince),
@@ -52,35 +62,56 @@ function equalSplitExpense(
       id: `${id}-s${i}`,
       userId: split.userId,
       owedAmount: split.owedAmount,
-      username: demoMembers.find((m) => m.id === split.userId)?.username ?? null,
+      username: memberById(split.userId)?.username ?? null,
     })),
   };
 }
 
-const demoExpenses: ExpenseItem[] = [
-  equalSplitExpense("e-hostel", "Hostel Check-in", 2150, "u-maya", 60 * 26),
-  equalSplitExpense("e-shack", "Beach Shack Seafood", 1800, "u-maya", 60 * 25),
-  equalSplitExpense("e-scooters", "Scooter Rentals", 900, "u-rohit", 60 * 23),
-];
+function toDemoSplits(
+  expenseId: string,
+  splits: { userId: string; owedAmount: number }[]
+): ExpenseItem["splits"] {
+  return splits.map((split, i) => ({
+    id: `${expenseId}-s${i}`,
+    userId: split.userId,
+    owedAmount: split.owedAmount,
+    username: memberById(split.userId)?.username ?? null,
+  }));
+}
 
-const demoSettlements: SettlementItem[] = [
-  {
-    id: "s-1",
-    amount: 600,
-    paidByUserId: "u-arjun",
-    receivedByUserId: "u-maya",
-    status: "pending",
-    createdByUserId: "u-arjun",
-    confirmedAt: null,
-    rejectedAt: null,
-    settledAt: minutesAgo(70),
-    payerUsername: "arjun",
-    recipientUsername: "maya",
-    creatorUsername: "arjun",
-  },
-];
+function computeSplits(input: {
+  amount: number;
+  participantUserIds: string[];
+  splitType: CreateExpenseInput["splitType"];
+  customSplits?: string | null;
+}): { userId: string; owedAmount: number }[] {
+  try {
+    const custom = input.customSplits
+      ? (JSON.parse(input.customSplits) as { userId: string }[])
+      : null;
+    if (custom) {
+      if (input.splitType === "exact") {
+        return calculateExactSplits(input.amount, custom as { userId: string; amount: number }[]);
+      }
+      if (input.splitType === "percentage") {
+        return calculatePercentageSplits(
+          input.amount,
+          custom as { userId: string; percentage: number }[]
+        );
+      }
+      if (input.splitType === "shares") {
+        return calculateShareSplits(input.amount, custom as { userId: string; shares: number }[]);
+      }
+    }
+  } catch {
+    // Fall through to equal split
+  }
+  return calculateEqualSplits(input.amount, input.participantUserIds);
+}
 
-const demoMessages = [
+/* --- Autoplay script content --- */
+
+const START_MESSAGES: ChatMessage[] = [
   {
     id: "m-1",
     type: "system",
@@ -97,106 +128,283 @@ const demoMessages = [
     authorId: "u-maya",
     authorUsername: "maya",
   },
-  {
-    id: "m-3",
+];
+
+const START_EXPENSES: ExpenseItem[] = [
+  equalSplitExpense("e-scooters", "Scooter Rentals", 900, "u-rohit", 60 * 23),
+  equalSplitExpense("e-shack", "Beach Shack Seafood", 1800, "u-maya", 60 * 25),
+  equalSplitExpense("e-hostel", "Hostel Check-in", 2150, "u-maya", 60 * 26),
+];
+
+const incomingSettlement: SettlementItem = {
+  id: "s-1",
+  amount: 600,
+  paidByUserId: "u-arjun",
+  receivedByUserId: "u-maya",
+  status: "pending",
+  createdByUserId: "u-arjun",
+  confirmedAt: null,
+  rejectedAt: null,
+  settledAt: minutesAgo(70),
+  payerUsername: "arjun",
+  recipientUsername: "maya",
+  creatorUsername: "arjun",
+};
+
+const scriptMessages = {
+  rohit: {
+    id: "m-rohit",
     type: "user",
     body: "Scooters are ready for tomorrow 🛵 Heading to the beach now",
-    createdAt: minutesAgo(60 * 23),
     authorId: "u-rohit",
     authorUsername: "rohit",
   },
-  {
-    id: "m-4",
+  arjun: {
+    id: "m-arjun",
     type: "user",
     body: "Paid ₹600 via UPI @maya! Let's head to dinner 🍕",
-    createdAt: minutesAgo(68),
     authorId: "u-arjun",
     authorUsername: "arjun",
   },
-];
+  wrap: {
+    id: "m-wrap",
+    type: "system",
+    body: "✅ Trip wrapped — all balances settled!",
+    authorId: null,
+    authorUsername: null,
+  },
+} satisfies Record<string, Omit<ChatMessage, "createdAt">>;
 
 export function GroupDemo() {
   const [activeTab, setActiveTab] = useState<GroupTab>("chat");
+  const [messages, setMessages] = useState<ChatMessage[]>(START_MESSAGES);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>(START_EXPENSES);
+  const [settlements, setSettlements] = useState<SettlementItem[]>([]);
+  const [cycle, setCycle] = useState(0);
+  const [paused, setPaused] = useState(
+    () =>
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+
+  const demoActions = useMemo<DemoActions>(
+    () => ({
+      sendMessage: (data) =>
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            type: "user",
+            body: data.body,
+            createdAt: new Date(),
+            authorId: currentUserId,
+            authorUsername: currentUsername,
+          },
+        ]),
+      createExpense: (input) => {
+        const id = `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        setExpenses((prev) => [
+          {
+            id,
+            description: input.description,
+            amount: input.amount,
+            paidByUserId: input.paidByUserId,
+            payerUsername: memberById(input.paidByUserId)?.username ?? "member",
+            expenseDate: input.expenseDate ? new Date(input.expenseDate) : new Date(),
+            createdBy: input.paidByUserId,
+            createdAt: new Date(),
+            splits: toDemoSplits(id, computeSplits(input)),
+          },
+          ...prev,
+        ]);
+      },
+      updateExpense: (input) =>
+        setExpenses((prev) =>
+          prev.map((e) =>
+            e.id === input.expenseId
+              ? {
+                  ...e,
+                  description: input.description,
+                  amount: input.amount,
+                  paidByUserId: input.paidByUserId,
+                  payerUsername: memberById(input.paidByUserId)?.username ?? e.payerUsername,
+                  expenseDate: input.expenseDate ? new Date(input.expenseDate) : e.expenseDate,
+                  splits: toDemoSplits(e.id, computeSplits(input)),
+                }
+              : e
+          )
+        ),
+      deleteExpense: (input) => setExpenses((prev) => prev.filter((e) => e.id !== input.expenseId)),
+      recordSettlement: (data) =>
+        setSettlements((prev) => [
+          {
+            id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            amount: data.amount,
+            paidByUserId: data.paidByUserId,
+            receivedByUserId: data.receivedByUserId,
+            status: "pending",
+            createdByUserId: currentUserId,
+            confirmedAt: null,
+            rejectedAt: null,
+            settledAt: new Date(),
+            payerUsername: memberById(data.paidByUserId)?.username ?? "member",
+            recipientUsername: memberById(data.receivedByUserId)?.username ?? "member",
+            creatorUsername: currentUsername,
+          },
+          ...prev,
+        ]),
+      confirmSettlement: (input) =>
+        setSettlements((prev) =>
+          prev.map((s) =>
+            s.id === input.settlementId && s.status === "pending"
+              ? { ...s, status: "confirmed", confirmedAt: new Date(), settledAt: new Date() }
+              : s
+          )
+        ),
+      rejectSettlement: (input) =>
+        setSettlements((prev) =>
+          prev.map((s) =>
+            s.id === input.settlementId && s.status === "pending"
+              ? { ...s, status: "rejected", rejectedAt: new Date() }
+              : s
+          )
+        ),
+      cancelSettlement: (input) =>
+        setSettlements((prev) =>
+          prev.map((s) =>
+            s.id === input.settlementId && s.status === "pending"
+              ? { ...s, status: "cancelled", settledAt: new Date() }
+              : s
+          )
+        ),
+    }),
+    []
+  );
+
+  // Autoplay "video" loop — resets at the end of each cycle, pauses on user interaction
+  useEffect(() => {
+    if (paused) return;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const at = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms));
+
+    at(2500, () =>
+      setMessages((prev) => [...prev, { ...scriptMessages.rohit, createdAt: new Date() }])
+    );
+    at(5500, () => {
+      setMessages((prev) => [...prev, { ...scriptMessages.arjun, createdAt: new Date() }]);
+      setSettlements((prev) => [incomingSettlement, ...prev]);
+    });
+    at(10000, () => setActiveTab("expenses"));
+    at(13500, () =>
+      setExpenses((prev) => [
+        equalSplitExpense("e-cab", "Sunset Point Cab", 700, "u-priya", 0),
+        ...prev,
+      ])
+    );
+    at(18000, () => setActiveTab("balances"));
+    at(23000, () =>
+      setSettlements((prev) =>
+        prev.map((s) =>
+          s.id === incomingSettlement.id && s.status === "pending"
+            ? { ...s, status: "confirmed", confirmedAt: new Date(), settledAt: new Date() }
+            : s
+        )
+      )
+    );
+    at(27500, () => setActiveTab("chat"));
+    at(30500, () =>
+      setMessages((prev) => [...prev, { ...scriptMessages.wrap, createdAt: new Date() }])
+    );
+    at(34500, () => {
+      setMessages(START_MESSAGES);
+      setExpenses(START_EXPENSES);
+      setSettlements([]);
+      setActiveTab("chat");
+      setCycle((c) => c + 1);
+    });
+
+    return () => timers.forEach(clearTimeout);
+  }, [paused, cycle]);
 
   const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
     demoMembers,
-    demoExpenses,
-    demoSettlements
+    expenses,
+    settlements
   );
 
-  const pendingSettlementCount = demoSettlements.filter((s) => s.status === "pending").length;
+  const pendingSettlementCount = settlements.filter((s) => s.status === "pending").length;
+
+  const handleTabChange = (tab: GroupTab) => {
+    setPaused(true);
+    setActiveTab(tab);
+  };
 
   return (
     <div className="border-border/80 bg-card/80 relative rounded-2xl border p-4 shadow-lg backdrop-blur-sm sm:p-6">
-      <div className="space-y-2">
-        <GroupHeader
-          group={demoGroup}
-          currentUserRole={currentUserRole}
-          membersCount={demoMembers.length}
-        />
-
-        <GroupTabStrip
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          expenseCount={demoExpenses.length}
-          pendingSettlementCount={pendingSettlementCount}
-        />
-
-        <div
-          role="tabpanel"
-          id="tabpanel-chat"
-          aria-labelledby="tab-chat"
-          inert={activeTab !== "chat"}
-          className={activeTab === "chat" ? "block" : "hidden"}
-        >
-          <ChatView
-            groupId={demoGroup.id}
-            currentUserId={currentUserId}
-            currentUsername={currentUsername}
-            members={demoMembers}
-            initialMessages={demoMessages}
-            enableRealtime={false}
-          />
-        </div>
-
-        <div
-          role="tabpanel"
-          id="tabpanel-expenses"
-          aria-labelledby="tab-expenses"
-          inert={activeTab !== "expenses"}
-          className={activeTab === "expenses" ? "block" : "hidden"}
-        >
-          <ExpensesView
-            groupId={demoGroup.id}
-            groupName={demoGroup.name}
-            currentUserId={currentUserId}
+      <DemoModeProvider actions={demoActions}>
+        <div className="space-y-2">
+          <GroupHeader
+            group={demoGroup}
             currentUserRole={currentUserRole}
-            members={demoMembers}
-            expenses={demoExpenses}
+            membersCount={demoMembers.length}
           />
-        </div>
 
-        <div
-          role="tabpanel"
-          id="tabpanel-balances"
-          aria-labelledby="tab-balances"
-          inert={activeTab !== "balances"}
-          className={activeTab === "balances" ? "block" : "hidden"}
-        >
-          <BalancesView
-            groupId={demoGroup.id}
-            currentUserId={currentUserId}
-            members={demoMembers}
-            balances={balances}
-            suggestedSettlements={suggestedSettlements}
-            settlements={demoSettlements}
+          <GroupTabStrip
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            expenseCount={expenses.length}
+            pendingSettlementCount={pendingSettlementCount}
           />
-        </div>
-      </div>
 
-      <p className="text-muted-foreground mt-4 text-center text-[10px] font-semibold tracking-wide">
-        Tabs are interactive — sign up to explore the full app
-      </p>
+          <div
+            role="tabpanel"
+            id="tabpanel-chat"
+            aria-labelledby="tab-chat"
+            className={activeTab === "chat" ? "block" : "hidden"}
+          >
+            <ChatView
+              groupId={demoGroup.id}
+              currentUserId={currentUserId}
+              currentUsername={currentUsername}
+              members={demoMembers}
+              initialMessages={messages}
+              enableRealtime={false}
+            />
+          </div>
+
+          <div
+            role="tabpanel"
+            id="tabpanel-expenses"
+            aria-labelledby="tab-expenses"
+            className={activeTab === "expenses" ? "block" : "hidden"}
+          >
+            <ExpensesView
+              groupId={demoGroup.id}
+              groupName={demoGroup.name}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              members={demoMembers}
+              expenses={expenses}
+            />
+          </div>
+
+          <div
+            role="tabpanel"
+            id="tabpanel-balances"
+            aria-labelledby="tab-balances"
+            className={activeTab === "balances" ? "block" : "hidden"}
+          >
+            <BalancesView
+              groupId={demoGroup.id}
+              currentUserId={currentUserId}
+              members={demoMembers}
+              balances={balances}
+              suggestedSettlements={suggestedSettlements}
+              settlements={settlements}
+            />
+          </div>
+        </div>
+      </DemoModeProvider>
     </div>
   );
 }

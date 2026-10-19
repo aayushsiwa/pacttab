@@ -178,6 +178,9 @@ export default async function HomePage() {
             Live Preview
           </h2>
         </div>
+        <p className="text-muted-foreground mb-4 text-center text-[10px] font-semibold tracking-wide">
+          Autoplay demo — all actions run locally, nothing is saved. Click a tab to take control.
+        </p>
         <GroupDemo />
       </section>
 
