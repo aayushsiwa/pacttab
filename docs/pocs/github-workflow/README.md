@@ -2,9 +2,13 @@
 
 ## Status
 
-Partially implemented. Phase 1 (the oxlint/oxfmt tooling migration) has landed; Phase 2 — the two
-workflows below, plus the `db:migrate:apply` script they depend on — is not implemented yet. This
-document is the implementation plan for Phase 2.
+Implemented. Phase 1 (the oxlint/oxfmt tooling migration) landed first, followed by Phase 2 — the
+two workflows below (`.github/workflows/ci.yml`, `.github/workflows/migrate-db.yml`), the
+`db:migrate:apply` script they depend on, and a `test` job in `ci.yml` that runs the Vitest suite
+against Postgres + Redis service containers. The manual items in §4 (creating the `production`
+environment with its `DATABASE_URL` secret, and branch protection requiring the `quality` check)
+are repository settings and must still be configured in the GitHub UI for the workflows to gate
+merges and touch production.
 
 ## 1. Summary
 
@@ -72,14 +76,21 @@ jobs:
         run: pnpm exec tsc --noEmit
 ```
 
+The block above is the `quality` job; the same file also defines the `test` job described below —
+see `.github/workflows/ci.yml` for the full YAML.
+
 - **Triggers**: every PR (branch protection then requires the check on `master`), plus direct
   pushes to `master` as a safety net.
 - **Concurrency**: superseded PR runs are cancelled; master runs are not.
-- **Scope decision**: lint + fmt + typecheck only (~1 min, no services). Tests and `next build`
-  are explicitly out of scope for now; a `test` job with Postgres + Redis service containers is
-  the natural follow-up (the suite itself already passes: 190 tests, `pnpm test`).
-- **Job shape**: one job keeps the YAML small. Split into three jobs if per-concern required
-  status checks are wanted in branch protection (each job = one check in the GitHub UI).
+- **Scope**: the `quality` job is lint + fmt + typecheck only (~1 min, no services); `next build`
+  remains out of scope. Tests run in a parallel `test` job (196 tests, `pnpm test`, ~15 s of
+  runtime) against Postgres + Redis declared as workflow `services:` — GitHub starts both as
+  health-checked sidecar containers on the runner and exposes them on `localhost`, so no
+  Docker-in-Docker or `docker compose` is needed. Job-level `env` (`DATABASE_URL`, `REDIS_URL`)
+  overrides `.env.test` for the run — dotenv never overrides preset env vars — keeping the
+  committed `.env.test` as the local default while CI stays self-contained.
+- **Job shape**: `quality` and `test` are separate jobs, so each is its own check in the GitHub
+  UI; branch protection can require `quality` only, or both for a full gate.
 
 ### 3.2 `.github/workflows/migrate-db.yml` (production migration on merge)
 
@@ -131,11 +142,9 @@ Key decisions:
 | Add-on                                                                                             | Value                                                                                                                                                                                                            |
 | :------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **PR drift check** — `pnpm db:generate && git diff --exit-code drizzle/` as a `ci.yml` step or job | Fails PRs that change `src/db/schema.ts` without committing the generated migration (the merge workflow only applies files that exist, so an ungenerated schema change would silently deploy an unmigrated app). |
-| **`.nvmrc` + `engines` + `packageManager`**                                                        | Pins Node/pnpm for CI and the VPS; the workflow above already references `.nvmrc`, so add it in the same PR.                                                                                                     |
 | **Pin actions to commit SHAs** + Dependabot (`package-ecosystem: github-actions`)                  | Supply-chain hardening; unpinned `@v4` tags are mutable.                                                                                                                                                         |
 | **Branch protection** requiring the `quality` check                                                | Makes `ci.yml` actually blocking (repo settings, not workflow code).                                                                                                                                             |
 | **Post-migration deploy trigger** (SSH to the VPS, `deploy/systemd` + `ExecStart`)                 | Today deploy and migration are independent; ordering "migrate → restart app" avoids a window where new code runs against an old schema. Natural follow-up once migrations are automated.                         |
-| **Test job** (Postgres + Redis service containers, `pnpm test`)                                    | Catches regressions pre-merge; deferred by decision to keep PR CI fast.                                                                                                                                          |
 
 ## 4. Required Setup (one-time, manual)
 
