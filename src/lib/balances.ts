@@ -158,7 +158,21 @@ export function calculateShareSplits(
 }
 
 /**
+ * Convert a rupee amount into an integer number of paise (cents).
+ * All aggregation happens in cents so float drift can never distribute an
+ * extra/missing paise across members.
+ */
+function toCents(amount: string | number): number {
+  return Math.round(Number(amount) * 100);
+}
+
+/**
  * Calculates member balances and simplified debt repayments.
+ *
+ * All accumulation, per-member nets, debtor/creditor classification and the
+ * greedy simplification loop operate on integer cents. Rupee floats are only
+ * produced at the output boundary, which keeps the group exactly zero-sum:
+ * `Σ netBalance === 0` and the suggested settlements settle every paise.
  */
 export function calculateBalancesAndSettlements(
   members: { id: string; username: string }[],
@@ -181,31 +195,29 @@ export function calculateBalancesAndSettlements(
 } {
   const memberMap = new Map<
     string,
-    { username: string; totalPaid: number; totalOwed: number; netBalance: number }
+    { username: string; totalPaidCents: number; totalOwedCents: number }
   >();
 
   for (const m of members) {
     memberMap.set(m.id, {
       username: m.username,
-      totalPaid: 0,
-      totalOwed: 0,
-      netBalance: 0,
+      totalPaidCents: 0,
+      totalOwedCents: 0,
     });
   }
 
   // 1. Process Expenses & Splits
   for (const exp of expenses) {
-    const paidAmount = Number(exp.amount);
+    const paidCents = toCents(exp.amount);
     const payer = memberMap.get(exp.paidByUserId);
     if (payer) {
-      payer.totalPaid += paidAmount;
+      payer.totalPaidCents += paidCents;
     }
 
     for (const split of exp.splits) {
-      const owed = Number(split.owedAmount);
       const debtor = memberMap.get(split.userId);
       if (debtor) {
-        debtor.totalOwed += owed;
+        debtor.totalOwedCents += toCents(split.owedAmount);
       }
     }
   }
@@ -215,77 +227,76 @@ export function calculateBalancesAndSettlements(
     if (set.status && set.status !== "confirmed") {
       continue;
     }
-    const setAmount = Number(set.amount);
+    const setCents = toCents(set.amount);
     const payer = memberMap.get(set.paidByUserId);
     const recipient = memberMap.get(set.receivedByUserId);
 
     // Payer has paid back debt, so their net balance increases (less debt / more credit)
     if (payer) {
-      payer.totalPaid += setAmount;
+      payer.totalPaidCents += setCents;
     }
     // Recipient has received repayment, so their net balance decreases (less credit)
     if (recipient) {
-      recipient.totalOwed += setAmount;
+      recipient.totalOwedCents += setCents;
     }
   }
 
-  // Calculate net balances
+  // Net balances stay in cents; convert to rupees only when building the DTO.
   const balances: MemberBalance[] = [];
+  const debtors: { userId: string; username: string; amountCents: number }[] = [];
+  const creditors: { userId: string; username: string; amountCents: number }[] = [];
+
   for (const [userId, data] of memberMap.entries()) {
-    const net = Math.round((data.totalPaid - data.totalOwed) * 100) / 100;
+    const netCents = data.totalPaidCents - data.totalOwedCents;
+    const netBalance = netCents / 100;
+
     balances.push({
       userId,
       username: data.username,
-      netBalance: net,
-      totalPaid: Math.round(data.totalPaid * 100) / 100,
-      totalOwed: Math.round(data.totalOwed * 100) / 100,
+      netBalance,
+      totalPaid: data.totalPaidCents / 100,
+      totalOwed: data.totalOwedCents / 100,
     });
-  }
 
-  // 3. Greedy debt simplification algorithm
-  // Debtor owes money (netBalance < 0)
-  // Creditor is owed money (netBalance > 0)
-  const debtors: { userId: string; username: string; amount: number }[] = [];
-  const creditors: { userId: string; username: string; amount: number }[] = [];
-
-  for (const b of balances) {
-    if (b.netBalance < -0.009) {
-      debtors.push({ userId: b.userId, username: b.username, amount: -b.netBalance });
-    } else if (b.netBalance > 0.009) {
-      creditors.push({ userId: b.userId, username: b.username, amount: b.netBalance });
+    // 3. Classify: debtor owes money (netCents < 0), creditor is owed money (netCents > 0)
+    if (netCents < 0) {
+      debtors.push({ userId, username: data.username, amountCents: -netCents });
+    } else if (netCents > 0) {
+      creditors.push({ userId, username: data.username, amountCents: netCents });
     }
   }
 
   // Sort descending by amount
-  debtors.sort((a, b) => b.amount - a.amount);
-  creditors.sort((a, b) => b.amount - a.amount);
+  debtors.sort((a, b) => b.amountCents - a.amountCents);
+  creditors.sort((a, b) => b.amountCents - a.amountCents);
 
   const suggestedSettlements: SuggestedSettlement[] = [];
   let dIdx = 0;
   let cIdx = 0;
 
+  // Greedy simplification: every step transfers whole cents, so once
+  // Σ debtors === Σ creditors the loop drains both sides exactly.
   while (dIdx < debtors.length && cIdx < creditors.length) {
     const debtor = debtors[dIdx];
     const creditor = creditors[cIdx];
 
-    const amount = Math.min(debtor.amount, creditor.amount);
-    const roundedAmount = Math.round(amount * 100) / 100;
+    const amountCents = Math.min(debtor.amountCents, creditor.amountCents);
 
-    if (roundedAmount > 0) {
+    if (amountCents > 0) {
       suggestedSettlements.push({
         fromUserId: debtor.userId,
         fromUsername: debtor.username,
         toUserId: creditor.userId,
         toUsername: creditor.username,
-        amount: roundedAmount,
+        amount: amountCents / 100,
       });
     }
 
-    debtor.amount = Math.round((debtor.amount - amount) * 100) / 100;
-    creditor.amount = Math.round((creditor.amount - amount) * 100) / 100;
+    debtor.amountCents -= amountCents;
+    creditor.amountCents -= amountCents;
 
-    if (debtor.amount <= 0.009) dIdx++;
-    if (creditor.amount <= 0.009) cIdx++;
+    if (debtor.amountCents === 0) dIdx++;
+    if (creditor.amountCents === 0) cIdx++;
   }
 
   return { balances, suggestedSettlements };
