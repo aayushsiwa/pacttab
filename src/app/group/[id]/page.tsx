@@ -76,8 +76,10 @@ export default function GroupPage({ params }: GroupPageProps) {
   }));
   const balancesForTabs = (details.balances ?? []).map((b) => ({
     ...b,
-    totalPaid: Number(b.totalPaid),
-    totalOwed: Number(b.totalOwed),
+    totalExpensePaid: Number(b.totalExpensePaid),
+    totalExpenseShare: Number(b.totalExpenseShare),
+    settlementsSent: Number(b.settlementsSent),
+    settlementsReceived: Number(b.settlementsReceived),
     netBalance: Number(b.netBalance),
   }));
   const suggestedSettlementsForTabs = (details.suggestedSettlements ?? []).map((s) => ({
