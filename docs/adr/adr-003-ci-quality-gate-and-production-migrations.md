@@ -36,8 +36,9 @@ migration SQL.
   through a `production` GitHub Environment that can require reviewer approval.
 - **It runs `drizzle-kit migrate` (`pnpm db:migrate:apply`), not `pnpm db:migrate`.**
   `scripts/init-db.ts` can create the target database and generate missing migrations at runtime —
-  useful locally, dangerous in production. `drizzle-kit migrate` applies only committed SQL files
-  and records each in Drizzle's journal table.
+  useful for local bootstrapping and the self-hosted bare-metal setup (`docs/self-hosting.md`),
+  but unsafe against the managed production database. `drizzle-kit migrate` applies only committed
+  SQL files and records each in Drizzle's journal table.
 - **Migrations serialize but never interrupt**: a shared `db-migrate` concurrency group with
   `cancel-in-progress: false` queues a second merge behind the first instead of racing it, and
   never kills an in-flight migration.

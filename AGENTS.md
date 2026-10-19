@@ -13,7 +13,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Commands
 
 - `pnpm dev`: Start custom Next.js dev server with WebSockets & Redis pub/sub (`tsx server.ts`)
-- `pnpm test`: Run the full Vitest suite (`vitest run`); tests load `.env.test` (copy `.env.test.example`) and run against a throwaway database that `tests/global-setup.ts` creates and migrates before the run, then drops afterwards
+- `pnpm test`: Run the full Vitest suite (`vitest run`); tests load `.env.test` (committed defaults; adjust for your machine) and run against a throwaway database that `tests/global-setup.ts` creates and migrates before the run, then drops afterwards
 - `pnpm run lint`: Run oxlint
 - `pnpm run format`: Format all files with oxfmt
 - `pnpm run format:check`: Check formatting
@@ -21,6 +21,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `pnpm run db:init:test`: Manually create/migrate the test database from `.env.test`
 - `pnpm run db:push`: Push the Drizzle schema to PostgreSQL
 - `pnpm run db:generate`: Generate migration SQL via Drizzle Kit
+- `pnpm run db:migrate:apply`: Apply committed Drizzle migrations (`drizzle-kit migrate`; used by the production migration workflow)
 
 ## Core Architecture & Principles
 
@@ -32,3 +33,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Database**: PostgreSQL with Drizzle ORM (`src/db/schema.ts`).
 - **Auth**: Better Auth session cookies (`username` plugin) in `src/lib/auth.ts`; optional social providers resolved by `src/lib/social-auth-config.ts`.
 - **Git Hooks**: Pre-commit runs `lint-staged` (oxlint + oxfmt on staged files), pre-push runs lint + format:check + vitest, and commit-msg enforces Conventional Commits via Commitlint.
+- **CI/CD**: `.github/workflows/ci.yml` runs `quality` (oxlint, oxfmt --check, tsc --noEmit) and `test` (Vitest against Postgres + Redis service containers) on every PR and master push; `.github/workflows/migrate-db.yml` applies `pnpm db:migrate:apply` (`drizzle-kit migrate`) to production on merge to `master` when `drizzle/**` or `src/db/schema.ts` change, via the `production` environment (`docs/adr/adr-003-ci-quality-gate-and-production-migrations.md`).
