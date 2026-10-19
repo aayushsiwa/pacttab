@@ -299,3 +299,99 @@ describe("MemberBalance expense vs settlement metrics", () => {
     expect(bob.settlementsSent).toBe(0);
   });
 });
+
+describe("Settlement simplification (exact-match pre-pass)", () => {
+  const members = [
+    { id: "d1", username: "D1" },
+    { id: "d2", username: "D2" },
+    { id: "d3", username: "D3" },
+    { id: "c1", username: "C1" },
+    { id: "c2", username: "C2" },
+  ];
+
+  it("extracts exact-matching pairs before greedy (issue example)", () => {
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      members,
+      [
+        { id: "e1", amount: 50, paidByUserId: "c2", splits: [{ userId: "d1", owedAmount: 50 }] },
+        { id: "e2", amount: 40, paidByUserId: "c1", splits: [{ userId: "d2", owedAmount: 40 }] },
+        { id: "e3", amount: 30, paidByUserId: "c1", splits: [{ userId: "d3", owedAmount: 30 }] },
+      ],
+      []
+    );
+
+    expect(suggestedSettlements).toHaveLength(3);
+    expect(suggestedSettlements[0]).toEqual({
+      fromUserId: "d1",
+      fromUsername: "D1",
+      toUserId: "c2",
+      toUsername: "C2",
+      amount: 50,
+    });
+
+    const netCents = balances.map((b) => Math.round(b.netBalance * 100));
+    expect(netCents.reduce((a, c) => a + c, 0)).toBe(0);
+  });
+
+  it("produces identical result when no exact pairs exist (fallback to greedy)", () => {
+    const { balances: b1, suggestedSettlements: s1 } = calculateBalancesAndSettlements(
+      members,
+      [
+        {
+          id: "e1",
+          amount: 120,
+          paidByUserId: "c1",
+          splits: [
+            { userId: "d1", owedAmount: 50 },
+            { userId: "d2", owedAmount: 40 },
+            { userId: "d3", owedAmount: 30 },
+          ],
+        },
+        { id: "e4", amount: 50, paidByUserId: "c2", splits: [{ userId: "d1", owedAmount: 50 }] },
+      ],
+      []
+    );
+    const { balances: b2, suggestedSettlements: s2 } = calculateBalancesAndSettlements(
+      members,
+      [
+        {
+          id: "e1",
+          amount: 120,
+          paidByUserId: "c1",
+          splits: [
+            { userId: "d1", owedAmount: 50 },
+            { userId: "d2", owedAmount: 40 },
+            { userId: "d3", owedAmount: 30 },
+          ],
+        },
+        { id: "e4", amount: 50, paidByUserId: "c2", splits: [{ userId: "d1", owedAmount: 50 }] },
+      ],
+      []
+    );
+    expect(s1.length).toBe(s2.length);
+    expect(s1).toEqual(s2);
+    expect(b1.map((x) => Math.round(x.netBalance * 100))).toEqual(
+      b2.map((x) => Math.round(x.netBalance * 100))
+    );
+  });
+
+  it("handles multiple identical pairs independently", () => {
+    const members2 = [
+      { id: "a1", username: "A1" },
+      { id: "a2", username: "A2" },
+      { id: "p1", username: "P1" },
+      { id: "p2", username: "P2" },
+    ];
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      members2,
+      [
+        { id: "e1", amount: 10, paidByUserId: "p1", splits: [{ userId: "a1", owedAmount: 10 }] },
+        { id: "e2", amount: 10, paidByUserId: "p2", splits: [{ userId: "a2", owedAmount: 10 }] },
+      ],
+      []
+    );
+    expect(suggestedSettlements).toHaveLength(2);
+    const cents = balances.map((b) => Math.round(b.netBalance * 100));
+    expect(cents.reduce((a, c) => a + c, 0)).toBe(0);
+  });
+});
