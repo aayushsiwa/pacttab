@@ -526,6 +526,43 @@ describe("Settlement simplification (exact-match pre-pass)", () => {
     expect(balances.map((b) => Math.round(b.netBalance * 100)).reduce((a, c) => a + c, 0)).toBe(0);
   });
 
+  it("regression: exact-pair pass must not beat the pure-greedy baseline (CodeRabbit)", () => {
+    // Debtors 4,4,4,3 vs creditors 3,3,2,2,2,2,1 (₹, both sum to 15). Pure
+    // greedy settles in 8 transfers, but consuming a 3↔3 pair fragments the
+    // remainder into 9. The pure-greedy candidate must win, so the 8-transfer
+    // plan is kept instead of the worse pair/subset plans.
+    const debtors = [4, 4, 4, 3];
+    const creditors = [3, 3, 2, 2, 2, 2, 1];
+    const netCents = [...debtors.map((a) => -a * 100), ...creditors.map((a) => a * 100)];
+    const groupMembers = netCents.map((_, i) => ({ id: `m${i}`, username: `m${i}` }));
+    const settlements = netCents.map((amount, i) => ({
+      id: `s${i}`,
+      amount: Math.abs(amount) / 100,
+      paidByUserId: amount > 0 ? `m${i}` : "bank",
+      receivedByUserId: amount > 0 ? "bank" : `m${i}`,
+      status: "confirmed",
+    }));
+
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      [...groupMembers, { id: "bank", username: "bank" }],
+      [],
+      settlements
+    );
+
+    expect(suggestedSettlements).toHaveLength(8);
+    expect(residualAfterSettlements(balances, suggestedSettlements).every((c) => c === 0)).toBe(
+      true
+    );
+
+    // Selection is deterministic: identical input yields an identical plan.
+    const second = calculateBalancesAndSettlements(
+      [...groupMembers, { id: "bank", username: "bank" }],
+      [],
+      settlements
+    );
+    expect(second.suggestedSettlements).toEqual(suggestedSettlements);
+  });
+
   it("never produces more transactions than pure greedy (fuzz)", () => {
     const fuzzMembers = Array.from({ length: 6 }, (_, i) => ({ id: `m${i}`, username: `m${i}` }));
     let seed = 0xc0ffee;
@@ -551,7 +588,11 @@ describe("Settlement simplification (exact-match pre-pass)", () => {
           // so instead make bank receive from m to push m positive.
           settlements.push({
             id: `s${id++}`,
-            amount: 1 + Math.floor(rand() * 9),
+            // Wide value range deliberately includes values where exact-pair
+            // matching fragments the remainder and beats nothing (the class of
+            // regression CodeRabbit caught: debtors 4,4,4,3 / creditors
+            // 3,3,2,2,2,2,1), so the pure-greedy baseline guard stays exercised.
+            amount: 1 + Math.floor(rand() * 25),
             paidByUserId: m.id,
             receivedByUserId: bank.id,
             status: "confirmed",
@@ -559,7 +600,7 @@ describe("Settlement simplification (exact-match pre-pass)", () => {
         } else {
           settlements.push({
             id: `s${id++}`,
-            amount: 1 + Math.floor(rand() * 9),
+            amount: 1 + Math.floor(rand() * 25),
             paidByUserId: bank.id,
             receivedByUserId: m.id,
             status: "confirmed",
