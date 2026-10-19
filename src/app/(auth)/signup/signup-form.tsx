@@ -199,7 +199,7 @@ export function SignUpForm({ providers, returnTo }: SignUpFormProps) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-3.5 p-6 pt-2">
+        <CardFooter className="mt-4 flex flex-col gap-3.5 p-6">
           <Button
             type="submit"
             className="h-11 w-full rounded-xl font-bold shadow-sm"

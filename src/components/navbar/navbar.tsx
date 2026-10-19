@@ -91,7 +91,7 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
             </div>
           </Link>
 
-          {user && (
+          {/*{user && (
             <nav className="hidden items-center gap-1 sm:flex">
               <Link
                 href="/groups"
@@ -107,7 +107,7 @@ export function Navbar({ user, pendingAdminActionsCount = 0 }: NavbarProps) {
                 )}
               </Link>
             </nav>
-          )}
+          )}*/}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
