@@ -181,12 +181,15 @@ interface SettlementNode {
  */
 const MAX_EXACT_SUBSET = 4;
 
+/** Maximum combined debtor/creditor count for synchronous subset search. */
+const MAX_SUBSET_SEARCH_PARTICIPANTS = 20;
+
 /**
  * Finds a subset of `nodes` (indices into the array, distinct, non-zero) whose
  * balances sum to exactly `targetCents`. Uses bounded DFS with a running sum,
  * pruning once the remaining budget cannot be met. `minSize` lets callers skip
- * trivial pair matches when they are handled by a separate, always-beneficial
- * pass. Returns the smallest qualifying subset (fewest transfers) or null.
+ * trivial pair matches when they are handled by a separate pass. Returns the
+ * smallest qualifying subset (fewest transfers) or null.
  */
 function findExactSubset(
   nodes: SettlementNode[],
@@ -227,9 +230,9 @@ function findExactSubset(
 
 /**
  * Pair pre-pass: a debtor and creditor with identical balances settle in one
- * transfer. Always beneficial — each match removes two parties at the cost of
- * one transfer, so it can only shrink the plan. Matching on integer cents makes
- * equality exact.
+ * transfer. Each match removes two parties, but can change the remaining greedy
+ * matches, so callers compare against pure greedy. Matching on integer cents
+ * makes equality exact.
  */
 function matchExactPairs(
   debtors: SettlementNode[],
@@ -355,18 +358,19 @@ function greedySettle(
 
 /**
  * Builds one full settlement plan from the classified debtors/creditors.
- * `withSubsets` toggles the 1↔many / many↔1 subset pass on top of the
- * always-applied pair pass. The input nodes are cloned so callers can reuse them.
+ * `withPairs` and `withSubsets` independently toggle the exact-match passes.
+ * The input nodes are cloned so callers can reuse them.
  */
 function buildPlan(
   debtors: SettlementNode[],
   creditors: SettlementNode[],
+  withPairs: boolean,
   withSubsets: boolean
 ): SuggestedSettlement[] {
   const d = debtors.map((n) => ({ ...n }));
   const c = creditors.map((n) => ({ ...n }));
   const plan: SuggestedSettlement[] = [];
-  matchExactPairs(d, c, plan);
+  if (withPairs) matchExactPairs(d, c, plan);
   if (withSubsets) matchExactSubsets(d, c, plan);
   greedySettle(d, c, plan);
   return plan;
@@ -490,14 +494,16 @@ export function calculateBalancesAndSettlements(
   debtors.sort((a, b) => b.amountCents - a.amountCents);
   creditors.sort((a, b) => b.amountCents - a.amountCents);
 
-  // 4. Build candidate plans and keep the shorter one:
-  //    - pair + greedy (pairs are always beneficial)
-  //    - pair + 1↔many/many↔1 subset pass + greedy (can help, but not always)
-  //    Because the first plan is pair+greedy ≤ pure greedy, and we return the
-  //    minimum of the two, the ≤ N−1 guarantee and "never worse than greedy"
-  //    hold on every fixture. Both plans settle exactly the same balances.
-  const greedyPlan = buildPlan(debtors, creditors, false);
-  const subsetPlan = buildPlan(debtors, creditors, true);
+  // 4. Compare pure greedy, pair + greedy, and (for small groups) pair + subset
+  //    + greedy. Keeping the shortest guarantees no more transfers than pure
+  //    greedy. Prefer the existing pair plan on ties.
+  const baseGreedyPlan = buildPlan(debtors, creditors, false, false);
+  const pairPlan = buildPlan(debtors, creditors, true, false);
+  const greedyPlan = pairPlan.length <= baseGreedyPlan.length ? pairPlan : baseGreedyPlan;
+  const subsetPlan =
+    debtors.length + creditors.length <= MAX_SUBSET_SEARCH_PARTICIPANTS
+      ? buildPlan(debtors, creditors, true, true)
+      : greedyPlan;
   const suggestedSettlements = subsetPlan.length < greedyPlan.length ? subsetPlan : greedyPlan;
 
   return { balances, suggestedSettlements };

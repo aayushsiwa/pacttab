@@ -301,6 +301,67 @@ describe("MemberBalance expense vs settlement metrics", () => {
 });
 
 describe("Settlement simplification (exact-match pre-pass)", () => {
+  it.each([
+    {
+      name: "keeps pure greedy when exact-pair plans are longer",
+      debtors: [25, 16, 10, 2],
+      creditors: [15, 10, 8, 8, 8, 4],
+      expected: 7,
+    },
+    {
+      name: "selects a shorter subset plan for a small group",
+      debtors: [50, 30, 11],
+      creditors: [25, 21, 20, 13, 12],
+      expected: 6,
+    },
+    {
+      name: "selects a shorter subset plan with debtors and creditors reversed",
+      debtors: [25, 21, 20, 13, 12],
+      creditors: [50, 30, 11],
+      expected: 6,
+    },
+    {
+      name: "allows subset search at 20 non-zero balances, ignoring zero balances",
+      debtors: [50, 30, 11, ...Array<number>(6).fill(1000)],
+      creditors: [25, 21, 20, 13, 12, ...Array<number>(6).fill(1000)],
+      expected: 12,
+    },
+    {
+      name: "falls back to greedy plans above 20 non-zero balances",
+      debtors: [50, 30, 11, ...Array<number>(5).fill(1000), 2000],
+      creditors: [25, 21, 20, 13, 12, ...Array<number>(5).fill(1000), 1000, 1000],
+      expected: 14,
+    },
+    {
+      name: "keeps pure greedy available above the subset search limit",
+      debtors: [25, 16, 10, 2, ...Array<number>(6).fill(1000)],
+      creditors: [15, 10, 8, 8, 8, 4, ...Array<number>(6).fill(1000)],
+      expected: 13,
+    },
+  ])("$name", ({ debtors, creditors, expected }) => {
+    // The bank has zero net balance; these confirmed transfers produce the
+    // specified integer-cent balances without depending on expense splitting.
+    const netCents = [...debtors.map((amount) => -amount), ...creditors];
+    const groupMembers = netCents.map((_, i) => ({ id: `m${i}`, username: `m${i}` }));
+    const settlements = netCents.map((amount, i) => ({
+      id: `s${i}`,
+      amount: Math.abs(amount) / 100,
+      paidByUserId: amount > 0 ? `m${i}` : "bank",
+      receivedByUserId: amount > 0 ? "bank" : `m${i}`,
+      status: "confirmed",
+    }));
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      [...groupMembers, { id: "bank", username: "bank" }],
+      [],
+      settlements
+    );
+
+    expect(suggestedSettlements).toHaveLength(expected);
+    expect(residualAfterSettlements(balances, suggestedSettlements).every((c) => c === 0)).toBe(
+      true
+    );
+  });
+
   const members = [
     { id: "d1", username: "D1" },
     { id: "d2", username: "D2" },
