@@ -44,7 +44,7 @@ function equalSplitExpense(
   description: string,
   amount: number,
   paidByUserId: string,
-  minutesSince: number
+  createdAt: Date
 ): ExpenseItem {
   return {
     id,
@@ -52,9 +52,9 @@ function equalSplitExpense(
     amount,
     paidByUserId,
     payerUsername: memberById(paidByUserId)?.username ?? "",
-    expenseDate: minutesAgo(minutesSince),
+    expenseDate: createdAt,
     createdBy: paidByUserId,
-    createdAt: minutesAgo(minutesSince),
+    createdAt,
     splits: calculateEqualSplits(
       amount,
       demoMembers.map((m) => m.id)
@@ -110,13 +110,14 @@ function computeSplits(input: {
 }
 
 /* --- Autoplay script content --- */
-
+// Fixed absolute timestamps for SSR'd content: server and client must serialize the
+// same dates, or React reports a hydration mismatch.
 const START_MESSAGES: ChatMessage[] = [
   {
     id: "m-1",
     type: "system",
     body: "🌴 Group created by @maya — welcome to Goa Road Trip 2026",
-    createdAt: minutesAgo(60 * 28),
+    createdAt: new Date("2026-10-17T21:00:00.000Z"),
     authorId: null,
     authorUsername: null,
   },
@@ -124,16 +125,34 @@ const START_MESSAGES: ChatMessage[] = [
     id: "m-2",
     type: "user",
     body: "Hostel is booked! Split added to Expenses 🏨",
-    createdAt: minutesAgo(60 * 26),
+    createdAt: new Date("2026-10-17T23:30:00.000Z"),
     authorId: "u-maya",
     authorUsername: "maya",
   },
 ];
 
 const START_EXPENSES: ExpenseItem[] = [
-  equalSplitExpense("e-scooters", "Scooter Rentals", 900, "u-rohit", 60 * 23),
-  equalSplitExpense("e-shack", "Beach Shack Seafood", 1800, "u-maya", 60 * 25),
-  equalSplitExpense("e-hostel", "Hostel Check-in", 2150, "u-maya", 60 * 26),
+  equalSplitExpense(
+    "e-scooters",
+    "Scooter Rentals",
+    900,
+    "u-rohit",
+    new Date("2026-10-18T02:00:00.000Z")
+  ),
+  equalSplitExpense(
+    "e-shack",
+    "Beach Shack Seafood",
+    1800,
+    "u-maya",
+    new Date("2026-10-18T00:00:00.000Z")
+  ),
+  equalSplitExpense(
+    "e-hostel",
+    "Hostel Check-in",
+    2150,
+    "u-maya",
+    new Date("2026-10-17T23:00:00.000Z")
+  ),
 ];
 
 const incomingSettlement: SettlementItem = {
@@ -145,7 +164,7 @@ const incomingSettlement: SettlementItem = {
   createdByUserId: "u-arjun",
   confirmedAt: null,
   rejectedAt: null,
-  settledAt: minutesAgo(70),
+  settledAt: new Date("2026-10-17T20:00:00.000Z"),
   payerUsername: "arjun",
   recipientUsername: "maya",
   creatorUsername: "arjun",
@@ -300,7 +319,7 @@ export function GroupDemo() {
     at(10000, () => setActiveTab("expenses"));
     at(13500, () =>
       setExpenses((prev) => [
-        equalSplitExpense("e-cab", "Sunset Point Cab", 700, "u-priya", 0),
+        equalSplitExpense("e-cab", "Sunset Point Cab", 700, "u-priya", new Date()),
         ...prev,
       ])
     );

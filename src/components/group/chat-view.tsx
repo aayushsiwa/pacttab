@@ -369,6 +369,7 @@ export function ChatView({
                       <span className="truncate">{msg.body}</span>
                       <span
                         className="shrink-0 text-[10px] opacity-60"
+                        suppressHydrationWarning
                         title={formatTime(msg.createdAt)}
                       >
                         • {formatRelativeTime(msg.createdAt)}
@@ -422,7 +423,7 @@ export function ChatView({
                           isMe ? "text-primary-foreground/75" : "text-muted-foreground"
                         }`}
                       >
-                        <span title={formatTime(msg.createdAt)}>
+                        <span suppressHydrationWarning title={formatTime(msg.createdAt)}>
                           {formatRelativeTime(msg.createdAt)}
                         </span>
                         {isMe && <CheckCheck className="inline h-3 w-3 opacity-70" />}
