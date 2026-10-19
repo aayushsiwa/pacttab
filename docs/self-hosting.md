@@ -227,12 +227,12 @@ Database migrations run automatically during container startup.
 
 If you prefer to host directly on Ubuntu/Debian using systemd:
 
-1. **Install Node.js 20+ and pnpm**:
+1. **Install Node.js 24+ and pnpm**:
 
    ```bash
-   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
    sudo apt-get install -y nodejs
-   corepack enable && corepack prepare pnpm@latest --activate
+   corepack enable   # pnpm version is pinned by the package.json `packageManager` field
    ```
 
 2. **Install PostgreSQL and Redis**:

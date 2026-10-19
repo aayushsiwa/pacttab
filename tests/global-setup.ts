@@ -7,7 +7,7 @@ import path from "node:path";
 function resolveTestDatabase(): { url: string; name: string } {
   config({ path: ".env.test", quiet: true });
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set in .env.test (copy .env.test.example)");
+  if (!url) throw new Error("DATABASE_URL is not set in .env.test");
   const name = new URL(url).pathname.replace(/^\//, "");
   if (!name) throw new Error("DATABASE_URL in .env.test does not include a database name");
   return { url, name };

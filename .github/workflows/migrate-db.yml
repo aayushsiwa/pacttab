@@ -1,0 +1,29 @@
+name: Migrate database
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "drizzle/**"
+      - "src/db/schema.ts"
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply migrations
+        run: pnpm db:migrate:apply
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

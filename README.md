@@ -5,9 +5,11 @@
 **Split expenses & chat with friends in closed circles.**<br />
 No email required. Optional Google or GitHub sign-in. Privacy-first by default.
 
+[![CI](https://github.com/aayushsiwa/pacttab/actions/workflows/ci.yml/badge.svg)](https://github.com/aayushsiwa/pacttab/actions/workflows/ci.yml)
+
 <br />
 
-![PactTab Preview](./screenshot.png)
+![PactTab Preview](./partial-screenshot.png)
 
 <br />
 
@@ -52,6 +54,7 @@ Existing expense-splitting applications often demand email addresses, phone numb
 | **Authentication**   | [Better Auth](https://www.better-auth.com) session-based credentials                                                                                                                                                                                                                   |
 | **Testing**          | [Vitest](https://vitest.dev)                                                                                                                                                                                                                                                           |
 | **Tooling & Hooks**  | [pnpm](https://pnpm.io), [oxlint](https://oxc.rs/docs/guide/usage/linter.html), [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html), [Husky](https://typicode.github.io/husky), [lint-staged](https://github.com/lint-staged/lint-staged), [commitlint](https://commitlint.js.org) |
+| **CI/CD**            | [GitHub Actions](https://github.com/features/actions) — PR quality gate and tests, plus merge-time production migrations ([ADR 003](docs/adr/adr-003-ci-quality-gate-and-production-migrations.md))                                                                                    |
 
 ---
 
@@ -61,8 +64,8 @@ Existing expense-splitting applications often demand email addresses, phone numb
 
 Ensure you have the following installed on your machine:
 
-- **Node.js**: v20.x or higher
-- **pnpm**: v9.x or higher
+- **Node.js**: v24.x (pinned by `.nvmrc`)
+- **pnpm**: v12.x (pinned by the `packageManager` field; `corepack enable` picks it up)
 - **PostgreSQL**: v14+ running locally or a hosted instance (e.g., Neon, Supabase)
 - **Redis**: v6+ running locally or hosted (e.g., Upstash)
 
@@ -123,6 +126,8 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 - **`commit-msg`**: Validates commit messages following [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`).
 - **`pre-push`**: Runs lint, format check, and the full test suite before pushing.
 
+The same checks run in CI on every pull request (`.github/workflows/ci.yml`), where the Vitest suite runs against Postgres and Redis service containers. Merges to `master` that touch the schema apply the generated Drizzle migrations to production automatically (`.github/workflows/migrate-db.yml`) — see [ADR 003](docs/adr/adr-003-ci-quality-gate-and-production-migrations.md).
+
 ---
 
 ## Architecture
@@ -180,7 +185,7 @@ docker compose up -d
 
 - [Self-Hosting Guide](docs/self-hosting.md): Complete instructions for Docker Compose, low-memory mode, Caddy/Nginx reverse proxies, automated migrations, backups, and bare-metal systemd.
 - [Web MCP Implementation POC](docs/pocs/web-mcp/README.md): Architectural design, use cases, security safeguards, and implementation roadmap for Model Context Protocol (Web MCP) support over SSE and in-browser agents.
-- [Architecture Decision Records](docs/adr/): Better Auth with optional Google/GitHub sign-in (001), direct invites by username (002).
+- [Architecture Decision Records](docs/adr/): Better Auth with optional Google/GitHub sign-in (001), direct invites by username (002), CI quality gate, test suite, and automated production migrations (003).
 - [MVP Specification & Roadmap](MVP.md): Detailed product requirements, data entities, and shipped milestone tracking.
 
 ---
