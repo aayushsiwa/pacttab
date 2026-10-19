@@ -5,9 +5,11 @@
 **Split expenses & chat with friends in closed circles.**<br />
 No email required. Optional Google or GitHub sign-in. Privacy-first by default.
 
+[![CI](https://github.com/aayushsiwa/pacttab/actions/workflows/ci.yml/badge.svg)](https://github.com/aayushsiwa/pacttab/actions/workflows/ci.yml)
+
 <br />
 
-![PactTab Preview](./screenshot.png)
+![PactTab Preview](./partial-screenshot.png)
 
 <br />
 
