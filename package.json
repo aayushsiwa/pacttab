@@ -19,7 +19,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate:apply": "drizzle-kit migrate",
-    "test": "vitest run",
+    "test": "vitest run --isolate=false",
     "test:watch": "vitest",
     "test:e2e": "vitest run tests/e2e-flow.test.ts",
     "test:auth": "vitest run tests/auth-invite-flow.test.ts",
