@@ -13,11 +13,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Commands
 
 - `pnpm dev`: Start custom Next.js dev server with WebSockets & Redis pub/sub (`tsx server.ts`)
-- `pnpm test`: Run the full Vitest suite (`vitest run`)
+- `pnpm test`: Run the full Vitest suite (`vitest run`); tests load `.env.test` (copy `.env.test.example`) and run against a throwaway database that `tests/global-setup.ts` creates and migrates before the run, then drops afterwards
 - `pnpm run lint`: Run oxlint
 - `pnpm run format`: Format all files with oxfmt
 - `pnpm run format:check`: Check formatting
 - `pnpm run db:init`: Run database migrations / initialization (`tsx scripts/init-db.ts`)
+- `pnpm run db:init:test`: Manually create/migrate the test database from `.env.test`
 - `pnpm run db:push`: Push the Drizzle schema to PostgreSQL
 - `pnpm run db:generate`: Generate migration SQL via Drizzle Kit
 
