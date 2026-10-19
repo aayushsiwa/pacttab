@@ -299,3 +299,349 @@ describe("MemberBalance expense vs settlement metrics", () => {
     expect(bob.settlementsSent).toBe(0);
   });
 });
+
+describe("Settlement simplification (exact-match pre-pass)", () => {
+  it.each([
+    {
+      name: "keeps pure greedy when exact-pair plans are longer",
+      debtors: [25, 16, 10, 2],
+      creditors: [15, 10, 8, 8, 8, 4],
+      expected: 7,
+    },
+    {
+      name: "selects a shorter subset plan for a small group",
+      debtors: [50, 30, 11],
+      creditors: [25, 21, 20, 13, 12],
+      expected: 6,
+    },
+    {
+      name: "selects a shorter subset plan with debtors and creditors reversed",
+      debtors: [25, 21, 20, 13, 12],
+      creditors: [50, 30, 11],
+      expected: 6,
+    },
+    {
+      name: "allows subset search at 20 non-zero balances, ignoring zero balances",
+      debtors: [50, 30, 11, ...Array<number>(6).fill(1000)],
+      creditors: [25, 21, 20, 13, 12, ...Array<number>(6).fill(1000)],
+      expected: 12,
+    },
+    {
+      name: "falls back to greedy plans above 20 non-zero balances",
+      debtors: [50, 30, 11, ...Array<number>(5).fill(1000), 2000],
+      creditors: [25, 21, 20, 13, 12, ...Array<number>(5).fill(1000), 1000, 1000],
+      expected: 14,
+    },
+    {
+      name: "keeps pure greedy available above the subset search limit",
+      debtors: [25, 16, 10, 2, ...Array<number>(6).fill(1000)],
+      creditors: [15, 10, 8, 8, 8, 4, ...Array<number>(6).fill(1000)],
+      expected: 13,
+    },
+  ])("$name", ({ debtors, creditors, expected }) => {
+    // The bank has zero net balance; these confirmed transfers produce the
+    // specified integer-cent balances without depending on expense splitting.
+    const netCents = [...debtors.map((amount) => -amount), ...creditors];
+    const groupMembers = netCents.map((_, i) => ({ id: `m${i}`, username: `m${i}` }));
+    const settlements = netCents.map((amount, i) => ({
+      id: `s${i}`,
+      amount: Math.abs(amount) / 100,
+      paidByUserId: amount > 0 ? `m${i}` : "bank",
+      receivedByUserId: amount > 0 ? "bank" : `m${i}`,
+      status: "confirmed",
+    }));
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      [...groupMembers, { id: "bank", username: "bank" }],
+      [],
+      settlements
+    );
+
+    expect(suggestedSettlements).toHaveLength(expected);
+    expect(residualAfterSettlements(balances, suggestedSettlements).every((c) => c === 0)).toBe(
+      true
+    );
+  });
+
+  const members = [
+    { id: "d1", username: "D1" },
+    { id: "d2", username: "D2" },
+    { id: "d3", username: "D3" },
+    { id: "c1", username: "C1" },
+    { id: "c2", username: "C2" },
+  ];
+
+  it("extracts exact-matching pairs before greedy (issue example)", () => {
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      members,
+      [
+        { id: "e1", amount: 50, paidByUserId: "c2", splits: [{ userId: "d1", owedAmount: 50 }] },
+        { id: "e2", amount: 40, paidByUserId: "c1", splits: [{ userId: "d2", owedAmount: 40 }] },
+        { id: "e3", amount: 30, paidByUserId: "c1", splits: [{ userId: "d3", owedAmount: 30 }] },
+      ],
+      []
+    );
+
+    expect(suggestedSettlements).toHaveLength(3);
+    expect(suggestedSettlements[0]).toEqual({
+      fromUserId: "d1",
+      fromUsername: "D1",
+      toUserId: "c2",
+      toUsername: "C2",
+      amount: 50,
+    });
+
+    const netCents = balances.map((b) => Math.round(b.netBalance * 100));
+    expect(netCents.reduce((a, c) => a + c, 0)).toBe(0);
+  });
+
+  it("produces identical result when no exact pairs exist (fallback to greedy)", () => {
+    const { balances: b1, suggestedSettlements: s1 } = calculateBalancesAndSettlements(
+      members,
+      [
+        {
+          id: "e1",
+          amount: 120,
+          paidByUserId: "c1",
+          splits: [
+            { userId: "d1", owedAmount: 50 },
+            { userId: "d2", owedAmount: 40 },
+            { userId: "d3", owedAmount: 30 },
+          ],
+        },
+        { id: "e4", amount: 50, paidByUserId: "c2", splits: [{ userId: "d1", owedAmount: 50 }] },
+      ],
+      []
+    );
+    const { balances: b2, suggestedSettlements: s2 } = calculateBalancesAndSettlements(
+      members,
+      [
+        {
+          id: "e1",
+          amount: 120,
+          paidByUserId: "c1",
+          splits: [
+            { userId: "d1", owedAmount: 50 },
+            { userId: "d2", owedAmount: 40 },
+            { userId: "d3", owedAmount: 30 },
+          ],
+        },
+        { id: "e4", amount: 50, paidByUserId: "c2", splits: [{ userId: "d1", owedAmount: 50 }] },
+      ],
+      []
+    );
+    expect(s1.length).toBe(s2.length);
+    expect(s1).toEqual(s2);
+    expect(b1.map((x) => Math.round(x.netBalance * 100))).toEqual(
+      b2.map((x) => Math.round(x.netBalance * 100))
+    );
+  });
+
+  it("handles multiple identical pairs independently", () => {
+    const members2 = [
+      { id: "a1", username: "A1" },
+      { id: "a2", username: "A2" },
+      { id: "p1", username: "P1" },
+      { id: "p2", username: "P2" },
+    ];
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      members2,
+      [
+        { id: "e1", amount: 10, paidByUserId: "p1", splits: [{ userId: "a1", owedAmount: 10 }] },
+        { id: "e2", amount: 10, paidByUserId: "p2", splits: [{ userId: "a2", owedAmount: 10 }] },
+      ],
+      []
+    );
+    expect(suggestedSettlements).toHaveLength(2);
+    const cents = balances.map((b) => Math.round(b.netBalance * 100));
+    expect(cents.reduce((a, c) => a + c, 0)).toBe(0);
+  });
+
+  it("settles a debtor whose balance equals a subset of creditors (1↔many)", () => {
+    // D1 owes 150 = C1's 100 + C2's 50, so D1 can cover both in one block.
+    const { suggestedSettlements } = calculateBalancesAndSettlements(
+      members,
+      [
+        { id: "e1", amount: 100, paidByUserId: "c1", splits: [{ userId: "d1", owedAmount: 100 }] },
+        { id: "e2", amount: 50, paidByUserId: "c2", splits: [{ userId: "d1", owedAmount: 50 }] },
+      ],
+      []
+    );
+    expect(suggestedSettlements).toHaveLength(2);
+    expect(suggestedSettlements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fromUserId: "d1", toUserId: "c1", amount: 100 }),
+        expect.objectContaining({ fromUserId: "d1", toUserId: "c2", amount: 50 }),
+      ])
+    );
+  });
+
+  it("beats pure greedy when a creditor is covered by a subset of debtors", () => {
+    // Balances: debtors 1,1,2,3; creditors 3,4. Greedy fragments into 5
+    // transfers; the subset pass covers creditor 4 as 3+1 and creditor 3 as 3.
+    const sixMembers = [
+      { id: "d1", username: "D1" },
+      { id: "d2", username: "D2" },
+      { id: "d3", username: "D3" },
+      { id: "d4", username: "D4" },
+      { id: "c1", username: "C1" },
+      { id: "c2", username: "C2" },
+    ];
+    const expenses = [
+      // C1 paid 3 -> D4 owes C1 3
+      { id: "e1", amount: 3, paidByUserId: "c1", splits: [{ userId: "d4", owedAmount: 3 }] },
+      // C2 paid 4 -> D1 1, D2 1, D3 2
+      {
+        id: "e2",
+        amount: 4,
+        paidByUserId: "c2",
+        splits: [
+          { userId: "d1", owedAmount: 1 },
+          { userId: "d2", owedAmount: 1 },
+          { userId: "d3", owedAmount: 2 },
+        ],
+      },
+    ];
+
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      sixMembers,
+      expenses,
+      []
+    );
+
+    expect(suggestedSettlements).toHaveLength(4);
+    // C1's exact ₹3 pair with D4 is still taken.
+    expect(suggestedSettlements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fromUserId: "d4", toUserId: "c1", amount: 3 }),
+      ])
+    );
+    // And C2's ₹4 is covered by D3 (2), D1 (1) and D2 (1) as one block.
+    expect(suggestedSettlements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fromUserId: "d3", toUserId: "c2", amount: 2 }),
+        expect.objectContaining({ fromUserId: "d1", toUserId: "c2", amount: 1 }),
+        expect.objectContaining({ fromUserId: "d2", toUserId: "c2", amount: 1 }),
+      ])
+    );
+    expect(balances.map((b) => Math.round(b.netBalance * 100)).reduce((a, c) => a + c, 0)).toBe(0);
+  });
+
+  it("regression: exact-pair pass must not beat the pure-greedy baseline (CodeRabbit)", () => {
+    // Debtors 4,4,4,3 vs creditors 3,3,2,2,2,2,1 (₹, both sum to 15). Pure
+    // greedy settles in 8 transfers, but consuming a 3↔3 pair fragments the
+    // remainder into 9. The pure-greedy candidate must win, so the 8-transfer
+    // plan is kept instead of the worse pair/subset plans.
+    const debtors = [4, 4, 4, 3];
+    const creditors = [3, 3, 2, 2, 2, 2, 1];
+    const netCents = [...debtors.map((a) => -a * 100), ...creditors.map((a) => a * 100)];
+    const groupMembers = netCents.map((_, i) => ({ id: `m${i}`, username: `m${i}` }));
+    const settlements = netCents.map((amount, i) => ({
+      id: `s${i}`,
+      amount: Math.abs(amount) / 100,
+      paidByUserId: amount > 0 ? `m${i}` : "bank",
+      receivedByUserId: amount > 0 ? "bank" : `m${i}`,
+      status: "confirmed",
+    }));
+
+    const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
+      [...groupMembers, { id: "bank", username: "bank" }],
+      [],
+      settlements
+    );
+
+    expect(suggestedSettlements).toHaveLength(8);
+    expect(residualAfterSettlements(balances, suggestedSettlements).every((c) => c === 0)).toBe(
+      true
+    );
+
+    // Selection is deterministic: identical input yields an identical plan.
+    const second = calculateBalancesAndSettlements(
+      [...groupMembers, { id: "bank", username: "bank" }],
+      [],
+      settlements
+    );
+    expect(second.suggestedSettlements).toEqual(suggestedSettlements);
+  });
+
+  it("never produces more transactions than pure greedy (fuzz)", () => {
+    const fuzzMembers = Array.from({ length: 6 }, (_, i) => ({ id: `m${i}`, username: `m${i}` }));
+    let seed = 0xc0ffee;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 2 ** 32;
+    };
+
+    for (let round = 0; round < 300; round++) {
+      // Build arbitrary integer-cent debtor/creditor weights via settlements.
+      const settlements: {
+        id: string;
+        amount: number;
+        paidByUserId: string;
+        receivedByUserId: string;
+        status: string;
+      }[] = [];
+      const bank = { id: "bank", username: "bank" };
+      let id = 0;
+      for (const m of fuzzMembers) {
+        if (rand() < 0.5) {
+          // m is a creditor: bank paid, m received (owed increases => net negative),
+          // so instead make bank receive from m to push m positive.
+          settlements.push({
+            id: `s${id++}`,
+            // Wide value range deliberately includes values where exact-pair
+            // matching fragments the remainder and beats nothing (the class of
+            // regression CodeRabbit caught: debtors 4,4,4,3 / creditors
+            // 3,3,2,2,2,2,1), so the pure-greedy baseline guard stays exercised.
+            amount: 1 + Math.floor(rand() * 25),
+            paidByUserId: m.id,
+            receivedByUserId: bank.id,
+            status: "confirmed",
+          });
+        } else {
+          settlements.push({
+            id: `s${id++}`,
+            amount: 1 + Math.floor(rand() * 25),
+            paidByUserId: bank.id,
+            receivedByUserId: m.id,
+            status: "confirmed",
+          });
+        }
+      }
+
+      const result = calculateBalancesAndSettlements([bank, ...fuzzMembers], [], settlements);
+      const plan = result.suggestedSettlements.length;
+
+      // Reference pure greedy over the same non-zero balances.
+      const debtors = result.balances
+        .filter((b) => Math.round(b.netBalance * 100) < 0)
+        .map((b) => -Math.round(b.netBalance * 100))
+        .sort((a, b) => b - a);
+      const creditors = result.balances
+        .filter((b) => Math.round(b.netBalance * 100) > 0)
+        .map((b) => Math.round(b.netBalance * 100))
+        .sort((a, b) => b - a);
+      let di = 0;
+      let ci = 0;
+      let greedy = 0;
+      while (di < debtors.length && ci < creditors.length) {
+        const pay = Math.min(debtors[di], creditors[ci]);
+        debtors[di] -= pay;
+        creditors[ci] -= pay;
+        greedy++;
+        if (debtors[di] === 0) di++;
+        if (creditors[ci] === 0) ci++;
+      }
+
+      expect(plan).toBeLessThanOrEqual(greedy);
+
+      const residual = new Map(
+        result.balances.map((b) => [b.userId, Math.round(b.netBalance * 100)])
+      );
+      for (const s of result.suggestedSettlements) {
+        residual.set(s.fromUserId, (residual.get(s.fromUserId) ?? 0) + Math.round(s.amount * 100));
+        residual.set(s.toUserId, (residual.get(s.toUserId) ?? 0) - Math.round(s.amount * 100));
+      }
+      for (const v of residual.values()) expect(v).toBe(0);
+    }
+  });
+});
