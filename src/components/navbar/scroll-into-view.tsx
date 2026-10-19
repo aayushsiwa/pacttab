@@ -5,8 +5,9 @@ import { ArrowDown } from "lucide-react";
 
 export function ScrollToSection() {
   const scrollToSection = () => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     document.getElementById("how-it-works")?.scrollIntoView({
-      behavior: "smooth",
+      behavior: reduceMotion ? "auto" : "smooth",
       block: "start",
     });
   };

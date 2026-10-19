@@ -188,7 +188,8 @@ export function GroupDemo() {
 
   const demoActions = useMemo<DemoActions>(
     () => ({
-      sendMessage: (data) =>
+      sendMessage: (data) => {
+        setPaused(true);
         setMessages((prev) => [
           ...prev,
           {
@@ -199,8 +200,10 @@ export function GroupDemo() {
             authorId: currentUserId,
             authorUsername: currentUsername,
           },
-        ]),
+        ]);
+      },
       createExpense: (input) => {
+        setPaused(true);
         const id = `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         setExpenses((prev) => [
           {
