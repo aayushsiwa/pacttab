@@ -24,7 +24,7 @@ import { IconTile } from "@/components/shared/icon-tile";
 import { StatusPill } from "@/components/shared/status-pill";
 import { exportExpensesToCsv } from "@/lib/export-csv";
 
-interface ExpenseItem {
+export interface ExpenseItem {
   id: string;
   description: string;
   amount: string | number;
@@ -200,10 +200,11 @@ export function ExpensesView({
 
                         <span
                           className="flex items-center gap-1.5"
+                          suppressHydrationWarning
                           title={formatDate(exp.expenseDate)}
                         >
                           <Calendar className="text-muted-foreground h-3.5 w-3.5" />
-                          <span>{formatRelativeTime(exp.createdAt)}</span>
+                          <span suppressHydrationWarning>{formatRelativeTime(exp.createdAt)}</span>
                         </span>
                       </div>
 

@@ -26,6 +26,8 @@ interface ChatViewProps {
   members: Member[];
   initialMessages: ChatMessage[];
   onUnreadChange?: (count: number) => void;
+  /** When false, the WebSocket stays closed and no background sync runs (e.g. static previews). Defaults to true. */
+  enableRealtime?: boolean;
 }
 
 export function ChatView({
@@ -35,6 +37,7 @@ export function ChatView({
   members,
   initialMessages,
   onUnreadChange,
+  enableRealtime = true,
 }: ChatViewProps) {
   const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
@@ -93,6 +96,7 @@ export function ChatView({
     userId: currentUserId,
     currentUsername,
     onNewMessage: handleNewMessage,
+    enabled: enableRealtime,
   });
 
   // Combine initialMessages with realtimeMessages, deduplicated by ID
@@ -138,20 +142,23 @@ export function ChatView({
     return () => clearTimeout(timer);
   }, [lastReadTimestamp, unreadCount, markAllAsRead]);
 
-  // Scroll to bottom on updates
+  // Scroll the chat pane to the bottom on updates (only the pane, never the page)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesEndRef.current?.parentElement;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
   }, [messages.length]);
 
   // Fallback background sync (every 15s) in case socket reconnects
   useEffect(() => {
+    if (!enableRealtime) return;
     const interval = setInterval(() => {
       if (!isConnected) {
         queryClient.invalidateQueries();
       }
     }, 15000);
     return () => clearInterval(interval);
-  }, [isConnected, queryClient]);
+  }, [isConnected, queryClient, enableRealtime]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -290,7 +297,15 @@ export function ChatView({
             </button>
           )}
 
-          {isConnected ? (
+          {!enableRealtime ? (
+            <Badge
+              variant="outline"
+              className="text-muted-foreground gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>Preview</span>
+            </Badge>
+          ) : isConnected ? (
             <Badge
               variant="outline"
               className="gap-1.5 rounded-full border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
@@ -354,6 +369,7 @@ export function ChatView({
                       <span className="truncate">{msg.body}</span>
                       <span
                         className="shrink-0 text-[10px] opacity-60"
+                        suppressHydrationWarning
                         title={formatTime(msg.createdAt)}
                       >
                         • {formatRelativeTime(msg.createdAt)}
@@ -407,7 +423,7 @@ export function ChatView({
                           isMe ? "text-primary-foreground/75" : "text-muted-foreground"
                         }`}
                       >
-                        <span title={formatTime(msg.createdAt)}>
+                        <span suppressHydrationWarning title={formatTime(msg.createdAt)}>
                           {formatRelativeTime(msg.createdAt)}
                         </span>
                         {isMe && <CheckCheck className="inline h-3 w-3 opacity-70" />}

@@ -11,6 +11,7 @@
     "format:check": "oxfmt --check",
     "db:init": "tsx scripts/init-db.ts",
     "db:migrate": "tsx scripts/init-db.ts",
+    "db:init:test": "ENV_FILE=.env.test tsx scripts/init-db.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "test": "vitest run",

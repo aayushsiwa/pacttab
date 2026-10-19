@@ -34,7 +34,7 @@ Existing expense-splitting applications often demand email addresses, phone numb
 - 💬 **Real-Time Group Chat & @Mentions**: In-group discussion with instant WebSocket message broadcasting, user mention autocomplete (`@username`), and contextual notification pills.
 - 🔗 **Configurable Invite Links**: Create custom invite links with optional expiration dates, maximum use caps, custom slug tokens, and require-admin-approval toggles.
 - 👥 **Join Request Queue & Admin Notifications**: Admins receive a real-time notification indicator for pending group join requests, with the ability to approve or decline requesters.
-- 💰 **Flexible Expense Tracking**: Add expenses with equal splits or custom exact per-person amounts. Edit or remove expenses with live balance recomputations.
+- 💰 **Flexible Expense Tracking**: Add expenses split equally, by exact per-person amounts, by percentage, or by custom shares. Edit or remove expenses with live balance recomputations.
 - ⚖️ **Optimal Balance Settlement**: Automatically computes net balances and debt-simplification settlement suggestions.
 - 🤝 **Settlement Affirmation Workflow**: When a member records a settlement payment, the recipient can affirm or dispute the transaction.
 - 📱 **Installable Progressive Web App (PWA)**: Includes an offline fallback shell, web app manifest, and responsive mobile-first UI for desktop and mobile devices.

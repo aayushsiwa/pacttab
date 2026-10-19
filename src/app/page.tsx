@@ -2,15 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { GradientTile } from "@/components/shared/gradient-tile";
 import { FeatureCard } from "@/components/shared/feature-card";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { StatusPill } from "@/components/shared/status-pill";
-import { PingIndicator } from "@/components/shared/ping-indicator";
 import {
-  ArrowRight,
   Lock,
   Split,
   MessageSquare,
@@ -27,7 +24,12 @@ import {
   CalendarDays,
   Gift,
   Coins,
+  UserPlus,
+  ShieldCheck,
+  Smartphone,
 } from "lucide-react";
+import { ScrollToSection } from "@/components/navbar/scroll-into-view";
+import { GroupDemo } from "@/components/group/group-demo";
 
 const useCases = [
   { icon: Utensils, label: "Dinners" },
@@ -41,7 +43,7 @@ const compareRows = [
   {
     ours: [
       "Sign-up that respects you",
-      "Use a handle + password with no email or phone required. Planned Google and GitHub sign-in will be optional for people who prefer them.",
+      "Use a handle + password with no email or phone required. Google and GitHub sign-in are optional where enabled—never required.",
     ],
     theirs: [
       "Email verification, often a phone number.",
@@ -93,21 +95,21 @@ const steps = [
     step: "01",
     title: "Create a closed circle",
     description:
-      "Form a group, share a link with a password. No contacts to upload, no invites to await — just your people.",
+      "Invite people by username straight into a private inbox, or share a link with optional expiry, use caps, and admin approval. No contacts to upload.",
   },
   {
     icon: Receipt,
     step: "02",
     title: "Track every bill",
     description:
-      "Add expenses split equally, by amount, or by your own weights. The algorithm nets everyone's balance to the minimum transfers.",
+      "Add expenses split equally, by exact amounts, by percentage, or by custom shares. The algorithm nets everyone's balance to the minimum transfers.",
   },
   {
     icon: Handshake,
     step: "03",
     title: "Settle up in one tap",
     description:
-      "Get the cleanest debt-settlement plan and coordinate payments in a real-time chat that lives right next to the numbers.",
+      "Get the cleanest debt-settlement plan, then let the recipient affirm or dispute each payment—with the chat living right next to the numbers.",
   },
 ];
 
@@ -138,35 +140,21 @@ export default async function HomePage() {
 
         <h1 className="text-foreground max-w-3xl text-4xl leading-[1.15] font-black tracking-tight sm:text-5xl md:text-6xl">
           Split expenses & chat with friends in{" "}
-          <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
             closed circles.
           </span>
         </h1>
 
         <p className="text-muted-foreground mt-5 max-w-xl text-base leading-relaxed sm:text-lg">
-          For trips, flatmates, and dinners. Use a private PactTab handle—or, when optional Google
-          and GitHub sign-in arrives, connect a provider only if you&apos;re comfortable. No
-          contacts uploaded and no tracking.
+          For trips, flatmates, and dinners. Sign up with a private PactTab handle—or use Google or
+          GitHub where enabled. No contacts uploaded, no email or phone required, and no ad
+          tracking.
         </p>
 
         <div className="mt-8 flex w-full max-w-xs flex-col justify-center gap-3.5 sm:max-w-md sm:flex-row">
-          <Link href="/signup" className="w-full sm:w-auto">
-            <Button
-              size="lg"
-              className="bg-foreground text-background hover:bg-foreground/90 h-12 w-full gap-2 rounded-xl px-6 font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Create an Account <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link href="#how-it-works" className="w-full sm:w-auto">
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-border/80 hover:bg-muted/60 h-12 w-full rounded-xl px-6 font-semibold transition-all active:scale-[0.98]"
-            >
-              How it works
-            </Button>
-          </Link>
+          <div className="w-full sm:w-auto">
+            <ScrollToSection />
+          </div>
         </div>
 
         <div className="mt-5 flex flex-col items-center gap-2">
@@ -182,95 +170,18 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Hero Visual Showcase Mockup */}
+      {/* Hero Visual Showcase — real group UI */}
       <section className="container max-w-3xl px-4 pb-12">
-        <div className="border-border/80 bg-card/80 relative rounded-2xl border p-4 shadow-lg backdrop-blur-sm sm:p-6">
-          {/* Mock Header */}
-          <div className="border-border/60 mb-4 flex items-center justify-between border-b pb-3">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <GradientTile
-                  size="md"
-                  gradient="from-emerald-600 to-teal-600"
-                  weight="bold"
-                  className="shadow-2xs"
-                >
-                  🌴
-                </GradientTile>
-                <PingIndicator title="New unread activity" />
-              </div>
-              <div className="text-left">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-foreground text-sm font-bold sm:text-base">
-                    Goa Road Trip 2026
-                  </h3>
-                  <StatusPill dot>Live</StatusPill>
-                </div>
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <div className="flex -space-x-1.5 overflow-hidden">
-                    <UserAvatar username="maya" size="xs" className="border-background h-4 w-4" />
-                    <UserAvatar username="arjun" size="xs" className="border-background h-4 w-4" />
-                    <UserAvatar username="rohit" size="xs" className="border-background h-4 w-4" />
-                  </div>
-                  <p className="text-muted-foreground text-[11px]">
-                    3 members • @maya (admin), @arjun, @rohit
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-right">
-              <span className="text-muted-foreground block text-[11px] font-semibold tracking-wider uppercase">
-                Total Spent
-              </span>
-              <span className="text-foreground text-base font-black sm:text-lg">₹4,850.00</span>
-            </div>
-          </div>
-
-          {/* Mock Content Rows */}
-          <div className="mb-4 grid grid-cols-1 gap-3 text-left sm:grid-cols-2">
-            {/* Recent Expense Card */}
-            <div className="border-border/60 bg-muted/30 flex items-center justify-between rounded-xl border p-3">
-              <div>
-                <div className="text-foreground text-xs font-bold">Beach Shack Seafood</div>
-                <div className="text-muted-foreground text-[11px]">
-                  Paid by @maya • Split equally
-                </div>
-              </div>
-              <span className="text-foreground text-sm font-extrabold">₹1,800</span>
-            </div>
-
-            {/* Balances Card */}
-            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
-              <div>
-                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                  Suggested Settle
-                </div>
-                <div className="text-muted-foreground text-[11px]">@arjun pays @maya</div>
-              </div>
-              <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                ₹600.00
-              </span>
-            </div>
-          </div>
-
-          {/* Mock Chat Pill */}
-          <div className="border-border/60 bg-muted/40 flex items-center justify-between gap-3 rounded-xl border p-3 text-left">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-[11px] font-bold text-white">
-                A
-              </span>
-              <p className="text-foreground truncate text-xs">
-                <strong className="font-semibold">@arjun:</strong> Sent ₹600 via UPI{" "}
-                <span className="rounded-xs bg-amber-500/20 px-1 font-bold text-amber-900 dark:text-amber-200">
-                  @maya
-                </span>
-                ! Let’s head to dinner 🍕
-              </p>
-            </div>
-            <span className="text-muted-foreground shrink-0 text-[10px]">Just now</span>
-          </div>
+        <div className="mb-4 flex items-center justify-center gap-2">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          <h2 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+            Live Preview
+          </h2>
         </div>
+        <p className="text-muted-foreground mb-4 text-center text-[10px] font-semibold tracking-wide">
+          Autoplay demo — all actions run locally, nothing is saved. Click a tab to take control.
+        </p>
+        <GroupDemo />
       </section>
 
       {/* Built For Use-Cases */}
@@ -292,36 +203,27 @@ export default async function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="scroll-mt-24">
-        <div className="container mb-16 max-w-5xl px-4 py-8">
+      <section id="how-it-works" className="container mb-16 max-w-5xl scroll-mt-24 px-4">
+        <div className="container max-w-5xl px-4">
           <SectionHeading
             className="mb-10"
             eyebrow="How it works"
             title="From awkward IOUs to"
             accent="settled in seconds."
           />
+        </div>
 
-          <div className="relative grid grid-cols-1 gap-6 text-left md:grid-cols-3">
-            {steps.map(({ icon: Icon, step, title, description }) => (
-              <Card
-                key={step}
-                className="border-border/80 bg-card/70 rounded-2xl border shadow-xs transition-all hover:-translate-y-1 hover:border-emerald-500/40 hover:shadow-md"
-              >
-                <CardHeader className="p-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <GradientTile size="lg" gradient="from-emerald-600 to-teal-600">
-                      <Icon className="h-5 w-5" />
-                    </GradientTile>
-                    <span className="text-foreground/30 font-mono text-lg font-black">{step}</span>
-                  </div>
-                  <CardTitle className="text-lg font-bold">{title}</CardTitle>
-                  <CardDescription className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
-                    {description}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+        <div className="relative grid grid-cols-1 gap-6 text-left md:grid-cols-3">
+          {steps.map(({ icon: Icon, step, title, description }) => (
+            <FeatureCard
+              key={step}
+              icon={Icon}
+              tone="emerald"
+              title={title}
+              description={description}
+              hoverTone="teal"
+            />
+          ))}
         </div>
       </section>
 
@@ -338,7 +240,7 @@ export default async function HomePage() {
             icon={Lock}
             tone="emerald"
             title="Privacy-First Sign-In"
-            description="Use only a handle and password—no email or phone required. Planned Google and GitHub sign-in will be optional, never required."
+            description="Use only a handle and password—no email or phone required. Google and GitHub sign-in are optional where enabled, never required."
           />
 
           <FeatureCard
@@ -353,6 +255,39 @@ export default async function HomePage() {
             tone="indigo"
             title="Real-Time Chat & @Mentions"
             description="Discuss plans, tag group members with autocomplete @mentions, and see financial updates live via WebSockets."
+          />
+        </div>
+      </section>
+
+      {/* Built for Real Groups */}
+      <section className="container mb-16 max-w-5xl px-4 py-8">
+        <SectionHeading
+          className="mb-10"
+          title="Built for real groups,"
+          accent="not contact books."
+          subtitle="Everything a shared wallet needs, without turning your friends into a data set."
+        />
+
+        <div className="grid grid-cols-1 gap-6 text-left md:grid-cols-3">
+          <FeatureCard
+            icon={UserPlus}
+            tone="emerald"
+            title="Invite by Username"
+            description="Send a direct invite to someone's handle. It lands in their private inbox—no phone contacts, no address book uploads, ever."
+          />
+
+          <FeatureCard
+            icon={ShieldCheck}
+            tone="teal"
+            title="You Control the Door"
+            description="Shareable invites can expire, cap their uses, and require admin approval. Approve or decline every join request from one queue."
+          />
+
+          <FeatureCard
+            icon={Smartphone}
+            tone="indigo"
+            title="Installable, Works Offline"
+            description="Add PactTab to your home screen as a PWA. An offline shell keeps the app usable even when the signal drops."
           />
         </div>
       </section>
@@ -454,14 +389,14 @@ export default async function HomePage() {
             icon={KeyRound}
             tone="teal"
             title="Encrypted Access, Not Emails"
-            description="Invite members with a shareable link and a password. No contacts are uploaded, and optional Google or GitHub sign-in never becomes a group identity."
+            description="Invite members by username or with a configurable shareable link. No contacts are uploaded, and optional Google or GitHub sign-in where enabled never becomes a group identity."
           />
 
           <FeatureCard
             icon={EyeOff}
             tone="indigo"
-            title="Zero Tracking, Zero Dark Patterns"
-            description="No analytics scripts, no cookies, no fingerprinting. If you delete your account, everything goes with you — for real."
+            title="No Dark Patterns, No Data Resale"
+            description="No ad trackers, no fingerprinting, no data resale—only anonymous, cookie-free performance metrics. Delete your account and everything goes with you, for real."
           />
         </div>
       </section>
@@ -477,18 +412,10 @@ export default async function HomePage() {
             </span>
           </h2>
           <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm leading-relaxed sm:text-base">
-            No contacts to upload. No email required. When optional Google or GitHub sign-in
-            arrives, choose it only if you&apos;re comfortable—then keep the focus on your people.
+            No contacts to upload. No email required. Sign in with a handle, or with Google or
+            GitHub where enabled—then keep the focus on your people.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3.5 sm:flex-row">
-            <Link href="/signup">
-              <Button
-                size="lg"
-                className="bg-foreground text-background hover:bg-foreground/90 h-12 w-full gap-2 rounded-xl px-7 font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] sm:w-auto"
-              >
-                Create an Account <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
             <a
               href="https://github.com/aayushsiwa/pacttab"
               target="_blank"
@@ -524,37 +451,17 @@ export default async function HomePage() {
             </div>
 
             <div className="flex flex-col items-center gap-2 sm:items-end">
-              <ul className="flex items-center gap-5">
-                <li>
-                  <Link
-                    href="/signup"
-                    className="text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
-                  >
-                    Sign up
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/login"
-                    className="text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
-                  >
-                    Sign in
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="https://github.com/aayushsiwa/pacttab"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs font-semibold transition-colors"
-                  >
-                    {githubMark}
-                    GitHub
-                  </a>
-                </li>
-              </ul>
+              <a
+                href="https://github.com/aayushsiwa/pacttab"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs font-semibold transition-colors"
+              >
+                {githubMark}
+                GitHub
+              </a>
               <p className="text-muted-foreground mt-2 text-[11px]">
-                © {copyrightYear} PactTab • No cookies. No trackers. Ever.
+                © {copyrightYear} PactTab • No ad trackers. No data resale. Ever.
               </p>
             </div>
           </div>

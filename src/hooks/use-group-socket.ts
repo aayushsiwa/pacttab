@@ -20,6 +20,8 @@ interface UseGroupSocketOptions {
   userId: string;
   currentUsername?: string;
   onNewMessage?: (msg: ChatMessage) => void;
+  /** When false, no WebSocket connection is opened (e.g. static previews). Defaults to true. */
+  enabled?: boolean;
 }
 
 export function useGroupSocket({
@@ -27,6 +29,7 @@ export function useGroupSocket({
   userId,
   currentUsername,
   onNewMessage,
+  enabled = true,
 }: UseGroupSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -43,7 +46,7 @@ export function useGroupSocket({
   }, [currentUsername]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") return;
 
     let isMounted = true;
     let ws: WebSocket | null = null;
@@ -180,7 +183,7 @@ export function useGroupSocket({
       if (ws) ws.close();
       wsRef.current = null;
     };
-  }, [groupId, userId, queryClient]);
+  }, [groupId, userId, queryClient, enabled]);
 
   const sendWsMessage = useCallback(
     (body: string) => {
