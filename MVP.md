@@ -62,7 +62,8 @@ The MVP should let a group go from creation to a settled balance in a few minute
   - Member: chats, adds expenses, and records settlements
 - Only group members can view its messages, expenses, and balances
 - Groups are not publicly searchable
-- Leaving requires an exactly zero balance. An admin must promote another active member to admin before leaving; the last active admin cannot leave at all — deleting the group is the only way to close it
+- Leaving requires an exactly zero balance. An admin must make sure another active admin exists before leaving; an admin who is the only active member cannot leave at all — deleting the group is the only way to close it
+- A group holds at most one active admin; transferring admin rights hands the role over in one step
 
 ### Invites and join approval
 

@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
+import { hasOtherActiveAdmin, otherActiveMembers } from "@/lib/group-membership";
 import {
   Settings,
   ShieldAlert,
@@ -65,10 +66,13 @@ export function GroupSettingsDialog({
   const router = useRouter();
   const isAdmin = currentUserRole === "admin";
   const otherMembers = members.filter((m) => m.id !== currentUserId);
-  const isOnlyActiveMember = isAdmin && otherMembers.length === 0;
+  const isOnlyActiveMember = isAdmin && otherActiveMembers(members, currentUserId).length === 0;
 
   const hasUnsettledBalance = Math.abs(userNetBalance) > 0.01;
-  const needsAnotherAdmin = isAdmin && otherMembers.length > 0;
+  // Another active admin means the group keeps an admin, so the leave gate
+  // does not apply.
+  const needsAnotherAdmin =
+    isAdmin && !isOnlyActiveMember && !hasOtherActiveAdmin(members, currentUserId);
   const isBlockedFromLeaving = hasUnsettledBalance || needsAnotherAdmin;
 
   const updateGroup = useUpdateGroup();
@@ -228,8 +232,9 @@ export function GroupSettingsDialog({
                     <span>Promote Another Admin</span>
                   </h3>
                   <p className="text-muted-foreground mt-0.5 text-[11px]">
-                    Make another active member the group administrator. You will become a regular
-                    member, and only then can you leave the group.
+                    {needsAnotherAdmin
+                      ? "Make another active member the group administrator. You will become a regular member, and only then can you leave the group."
+                      : "Hand the group administrator role to another active member. You will become a regular member."}
                   </p>
                 </div>
 

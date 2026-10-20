@@ -15,6 +15,7 @@ import {
   users,
 } from "@/db/schema";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
+import { hasOtherActiveAdmin, otherActiveMembers } from "@/lib/group-membership";
 import { broadcastWsEvent } from "@/lib/ws-hub";
 import { groupDetailsSchema, directInviteSchema } from "@/lib/group-validation";
 import type { ApiUser } from "@/lib/api-auth";
@@ -1116,44 +1117,61 @@ export async function reviewJoinRequest(
   }
 }
 
+class TransferAdminBlocked extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+  }
+}
+
 export async function transferAdmin(
   user: ApiUser,
   groupId: string,
   newAdminUserId: string
 ): Promise<GroupActionResult> {
-  const [membership] = await db
-    .select({ role: groupMembers.role, id: groupMembers.id })
-    .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
-    .limit(1);
-
-  if (!membership || membership.role !== "admin") {
-    return {
-      success: false,
-      error: "Only the current group admin can transfer admin rights",
-      status: 403,
-    };
-  }
-
-  const [targetMember] = await db
-    .select({ id: groupMembers.id, username: users.username })
-    .from(groupMembers)
-    .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(
-      and(
-        eq(groupMembers.groupId, groupId),
-        eq(groupMembers.userId, newAdminUserId),
-        eq(groupMembers.status, "active")
-      )
-    )
-    .limit(1);
-
-  if (!targetMember) {
-    return { success: false, error: "Target member not found in this group", status: 404 };
-  }
-
   try {
     await db.transaction(async (tx) => {
+      // Serialize with leaveGroup, confirmSettlement and any concurrent
+      // transfer, so two transfers can never both hand over the admin role.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${groupId}))`);
+
+      const [membership] = await tx
+        .select({ role: groupMembers.role, id: groupMembers.id })
+        .from(groupMembers)
+        .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
+        .limit(1);
+
+      if (!membership || membership.role !== "admin") {
+        throw new TransferAdminBlocked(
+          "Only the current group admin can transfer admin rights",
+          403
+        );
+      }
+
+      if (newAdminUserId === user.id) {
+        throw new TransferAdminBlocked("You are already the group admin", 400);
+      }
+
+      const [targetMember] = await tx
+        .select({ id: groupMembers.id, username: users.username })
+        .from(groupMembers)
+        .innerJoin(users, eq(groupMembers.userId, users.id))
+        .where(
+          and(
+            eq(groupMembers.groupId, groupId),
+            eq(groupMembers.userId, newAdminUserId),
+            eq(groupMembers.status, "active")
+          )
+        )
+        .limit(1);
+
+      if (!targetMember) {
+        throw new TransferAdminBlocked("Target member not found in this group", 404);
+      }
+
+      // Demote before promoting: the group holds at most one active admin.
       await tx
         .update(groupMembers)
         .set({ role: "member" })
@@ -1192,6 +1210,9 @@ export async function transferAdmin(
 
     return { success: true };
   } catch (error) {
+    if (error instanceof TransferAdminBlocked) {
+      return { success: false, error: error.message, status: error.status };
+    }
     console.error("Failed to transfer admin rights:", error);
     return { success: false, error: "Failed to transfer admin rights", status: 500 };
   }
@@ -1247,7 +1268,12 @@ export async function leaveGroup(user: ApiUser, groupId: string): Promise<GroupA
       }
 
       const allMembers = await tx
-        .select({ id: users.id, username: users.username, status: groupMembers.status })
+        .select({
+          id: users.id,
+          username: users.username,
+          role: groupMembers.role,
+          status: groupMembers.status,
+        })
         .from(groupMembers)
         .innerJoin(users, eq(groupMembers.userId, users.id))
         .where(eq(groupMembers.groupId, groupId));
@@ -1324,21 +1350,21 @@ export async function leaveGroup(user: ApiUser, groupId: string): Promise<GroupA
       }
 
       if (current.role === "admin") {
-        const otherActiveMembers = allMembers.filter(
-          (m) => m.status === "active" && m.id !== user.id
-        );
-        if (otherActiveMembers.length === 0) {
+        const otherMembers = otherActiveMembers(allMembers, user.id);
+        if (otherMembers.length === 0) {
           throw new LeaveGroupBlocked({
             success: false,
             error:
               "You are the only active member of this group. Delete the group instead of leaving it.",
           });
         }
-        throw new LeaveGroupBlocked({
-          success: false,
-          error:
-            "As the group admin, promote another member to admin before you can leave. You can do that in Group Settings.",
-        });
+        if (!hasOtherActiveAdmin(allMembers, user.id)) {
+          throw new LeaveGroupBlocked({
+            success: false,
+            error:
+              "As the group admin, promote another member to admin before you can leave. You can do that in Group Settings.",
+          });
+        }
       }
 
       // Pending settlements cannot be confirmed once a party is inactive, so
