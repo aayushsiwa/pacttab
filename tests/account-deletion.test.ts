@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import crypto from "crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../src/db";
 import {
   accounts,
@@ -172,5 +172,157 @@ describe("account deletion preserves shared history", () => {
 
     await db.delete(accounts).where(eq(accounts.userId, other.id));
     await db.delete(users).where(eq(users.id, other.id));
+  });
+});
+
+describe("account deletion validates balances inside the transaction", () => {
+  const lockUser = { id: crypto.randomUUID(), username: `fd_lock_${testRunId}` };
+  const owedUser = { id: crypto.randomUUID(), username: `fd_owed_${testRunId}` };
+  const peer = { id: crypto.randomUUID(), username: `fd_peer_${testRunId}` };
+  const lockGroupId = crypto.randomUUID();
+  const owedGroupId = crypto.randomUUID();
+  const owedExpenseId = crypto.randomUUID();
+
+  beforeAll(async () => {
+    await db.insert(users).values([lockUser, owedUser, peer]);
+
+    const passwordHash = await hashPassword(memberPassword);
+    await db.insert(accounts).values([
+      {
+        id: crypto.randomUUID(),
+        accountId: lockUser.id,
+        providerId: "credential",
+        userId: lockUser.id,
+        password: passwordHash,
+      },
+      {
+        id: crypto.randomUUID(),
+        accountId: owedUser.id,
+        providerId: "credential",
+        userId: owedUser.id,
+        password: passwordHash,
+      },
+    ]);
+
+    await db.insert(groups).values([
+      { id: lockGroupId, name: `Lock Group ${testRunId}`, createdBy: lockUser.id },
+      { id: owedGroupId, name: `Owed Group ${testRunId}`, createdBy: owedUser.id },
+    ]);
+
+    await db.insert(groupMembers).values([
+      {
+        id: crypto.randomUUID(),
+        groupId: lockGroupId,
+        userId: lockUser.id,
+        role: "admin",
+        status: "active",
+      },
+      {
+        id: crypto.randomUUID(),
+        groupId: owedGroupId,
+        userId: owedUser.id,
+        role: "admin",
+        status: "active",
+      },
+      {
+        id: crypto.randomUUID(),
+        groupId: owedGroupId,
+        userId: peer.id,
+        role: "member",
+        status: "active",
+      },
+    ]);
+
+    // The owed user paid for an expense they only half share, so they are owed money.
+    await db.insert(expenses).values({
+      id: owedExpenseId,
+      groupId: owedGroupId,
+      description: "Dinner",
+      amount: "100.00",
+      paidByUserId: owedUser.id,
+      createdBy: owedUser.id,
+    });
+    await db.insert(expenseSplits).values({
+      id: crypto.randomUUID(),
+      expenseId: owedExpenseId,
+      userId: owedUser.id,
+      owedAmount: "50.00",
+    });
+    await db.insert(expenseSplits).values({
+      id: crypto.randomUUID(),
+      expenseId: owedExpenseId,
+      userId: peer.id,
+      owedAmount: "50.00",
+    });
+  });
+
+  afterAll(async () => {
+    await db.delete(settlements).where(eq(settlements.groupId, owedGroupId));
+    await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, owedExpenseId));
+    await db.delete(expenses).where(eq(expenses.groupId, owedGroupId));
+    await db.delete(groupMembers).where(eq(groupMembers.groupId, lockGroupId));
+    await db.delete(groupMembers).where(eq(groupMembers.groupId, owedGroupId));
+    await db.delete(groups).where(eq(groups.id, lockGroupId));
+    await db.delete(groups).where(eq(groups.id, owedGroupId));
+    await db.delete(accounts).where(eq(accounts.userId, lockUser.id));
+    await db.delete(accounts).where(eq(accounts.userId, owedUser.id));
+    await db.delete(users).where(eq(users.id, lockUser.id));
+    await db.delete(users).where(eq(users.id, owedUser.id));
+    await db.delete(users).where(eq(users.id, peer.id));
+  });
+
+  it("rejects deletion when the user is owed money and names the group", async () => {
+    process.env.TEST_CURRENT_USER_ID = owedUser.id;
+    let result;
+    try {
+      result = await deleteUserAccount({ password: memberPassword });
+    } finally {
+      delete process.env.TEST_CURRENT_USER_ID;
+    }
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/unsettled balances/i);
+      expect(result.error).toContain(`Owed Group ${testRunId}`);
+      expect(result.error).toMatch(/you are owed/i);
+    }
+
+    const [row] = await db.select().from(users).where(eq(users.id, owedUser.id));
+    expect(row.username).toBe(owedUser.username);
+  });
+
+  it("waits for the group advisory lock before validating balances", async () => {
+    let releaseLock = () => {};
+    const lockHeld = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    const holder = db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockGroupId}))`);
+      await lockHeld;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    process.env.TEST_CURRENT_USER_ID = lockUser.id;
+    let settled = false;
+    const deletion = deleteUserAccount({ password: memberPassword }).then((result) => {
+      settled = true;
+      return result;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(settled).toBe(false);
+
+    releaseLock();
+    await holder;
+
+    const result = await deletion;
+    delete process.env.TEST_CURRENT_USER_ID;
+
+    expect(result.ok).toBe(true);
+
+    const [row] = await db.select().from(users).where(eq(users.id, lockUser.id));
+    expect(row.username).toMatch(/^deleted_/);
   });
 });

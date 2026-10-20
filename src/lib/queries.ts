@@ -432,11 +432,21 @@ export interface UnsettledGroup {
 }
 
 /**
+ * A Drizzle transaction that can read the group ledger. The balance check runs
+ * inside the caller's transaction so it can hold the group advisory locks
+ * while it reads, and never race a leave or a settlement confirmation.
+ */
+export type LedgerClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
  * Lists active groups where the user still owes or is owed money. Used to block
  * account deletion so a hard delete can never rewrite other members' history.
  */
-export async function getUserUnsettledGroups(userId: string): Promise<UnsettledGroup[]> {
-  const memberships = await db
+export async function getUserUnsettledGroups(
+  userId: string,
+  client: LedgerClient
+): Promise<UnsettledGroup[]> {
+  const memberships = await client
     .select({ groupId: groupMembers.groupId, groupName: groups.name })
     .from(groupMembers)
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
@@ -445,13 +455,13 @@ export async function getUserUnsettledGroups(userId: string): Promise<UnsettledG
   const unsettled: UnsettledGroup[] = [];
 
   for (const membership of memberships) {
-    const allMembers = await db
+    const allMembers = await client
       .select({ id: users.id, username: users.username, status: groupMembers.status })
       .from(groupMembers)
       .innerJoin(users, eq(groupMembers.userId, users.id))
       .where(eq(groupMembers.groupId, membership.groupId));
 
-    const rawExpenses = await db
+    const rawExpenses = await client
       .select({ id: expenses.id, amount: expenses.amount, paidByUserId: expenses.paidByUserId })
       .from(expenses)
       .where(eq(expenses.groupId, membership.groupId));
@@ -459,7 +469,7 @@ export async function getUserUnsettledGroups(userId: string): Promise<UnsettledG
     const expenseIds = rawExpenses.map((e) => e.id);
     const splits =
       expenseIds.length > 0
-        ? await db
+        ? await client
             .select({
               expenseId: expenseSplits.expenseId,
               userId: expenseSplits.userId,
@@ -476,7 +486,7 @@ export async function getUserUnsettledGroups(userId: string): Promise<UnsettledG
       splitsByExpenseId.set(split.expenseId, list);
     }
 
-    const rawSettlements = await db
+    const rawSettlements = await client
       .select({
         id: settlements.id,
         amount: settlements.amount,

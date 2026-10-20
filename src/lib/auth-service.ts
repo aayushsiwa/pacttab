@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, or } from "drizzle-orm";
+import { and, asc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, directInvites, groupMembers, sessions, settlements, users } from "@/db/schema";
 import { betterAuthInstance, getCurrentUser, verifyPassword } from "@/lib/auth";
@@ -139,27 +139,17 @@ function tombstoneUsername(userId: string): string {
   return `deleted_${userId.replace(/-/g, "")}`;
 }
 
+class UnsettledBalancesError extends Error {
+  constructor(readonly summary: string) {
+    super("unsettled-balances");
+  }
+}
+
 export async function deleteUserAccount(input: { password: string }): Promise<AuthActionResult> {
   try {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return { ok: false, error: "You are not signed in." };
-    }
-
-    const unsettled = await getUserUnsettledGroups(currentUser.id);
-    if (unsettled.length > 0) {
-      const summary = unsettled
-        .map((g) => {
-          const amount = Math.abs(g.netBalance).toFixed(2);
-          return g.netBalance > 0
-            ? `${g.groupName} (you are owed ₹${amount})`
-            : `${g.groupName} (you owe ₹${amount})`;
-        })
-        .join(", ");
-      return {
-        ok: false,
-        error: `You still have unsettled balances. Settle up before deleting your account: ${summary}.`,
-      };
     }
 
     const credentialAccount = await db
@@ -177,6 +167,31 @@ export async function deleteUserAccount(input: { password: string }): Promise<Au
     }
 
     await db.transaction(async (tx) => {
+      // Lock the groups the member is active in, in a stable order, so the
+      // balance check below cannot race a leave or a settlement confirmation.
+      const activeGroups = await tx
+        .select({ groupId: groupMembers.groupId })
+        .from(groupMembers)
+        .where(and(eq(groupMembers.userId, currentUser.id), eq(groupMembers.status, "active")))
+        .orderBy(asc(groupMembers.groupId));
+
+      for (const group of activeGroups) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${group.groupId}))`);
+      }
+
+      const unsettled = await getUserUnsettledGroups(currentUser.id, tx);
+      if (unsettled.length > 0) {
+        const summary = unsettled
+          .map((g) => {
+            const amount = Math.abs(g.netBalance).toFixed(2);
+            return g.netBalance > 0
+              ? `${g.groupName} (you are owed ₹${amount})`
+              : `${g.groupName} (you owe ₹${amount})`;
+          })
+          .join(", ");
+        throw new UnsettledBalancesError(summary);
+      }
+
       await tx
         .update(groupMembers)
         .set({ status: "inactive" })
@@ -223,6 +238,12 @@ export async function deleteUserAccount(input: { password: string }): Promise<Au
       await tx.delete(accounts).where(eq(accounts.userId, currentUser.id));
     });
   } catch (error: unknown) {
+    if (error instanceof UnsettledBalancesError) {
+      return {
+        ok: false,
+        error: `You still have unsettled balances. Settle up before deleting your account: ${error.summary}.`,
+      };
+    }
     const err = error as { body?: { message?: string }; status?: number };
     if (err.status === 401) {
       return { ok: false, error: "Incorrect password." };
