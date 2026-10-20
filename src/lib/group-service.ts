@@ -1327,13 +1327,18 @@ export async function leaveGroup(user: ApiUser, groupId: string): Promise<GroupA
         const otherActiveMembers = allMembers.filter(
           (m) => m.status === "active" && m.id !== user.id
         );
-        if (otherActiveMembers.length > 0) {
+        if (otherActiveMembers.length === 0) {
           throw new LeaveGroupBlocked({
             success: false,
             error:
-              "As the group admin, you must transfer your admin role to another member before leaving.",
+              "You are the only active member of this group. Delete the group instead of leaving it.",
           });
         }
+        throw new LeaveGroupBlocked({
+          success: false,
+          error:
+            "As the group admin, promote another member to admin before you can leave. You can do that in Group Settings.",
+        });
       }
 
       // Pending settlements cannot be confirmed once a party is inactive, so

@@ -65,9 +65,11 @@ export function GroupSettingsDialog({
   const router = useRouter();
   const isAdmin = currentUserRole === "admin";
   const otherMembers = members.filter((m) => m.id !== currentUserId);
+  const isOnlyActiveMember = isAdmin && otherMembers.length === 0;
 
   const hasUnsettledBalance = Math.abs(userNetBalance) > 0.01;
-  const isBlockedFromLeaving = hasUnsettledBalance || (isAdmin && otherMembers.length > 0);
+  const needsAnotherAdmin = isAdmin && otherMembers.length > 0;
+  const isBlockedFromLeaving = hasUnsettledBalance || needsAnotherAdmin;
 
   const updateGroup = useUpdateGroup();
   const transferAdmin = useTransferAdmin();
@@ -217,17 +219,17 @@ export function GroupSettingsDialog({
               </div>
             )}
 
-            {/* 2. Admin Transfer Section */}
+            {/* 2. Admin Promotion Section */}
             {isAdmin && otherMembers.length > 0 && (
               <div className="border-border/60 space-y-3 border-t pt-4">
                 <div>
                   <h3 className="text-foreground flex items-center gap-1.5 text-xs font-bold">
                     <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>Transfer Admin Rights</span>
+                    <span>Promote Another Admin</span>
                   </h3>
                   <p className="text-muted-foreground mt-0.5 text-[11px]">
-                    Assign another active member as the group administrator. You will become a
-                    regular member.
+                    Make another active member the group administrator. You will become a regular
+                    member, and only then can you leave the group.
                   </p>
                 </div>
 
@@ -260,67 +262,69 @@ export function GroupSettingsDialog({
             )}
 
             {/* 3. Leave Group Section */}
-            <div className="border-border/60 space-y-3 border-t pt-4">
-              <div>
-                <h3 className="text-foreground flex items-center gap-1.5 text-xs font-bold">
-                  <LogOut className="text-muted-foreground h-4 w-4" />
-                  <span>Leave Group</span>
-                </h3>
-                <p className="text-muted-foreground mt-0.5 text-[11px]">
-                  Leaving removes you from chat and prevents new expense assignments.
-                </p>
-              </div>
+            {!isOnlyActiveMember && (
+              <div className="border-border/60 space-y-3 border-t pt-4">
+                <div>
+                  <h3 className="text-foreground flex items-center gap-1.5 text-xs font-bold">
+                    <LogOut className="text-muted-foreground h-4 w-4" />
+                    <span>Leave Group</span>
+                  </h3>
+                  <p className="text-muted-foreground mt-0.5 text-[11px]">
+                    Leaving removes you from chat and prevents new expense assignments.
+                  </p>
+                </div>
 
-              {hasUnsettledBalance ? (
-                <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                  <div>
-                    <span className="block font-bold">
-                      Balance must be {formatMoney(0)} to leave
-                    </span>
-                    <span className="mt-0.5 block text-[11px] opacity-90">
-                      {userNetBalance > 0
-                        ? `You are owed ${formatMoney(userNetBalance)}. Settle up with other members before leaving.`
-                        : `You owe ${formatMoney(Math.abs(userNetBalance))}. Please settle all debts before leaving.`}
-                    </span>
+                {hasUnsettledBalance ? (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <div>
+                      <span className="block font-bold">
+                        Balance must be {formatMoney(0)} to leave
+                      </span>
+                      <span className="mt-0.5 block text-[11px] opacity-90">
+                        {userNetBalance > 0
+                          ? `You are owed ${formatMoney(userNetBalance)}. Settle up with other members before leaving.`
+                          : `You owe ${formatMoney(Math.abs(userNetBalance))}. Please settle all debts before leaving.`}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ) : isAdmin && otherMembers.length > 0 ? (
-                <div className="flex items-start gap-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-xs text-indigo-800 dark:text-indigo-200">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                  <div>
-                    <span className="block font-bold">Admin Transfer Required</span>
-                    <span className="mt-0.5 block text-[11px] opacity-90">
-                      As the administrator, you must transfer group admin rights to another member
-                      before you can leave.
-                    </span>
+                ) : needsAnotherAdmin ? (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-xs text-indigo-800 dark:text-indigo-200">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <div>
+                      <span className="block font-bold">Promote Another Admin Required</span>
+                      <span className="mt-0.5 block text-[11px] opacity-90">
+                        As the administrator, promote another member to admin before you can leave.
+                        Use &ldquo;Promote Another Admin&rdquo; above.
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="border-border/60 bg-muted/20 flex items-center justify-between rounded-xl border p-3">
-                  <div className="flex items-center gap-2">
-                    <Badge
+                ) : (
+                  <div className="border-border/60 bg-muted/20 flex items-center justify-between rounded-xl border p-3">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400"
+                      >
+                        Balance {formatMoney(0)}
+                      </Badge>
+                      <span className="text-muted-foreground text-[11px]">Ready to leave</span>
+                    </div>
+
+                    <Button
+                      type="button"
                       variant="outline"
-                      className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400"
+                      size="sm"
+                      disabled={isBlockedFromLeaving || leaveGroup.isPending}
+                      onClick={() => setIsConfirmLeaveOpen(true)}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 rounded-xl text-xs font-semibold"
                     >
-                      Balance {formatMoney(0)}
-                    </Badge>
-                    <span className="text-muted-foreground text-[11px]">Ready to leave</span>
+                      Leave Group
+                    </Button>
                   </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isBlockedFromLeaving || leaveGroup.isPending}
-                    onClick={() => setIsConfirmLeaveOpen(true)}
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 rounded-xl text-xs font-semibold"
-                  >
-                    Leave Group
-                  </Button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* 4. Danger Zone: Delete Group (Admin only) */}
             {isAdmin && (
@@ -334,6 +338,12 @@ export function GroupSettingsDialog({
                     Irreversibly delete this group, along with all recorded expenses, splits,
                     settlements, and chat messages.
                   </p>
+                  {isOnlyActiveMember && (
+                    <p className="text-muted-foreground mt-1 text-[11px] leading-relaxed">
+                      You are the only active member, so leaving is not possible &mdash; deleting
+                      the group is the only way to close it.
+                    </p>
+                  )}
                 </div>
 
                 <Button
