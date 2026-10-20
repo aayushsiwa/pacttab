@@ -6,6 +6,7 @@ on:
     paths:
       - "drizzle/**"
       - "src/db/schema.ts"
+  workflow_dispatch:
 
 concurrency:
   group: db-migrate

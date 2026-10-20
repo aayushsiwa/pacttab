@@ -1,4 +1,4 @@
-CREATE TABLE "direct_invites" (
+CREATE TABLE IF NOT EXISTS "direct_invites" (
 	"id" text PRIMARY KEY NOT NULL,
 	"group_id" text NOT NULL,
 	"inviter_id" text NOT NULL,
@@ -11,7 +11,22 @@ CREATE TABLE "direct_invites" (
 	CONSTRAINT "direct_invites_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
-ALTER TABLE "direct_invites" ADD CONSTRAINT "direct_invites_group_id_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "direct_invites" ADD CONSTRAINT "direct_invites_inviter_id_users_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "direct_invites" ADD CONSTRAINT "direct_invites_invitee_id_users_id_fk" FOREIGN KEY ("invitee_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "direct_invite_unique_idx" ON "direct_invites" USING btree ("group_id","invitee_id");
+DO $$ BEGIN
+	IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'direct_invites_group_id_groups_id_fk') THEN
+		ALTER TABLE "direct_invites" ADD CONSTRAINT "direct_invites_group_id_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE no action;
+	END IF;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+	IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'direct_invites_inviter_id_users_id_fk') THEN
+		ALTER TABLE "direct_invites" ADD CONSTRAINT "direct_invites_inviter_id_users_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+	END IF;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+	IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'direct_invites_invitee_id_users_id_fk') THEN
+		ALTER TABLE "direct_invites" ADD CONSTRAINT "direct_invites_invitee_id_users_id_fk" FOREIGN KEY ("invitee_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+	END IF;
+END $$;
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "direct_invite_unique_idx" ON "direct_invites" USING btree ("group_id","invitee_id");

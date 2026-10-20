@@ -34,6 +34,13 @@ migration SQL.
 - **`migrate-db.yml` applies migrations to production after a merge to `master`**, gated three
   ways: only on `push` to `master`, only when `drizzle/**` or `src/db/schema.ts` changed, and
   through a `production` GitHub Environment that can require reviewer approval.
+- **Both workflows can also be started manually with `workflow_dispatch`.** A manual CI run
+  re-checks any branch on demand. A manual migration run applies whatever is pending to production
+  regardless of the `paths` filter, which is how a failed migration is retried once the migration
+  file itself is fixed — the push trigger only fires when `drizzle/**` changes, so a repaired
+  migration does reach production without another schema change. The manual run still goes through
+  the same `production` environment, so environment protection rules and reviewer approval still
+  apply.
 - **It runs `drizzle-kit migrate` (`pnpm db:migrate:apply`), not `pnpm db:migrate`.**
   `scripts/init-db.ts` can create the target database and generate missing migrations at runtime —
   useful for local bootstrapping and the self-hosted bare-metal setup (`docs/self-hosting.md`),
@@ -42,6 +49,15 @@ migration SQL.
 - **Migrations serialize but never interrupt**: a shared `db-migrate` concurrency group with
   `cancel-in-progress: false` queues a second merge behind the first instead of racing it, and
   never kills an in-flight migration.
+- **Migration SQL is idempotent.** Every statement is written so it can be re-applied to a database
+  that already has the change: `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`,
+  `DROP COLUMN IF EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE INDEX IF NOT EXISTS`, and guarded
+  `DO $$ … $$` blocks for constraints and data migrations. This is deliberate and differs from the
+  "migrations are immutable" convention: a database whose schema was synced outside the migration
+  journal (a `drizzle-kit push`, a restore, a hand-made copy) has a journal that lags its schema,
+  and `drizzle-kit migrate` would otherwise fail on the first `relation already exists` with no
+  way forward except manual surgery. Idempotent statements make the pipeline converge instead of
+  failing, and they are a no-op on a database that is genuinely up to date.
 - **The `DATABASE_URL` secret belongs to the `production` environment**, scoped to this workflow,
   and is passed to the single migration step only; it is never echoed.
 - **Pinned toolchain and action versions**: `.nvmrc` (Node 24) plus `packageManager`/`engines` in
@@ -62,6 +78,15 @@ migration SQL.
   next step.
 - Migrations are recorded per file, so a failed run resumes from the last applied file rather than
   reapplying everything.
+- A database whose journal lags its schema (synced with `drizzle-kit push`, restored from a dump, or
+  copied by hand) can now be migrated: the pending files re-apply as no-ops and the journal catches
+  up. A test re-runs every migration against an up-to-date test database to keep this true.
+- Rewriting already-applied migration files is normally discouraged, but here the files are the
+  repair mechanism, and Drizzle's migrator does not verify the hash of a migration it has already
+  applied — it only compares journal timestamps — so the rewrite is safe for existing databases.
+- A manual `workflow_dispatch` on the migration workflow applies pending migrations even when the
+  last merge touched no schema, so the manual path is a deliberate escape hatch rather than a
+  routine way to migrate production.
 - Migration still runs independently of deployment, leaving a window in which new code can run
   before its schema lands. Ordering "migrate → restart" from the deploy side is tracked follow-up.
 - The test job pays Postgres and Redis startup on every PR, accepted in exchange for catching

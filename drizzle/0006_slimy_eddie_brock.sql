@@ -1,1 +1,1 @@
-ALTER TABLE "direct_invites" DROP COLUMN "responded_at";
+ALTER TABLE "direct_invites" DROP COLUMN IF EXISTS "responded_at";

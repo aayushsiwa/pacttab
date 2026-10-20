@@ -53,6 +53,11 @@ index is what stops two concurrent transfers from leaving two active admins, and
 that makes it obsolete. The "at least one admin" invariant that replaces it is enforced by the
 service layer (see the last-admin guard in §5.2).
 
+The migration that creates the index **repairs legacy data first**: groups that already hold two
+active admins (left behind by racing transfers) are normalised — the longest-standing admin keeps
+the role, the others are demoted — before the index is created. Without that step the index
+creation fails on any database that already holds such a group.
+
 ## 5. Service Layer (`src/lib/group-service.ts`)
 
 ### 5.1 `promoteAdmin(user, groupId, targetUserId)`
