@@ -8,7 +8,7 @@ import {
   uniqueIndex,
   boolean,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -90,7 +90,12 @@ export const groupMembers = pgTable(
     status: varchar("status", { length: 20 }).notNull().default("active"), // "active" | "inactive"
     joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [uniqueIndex("group_member_unique_idx").on(table.groupId, table.userId)]
+  (table) => [
+    uniqueIndex("group_member_unique_idx").on(table.groupId, table.userId),
+    uniqueIndex("group_members_active_admin_unique_idx")
+      .on(table.groupId)
+      .where(sql`${table.role} = 'admin' AND ${table.status} = 'active'`),
+  ]
 );
 
 export const inviteLinks = pgTable("invite_links", {
