@@ -49,6 +49,15 @@ migration SQL.
 - **Migrations serialize but never interrupt**: a shared `db-migrate` concurrency group with
   `cancel-in-progress: false` queues a second merge behind the first instead of racing it, and
   never kills an in-flight migration.
+- **Migration SQL is idempotent.** Every statement is written so it can be re-applied to a database
+  that already has the change: `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`,
+  `DROP COLUMN IF EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE INDEX IF NOT EXISTS`, and guarded
+  `DO $$ … $$` blocks for constraints and data migrations. This is deliberate and differs from the
+  "migrations are immutable" convention: a database whose schema was synced outside the migration
+  journal (a `drizzle-kit push`, a restore, a hand-made copy) has a journal that lags its schema,
+  and `drizzle-kit migrate` would otherwise fail on the first `relation already exists` with no
+  way forward except manual surgery. Idempotent statements make the pipeline converge instead of
+  failing, and they are a no-op on a database that is genuinely up to date.
 - **The `DATABASE_URL` secret belongs to the `production` environment**, scoped to this workflow,
   and is passed to the single migration step only; it is never echoed.
 - **Pinned toolchain and action versions**: `.nvmrc` (Node 24) plus `packageManager`/`engines` in
@@ -69,6 +78,12 @@ migration SQL.
   next step.
 - Migrations are recorded per file, so a failed run resumes from the last applied file rather than
   reapplying everything.
+- A database whose journal lags its schema (synced with `drizzle-kit push`, restored from a dump, or
+  copied by hand) can now be migrated: the pending files re-apply as no-ops and the journal catches
+  up. A test re-runs every migration against an up-to-date test database to keep this true.
+- Rewriting already-applied migration files is normally discouraged, but here the files are the
+  repair mechanism, and Drizzle's migrator does not verify the hash of a migration it has already
+  applied — it only compares journal timestamps — so the rewrite is safe for existing databases.
 - A manual `workflow_dispatch` on the migration workflow applies pending migrations even when the
   last merge touched no schema, so the manual path is a deliberate escape hatch rather than a
   routine way to migrate production.

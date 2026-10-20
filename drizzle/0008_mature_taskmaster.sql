@@ -15,4 +15,4 @@ WHERE "duplicate"."role" = 'admin'
       AND ("keeper"."joined_at", "keeper"."id") < ("duplicate"."joined_at", "duplicate"."id")
   );
 --> statement-breakpoint
-CREATE UNIQUE INDEX "group_members_active_admin_unique_idx" ON "group_members" USING btree ("group_id") WHERE "group_members"."role" = 'admin' AND "group_members"."status" = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS "group_members_active_admin_unique_idx" ON "group_members" USING btree ("group_id") WHERE "group_members"."role" = 'admin' AND "group_members"."status" = 'active';

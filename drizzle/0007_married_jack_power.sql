@@ -1,26 +1,26 @@
-ALTER TABLE "direct_invites" DROP CONSTRAINT "direct_invites_inviter_id_users_id_fk";
+ALTER TABLE "direct_invites" DROP CONSTRAINT IF EXISTS "direct_invites_inviter_id_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "direct_invites" DROP CONSTRAINT "direct_invites_invitee_id_users_id_fk";
+ALTER TABLE "direct_invites" DROP CONSTRAINT IF EXISTS "direct_invites_invitee_id_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "expense_splits" DROP CONSTRAINT "expense_splits_user_id_users_id_fk";
+ALTER TABLE "expense_splits" DROP CONSTRAINT IF EXISTS "expense_splits_user_id_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "expenses" DROP CONSTRAINT "expenses_paid_by_user_id_users_id_fk";
+ALTER TABLE "expenses" DROP CONSTRAINT IF EXISTS "expenses_paid_by_user_id_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "expenses" DROP CONSTRAINT "expenses_created_by_users_id_fk";
+ALTER TABLE "expenses" DROP CONSTRAINT IF EXISTS "expenses_created_by_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "group_members" DROP CONSTRAINT "group_members_user_id_users_id_fk";
+ALTER TABLE "group_members" DROP CONSTRAINT IF EXISTS "group_members_user_id_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "groups" DROP CONSTRAINT "groups_created_by_users_id_fk";
+ALTER TABLE "groups" DROP CONSTRAINT IF EXISTS "groups_created_by_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "invite_links" DROP CONSTRAINT "invite_links_created_by_users_id_fk";
+ALTER TABLE "invite_links" DROP CONSTRAINT IF EXISTS "invite_links_created_by_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "join_requests" DROP CONSTRAINT "join_requests_user_id_users_id_fk";
+ALTER TABLE "join_requests" DROP CONSTRAINT IF EXISTS "join_requests_user_id_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "settlements" DROP CONSTRAINT "settlements_paid_by_user_id_users_id_fk";
+ALTER TABLE "settlements" DROP CONSTRAINT IF EXISTS "settlements_paid_by_user_id_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "settlements" DROP CONSTRAINT "settlements_received_by_user_id_users_id_fk";
+ALTER TABLE "settlements" DROP CONSTRAINT IF EXISTS "settlements_received_by_user_id_users_id_fk";
 --> statement-breakpoint
-ALTER TABLE "settlements" DROP CONSTRAINT "settlements_created_by_user_id_users_id_fk";
+ALTER TABLE "settlements" DROP CONSTRAINT IF EXISTS "settlements_created_by_user_id_users_id_fk";
 --> statement-breakpoint
 ALTER TABLE "direct_invites" ADD CONSTRAINT "direct_invites_inviter_id_users_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "direct_invites" ADD CONSTRAINT "direct_invites_invitee_id_users_id_fk" FOREIGN KEY ("invitee_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
