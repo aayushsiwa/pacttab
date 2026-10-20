@@ -33,10 +33,6 @@ export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsD
 
   const handleDeleteAccount = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) {
-      toast.error("Please enter your password to confirm");
-      return;
-    }
 
     startTransition(async () => {
       try {
@@ -87,11 +83,12 @@ export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsD
               <div>
                 <h3 className="text-destructive flex items-center gap-1.5 text-xs font-bold">
                   <Trash2 className="h-4 w-4" />
-                  <span>Delete Account Permanently</span>
+                  <span>Delete Account</span>
                 </h3>
                 <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
-                  Permanently erase your account and all associated sessions and memberships. This
-                  action cannot be undone.
+                  Erases your account, sessions and memberships. Your personal details are removed
+                  and your handle is replaced with an anonymised label, so shared group history
+                  (expenses and settlements) stays intact for the other members.
                 </p>
               </div>
 
@@ -119,8 +116,8 @@ export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsD
               <span>Confirm Account Deletion</span>
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-xs">
-              To permanently delete your account, please enter your password. This action cannot be
-              reversed.
+              To delete your account, please enter your password. Leave it blank if you sign in with
+              Google or GitHub.
             </DialogDescription>
           </DialogHeader>
 
@@ -137,7 +134,6 @@ export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsD
                 placeholder="Enter your current password"
                 className="rounded-xl text-xs"
                 autoComplete="current-password"
-                required
               />
             </div>
 
@@ -155,10 +151,10 @@ export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsD
                 type="submit"
                 variant="destructive"
                 size="sm"
-                disabled={isPending || !password}
+                disabled={isPending}
                 className="rounded-xl text-xs font-bold"
               >
-                {isPending ? "Deleting Account..." : "Permanently Delete"}
+                {isPending ? "Deleting Account..." : "Delete Account"}
               </Button>
             </div>
           </form>

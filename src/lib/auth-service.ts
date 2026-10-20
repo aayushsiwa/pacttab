@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { betterAuthInstance, getCurrentUser } from "@/lib/auth";
+import { and, eq, or } from "drizzle-orm";
+import { db } from "@/db";
+import { accounts, directInvites, groupMembers, sessions, settlements, users } from "@/db/schema";
+import { betterAuthInstance, getCurrentUser, verifyPassword } from "@/lib/auth";
 import { getUserUnsettledGroups } from "@/lib/queries";
 
 const UsernameSchema = z.object({
@@ -125,33 +128,99 @@ export async function signOutUser(requestHeaders?: Headers): Promise<AuthActionR
   return { ok: true };
 }
 
-export async function deleteUserAccount(
-  input: { password: string },
-  requestHeaders?: Headers
-): Promise<AuthActionResult> {
+/**
+ * Stable, non-identifying label for an account that has been deleted. The user
+ * row survives so every expense, split, settlement and membership that
+ * references it keeps its history instead of cascading away. The full UUID
+ * fragment keeps the label unique and impossible to collide with a handle a
+ * member could register themselves.
+ */
+function tombstoneUsername(userId: string): string {
+  return `deleted_${userId.replace(/-/g, "")}`;
+}
+
+export async function deleteUserAccount(input: { password: string }): Promise<AuthActionResult> {
   try {
     const currentUser = await getCurrentUser();
-    if (currentUser) {
-      const unsettled = await getUserUnsettledGroups(currentUser.id);
-      if (unsettled.length > 0) {
-        const summary = unsettled
-          .map((g) => {
-            const amount = Math.abs(g.netBalance).toFixed(2);
-            return g.netBalance > 0
-              ? `${g.groupName} (you are owed ₹${amount})`
-              : `${g.groupName} (you owe ₹${amount})`;
-          })
-          .join(", ");
-        return {
-          ok: false,
-          error: `You still have unsettled balances. Settle up before deleting your account: ${summary}.`,
-        };
+    if (!currentUser) {
+      return { ok: false, error: "You are not signed in." };
+    }
+
+    const unsettled = await getUserUnsettledGroups(currentUser.id);
+    if (unsettled.length > 0) {
+      const summary = unsettled
+        .map((g) => {
+          const amount = Math.abs(g.netBalance).toFixed(2);
+          return g.netBalance > 0
+            ? `${g.groupName} (you are owed ₹${amount})`
+            : `${g.groupName} (you owe ₹${amount})`;
+        })
+        .join(", ");
+      return {
+        ok: false,
+        error: `You still have unsettled balances. Settle up before deleting your account: ${summary}.`,
+      };
+    }
+
+    const credentialAccount = await db
+      .select({ password: accounts.password })
+      .from(accounts)
+      .where(and(eq(accounts.userId, currentUser.id), eq(accounts.providerId, "credential")))
+      .limit(1);
+
+    const storedHash = credentialAccount[0]?.password;
+    if (storedHash) {
+      const passwordMatches = await verifyPassword(input.password, storedHash);
+      if (!passwordMatches) {
+        return { ok: false, error: "Incorrect password." };
       }
     }
 
-    await betterAuthInstance.api.deleteUser({
-      headers: requestHeaders ?? new Headers(),
-      body: { password: input.password },
+    await db.transaction(async (tx) => {
+      await tx
+        .update(groupMembers)
+        .set({ status: "inactive" })
+        .where(eq(groupMembers.userId, currentUser.id));
+
+      await tx
+        .update(settlements)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            eq(settlements.status, "pending"),
+            or(
+              eq(settlements.paidByUserId, currentUser.id),
+              eq(settlements.receivedByUserId, currentUser.id)
+            )
+          )
+        );
+
+      await tx
+        .update(directInvites)
+        .set({ status: "revoked" })
+        .where(
+          and(
+            eq(directInvites.status, "pending"),
+            or(
+              eq(directInvites.inviterId, currentUser.id),
+              eq(directInvites.inviteeId, currentUser.id)
+            )
+          )
+        );
+
+      await tx
+        .update(users)
+        .set({
+          username: tombstoneUsername(currentUser.id),
+          name: null,
+          email: null,
+          image: null,
+          emailVerified: false,
+        })
+        .where(eq(users.id, currentUser.id));
+
+      await tx.delete(sessions).where(eq(sessions.userId, currentUser.id));
+      await tx.delete(accounts).where(eq(accounts.userId, currentUser.id));
     });
   } catch (error: unknown) {
     const err = error as { body?: { message?: string }; status?: number };
