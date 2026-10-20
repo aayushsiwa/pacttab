@@ -51,6 +51,7 @@ The MVP should let a group go from creation to a settled balance in a few minute
 - No email address, phone number, contact importing, or public user search
   (local accounts never need an email; an optional provider may share a provider email with the auth layer only — it never appears in groups; group admins may look up an exact username solely to send a private direct invite — see `docs/adr/adr-002-direct-invites-by-username.md`)
 - Clear notice: passwords cannot be recovered in the MVP
+- Account deletion erases personal details and replaces the handle with an anonymised label, so shared group history is preserved; it is refused while the member owes or is owed money in any group (see `docs/adr/adr-004-anonymising-account-deletion-and-non-destructive-foreign-keys.md`)
 - Optional one-time recovery codes can be added after the initial release
 
 ### Private groups
@@ -103,6 +104,7 @@ For the initial MVP, a direct invite link is the only practical join path. Join 
   - Positive: is owed money
   - Negative: owes money
 - Show simplified suggested repayments
+- Keep departed members in the balance math as ghosts so the ledger stays zero-sum; a member may only leave with an exact-zero balance
 - Record a settlement: payer, recipient, amount, and date
 - Settlements update balances but do not process payments
 - No bank integrations, wallets, payment collection, exchange rates, or recurring expenses in the MVP
@@ -132,7 +134,7 @@ The MVP explicitly does not include:
 - Make groups private by default and permanently non-discoverable
 - Use opaque random identifiers for invite links
 - Never expose a group’s membership, messages, or expenses to non-members
-- Group deletion and account deletion are available from settings
+- Group deletion and account deletion are available from settings; account deletion anonymises the member instead of erasing shared history
 - Avoid behavioral advertising and unnecessary third-party tracking
 
 ## Technical approach
@@ -152,12 +154,14 @@ The MVP explicitly does not include:
 User
   id, username, passwordHash, createdAt
   email (internal, non-deliverable for local accounts; provider email for OAuth — ADR 001)
+  on deletion: username replaced with a tombstone label, personal fields cleared — ADR 004
 
 Group
   id, name, description, createdBy, createdAt
 
 GroupMember
   id, groupId, userId, role, status, joinedAt
+  status is "inactive" once a member leaves; the row is kept so their history stays in the ledger
 
 InviteLink
   id, groupId, token, createdBy, expiresAt, maxUses, useCount, revokedAt
@@ -210,7 +214,7 @@ Authentication, private groups, direct invite links, equal-split expenses, balan
 
 - Direct invites by exact username for group admins (see `docs/adr/adr-002-direct-invites-by-username.md`)
 - Optional Google and GitHub sign-in with server-side provider gating (see `docs/adr/adr-001-better-auth-and-optional-oauth.md`)
-- Group deletion and account deletion from settings
+- Group deletion and account deletion from settings (account deletion anonymises the member so other members' history survives)
 
 ### Release 4 (Planned)
 
