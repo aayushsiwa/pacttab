@@ -123,7 +123,7 @@ New tables (`src/db/schema.ts` + a Drizzle migration):
 export const userKeys = pgTable("user_keys", {
   userId: text("user_id")
     .primaryKey()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "restrict" }),
   publicKeyJwk: text("public_key_jwk").notNull(), // { crv, kty, x, y }
   encryptedPrivateKeyJwk: text("encrypted_private_key_jwk").notNull(), // AES-GCM wrapped
   kdfSalt: text("kdf_salt").notNull(), // base64url, 16 bytes
@@ -142,7 +142,7 @@ export const groupKeyWraps = pgTable(
       .references(() => groups.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "restrict" }),
     wrappedGroupKey: text("wrapped_group_key").notNull(), // base64url AES-GCM/AES-KW blob
     keyVersion: integer("key_version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -152,6 +152,10 @@ export const groupKeyWraps = pgTable(
   ]
 );
 ```
+
+User-referencing foreign keys use `ON DELETE RESTRICT`, matching ADR 004: an account deletion
+anonymises the user rather than dropping the row, so key material and wraps are never cascaded
+away underneath the remaining members' ciphertext.
 
 Column changes to existing tables (backward-compatible: plaintext columns retained during rollout):
 

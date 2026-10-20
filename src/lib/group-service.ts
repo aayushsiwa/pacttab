@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { eq, and, isNull, sql, inArray } from "drizzle-orm";
+import { eq, and, isNull, sql, inArray, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
@@ -15,6 +15,7 @@ import {
   users,
 } from "@/db/schema";
 import { calculateBalancesAndSettlements } from "@/lib/balances";
+import { hasOtherActiveAdmin, otherActiveMembers } from "@/lib/group-membership";
 import { broadcastWsEvent } from "@/lib/ws-hub";
 import { groupDetailsSchema, directInviteSchema } from "@/lib/group-validation";
 import type { ApiUser } from "@/lib/api-auth";
@@ -772,7 +773,7 @@ export async function joinGroup(token: string, user: ApiUser): Promise<JoinGroup
     }
     await db
       .update(groupMembers)
-      .set({ status: "active" })
+      .set({ status: "active", role: "member" })
       .where(eq(groupMembers.id, existingMember[0].id));
     await db.delete(directInvites).where(staleDirectInvites);
 
@@ -1116,44 +1117,61 @@ export async function reviewJoinRequest(
   }
 }
 
+class TransferAdminBlocked extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+  }
+}
+
 export async function transferAdmin(
   user: ApiUser,
   groupId: string,
   newAdminUserId: string
 ): Promise<GroupActionResult> {
-  const [membership] = await db
-    .select({ role: groupMembers.role, id: groupMembers.id })
-    .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
-    .limit(1);
-
-  if (!membership || membership.role !== "admin") {
-    return {
-      success: false,
-      error: "Only the current group admin can transfer admin rights",
-      status: 403,
-    };
-  }
-
-  const [targetMember] = await db
-    .select({ id: groupMembers.id, username: users.username })
-    .from(groupMembers)
-    .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(
-      and(
-        eq(groupMembers.groupId, groupId),
-        eq(groupMembers.userId, newAdminUserId),
-        eq(groupMembers.status, "active")
-      )
-    )
-    .limit(1);
-
-  if (!targetMember) {
-    return { success: false, error: "Target member not found in this group", status: 404 };
-  }
-
   try {
     await db.transaction(async (tx) => {
+      // Serialize with leaveGroup, confirmSettlement and any concurrent
+      // transfer, so two transfers can never both hand over the admin role.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${groupId}))`);
+
+      const [membership] = await tx
+        .select({ role: groupMembers.role, id: groupMembers.id })
+        .from(groupMembers)
+        .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, user.id)))
+        .limit(1);
+
+      if (!membership || membership.role !== "admin") {
+        throw new TransferAdminBlocked(
+          "Only the current group admin can transfer admin rights",
+          403
+        );
+      }
+
+      if (newAdminUserId === user.id) {
+        throw new TransferAdminBlocked("You are already the group admin", 400);
+      }
+
+      const [targetMember] = await tx
+        .select({ id: groupMembers.id, username: users.username })
+        .from(groupMembers)
+        .innerJoin(users, eq(groupMembers.userId, users.id))
+        .where(
+          and(
+            eq(groupMembers.groupId, groupId),
+            eq(groupMembers.userId, newAdminUserId),
+            eq(groupMembers.status, "active")
+          )
+        )
+        .limit(1);
+
+      if (!targetMember) {
+        throw new TransferAdminBlocked("Target member not found in this group", 404);
+      }
+
+      // Demote before promoting: the group holds at most one active admin.
       await tx
         .update(groupMembers)
         .set({ role: "member" })
@@ -1192,8 +1210,17 @@ export async function transferAdmin(
 
     return { success: true };
   } catch (error) {
+    if (error instanceof TransferAdminBlocked) {
+      return { success: false, error: error.message, status: error.status };
+    }
     console.error("Failed to transfer admin rights:", error);
     return { success: false, error: "Failed to transfer admin rights", status: 500 };
+  }
+}
+
+class LeaveGroupBlocked extends Error {
+  constructor(readonly result: GroupActionResult) {
+    super("leave-group-blocked");
   }
 }
 
@@ -1214,121 +1241,204 @@ export async function leaveGroup(user: ApiUser, groupId: string): Promise<GroupA
     return { success: false, error: "You are not an active member of this group", status: 403 };
   }
 
-  const members = await db
-    .select({ id: users.id, username: users.username })
-    .from(groupMembers)
-    .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active")));
+  try {
+    await db.transaction(async (tx) => {
+      // Serialize with confirmSettlement so a payment cannot be confirmed
+      // between the balance re-check and the membership write (TOCTOU).
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${groupId}))`);
 
-  const rawExpenses = await db
-    .select({
-      id: expenses.id,
-      amount: expenses.amount,
-      paidByUserId: expenses.paidByUserId,
-    })
-    .from(expenses)
-    .where(eq(expenses.groupId, groupId));
+      const [current] = await tx
+        .select({ id: groupMembers.id, role: groupMembers.role })
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, groupId),
+            eq(groupMembers.userId, user.id),
+            eq(groupMembers.status, "active")
+          )
+        )
+        .limit(1);
 
-  const expIds = rawExpenses.map((e) => e.id);
-  const splits =
-    expIds.length > 0
-      ? await db
-          .select({
-            expenseId: expenseSplits.expenseId,
-            userId: expenseSplits.userId,
-            owedAmount: expenseSplits.owedAmount,
-          })
-          .from(expenseSplits)
-          .where(inArray(expenseSplits.expenseId, expIds))
-      : [];
+      if (!current) {
+        throw new LeaveGroupBlocked({
+          success: false,
+          error: "You are not an active member of this group",
+          status: 403,
+        });
+      }
 
-  const rawSettlements = await db
-    .select({
-      id: settlements.id,
-      amount: settlements.amount,
-      paidByUserId: settlements.paidByUserId,
-      receivedByUserId: settlements.receivedByUserId,
-      status: settlements.status,
-    })
-    .from(settlements)
-    .where(eq(settlements.groupId, groupId));
+      const allMembers = await tx
+        .select({
+          id: users.id,
+          username: users.username,
+          role: groupMembers.role,
+          status: groupMembers.status,
+        })
+        .from(groupMembers)
+        .innerJoin(users, eq(groupMembers.userId, users.id))
+        .where(eq(groupMembers.groupId, groupId));
 
-  const splitsByExp = new Map<string, { userId: string; owedAmount: string | number }[]>();
-  for (const s of splits) {
-    const list = splitsByExp.get(s.expenseId) || [];
-    list.push(s);
-    splitsByExp.set(s.expenseId, list);
-  }
+      const rawExpenses = await tx
+        .select({
+          id: expenses.id,
+          amount: expenses.amount,
+          paidByUserId: expenses.paidByUserId,
+        })
+        .from(expenses)
+        .where(eq(expenses.groupId, groupId));
 
-  const { balances } = calculateBalancesAndSettlements(
-    members,
-    rawExpenses.map((e) => ({
-      id: e.id,
-      amount: e.amount,
-      paidByUserId: e.paidByUserId,
-      splits: splitsByExp.get(e.id) || [],
-    })),
-    rawSettlements
-  );
+      const expIds = rawExpenses.map((e) => e.id);
+      const splits =
+        expIds.length > 0
+          ? await tx
+              .select({
+                expenseId: expenseSplits.expenseId,
+                userId: expenseSplits.userId,
+                owedAmount: expenseSplits.owedAmount,
+              })
+              .from(expenseSplits)
+              .where(inArray(expenseSplits.expenseId, expIds))
+          : [];
 
-  const myBalance = balances.find((b) => b.userId === user.id)?.netBalance || 0;
-  if (Math.abs(myBalance) > 0.01) {
-    const formatted = Math.abs(myBalance).toFixed(2);
-    if (myBalance > 0) {
-      return {
-        success: false,
-        error: `You cannot leave this group because you are owed ₹${formatted}. Settle up with other members before leaving.`,
-      };
-    } else {
-      return {
-        success: false,
-        error: `You cannot leave this group because you owe ₹${formatted}. Please settle your balance before leaving.`,
-      };
-    }
-  }
+      const splitsByExp = new Map<string, { userId: string; owedAmount: string | number }[]>();
+      for (const s of splits) {
+        const list = splitsByExp.get(s.expenseId) || [];
+        list.push(s);
+        splitsByExp.set(s.expenseId, list);
+      }
 
-  if (membership.role === "admin") {
-    const otherActiveMembers = members.filter((m) => m.id !== user.id);
-    if (otherActiveMembers.length > 0) {
-      return {
-        success: false,
-        error:
-          "As the group admin, you must transfer your admin role to another member before leaving.",
-      };
-    }
-  }
+      const rawSettlements = await tx
+        .select({
+          id: settlements.id,
+          amount: settlements.amount,
+          paidByUserId: settlements.paidByUserId,
+          receivedByUserId: settlements.receivedByUserId,
+          status: settlements.status,
+        })
+        .from(settlements)
+        .where(eq(settlements.groupId, groupId));
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(groupMembers)
-      .set({ status: "inactive" })
-      .where(eq(groupMembers.id, membership.id));
+      const { balances } = calculateBalancesAndSettlements(
+        allMembers.map((m) => ({
+          id: m.id,
+          username: m.username,
+          isActive: m.status === "active",
+        })),
+        rawExpenses.map((e) => ({
+          id: e.id,
+          amount: e.amount,
+          paidByUserId: e.paidByUserId,
+          splits: splitsByExp.get(e.id) || [],
+        })),
+        rawSettlements
+      );
 
-    const leaveMsgId = crypto.randomUUID();
-    const body = `${user.username} left the group.`;
-    await tx.insert(messages).values({
-      id: leaveMsgId,
-      groupId,
-      authorId: null,
-      body,
-      type: "system",
-    });
+      const myBalance = balances.find((b) => b.userId === user.id)?.netBalance || 0;
+      const myBalanceCents = Math.round(myBalance * 100);
+      if (myBalanceCents !== 0) {
+        const formatted = (Math.abs(myBalanceCents) / 100).toFixed(2);
+        if (myBalanceCents > 0) {
+          throw new LeaveGroupBlocked({
+            success: false,
+            error: `You cannot leave this group because you are owed ₹${formatted}. Settle up with other members before leaving.`,
+          });
+        }
+        throw new LeaveGroupBlocked({
+          success: false,
+          error: `You cannot leave this group because you owe ₹${formatted}. Please settle your balance before leaving.`,
+        });
+      }
 
-    await broadcastWsEvent({
-      type: "new_message",
-      groupId,
-      message: {
+      if (current.role === "admin") {
+        const otherMembers = otherActiveMembers(allMembers, user.id);
+        if (otherMembers.length === 0) {
+          throw new LeaveGroupBlocked({
+            success: false,
+            error:
+              "You are the only active member of this group. Delete the group instead of leaving it.",
+          });
+        }
+        if (!hasOtherActiveAdmin(allMembers, user.id)) {
+          throw new LeaveGroupBlocked({
+            success: false,
+            error:
+              "As the group admin, promote another member to admin before you can leave. You can do that in Group Settings.",
+          });
+        }
+      }
+
+      // Pending settlements cannot be confirmed once a party is inactive, so
+      // cancel the leaver's pending rows to avoid orphaned affirmations.
+      await tx
+        .update(settlements)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            eq(settlements.groupId, groupId),
+            eq(settlements.status, "pending"),
+            or(eq(settlements.paidByUserId, user.id), eq(settlements.receivedByUserId, user.id))
+          )
+        );
+
+      await tx
+        .update(directInvites)
+        .set({ status: "revoked" })
+        .where(
+          and(
+            eq(directInvites.groupId, groupId),
+            eq(directInvites.status, "pending"),
+            eq(directInvites.inviterId, user.id)
+          )
+        );
+
+      await tx
+        .update(directInvites)
+        .set({ status: "revoked" })
+        .where(
+          and(
+            eq(directInvites.groupId, groupId),
+            eq(directInvites.status, "pending"),
+            eq(directInvites.inviteeId, user.id)
+          )
+        );
+
+      await tx
+        .update(groupMembers)
+        .set({ status: "inactive" })
+        .where(eq(groupMembers.id, current.id));
+
+      const leaveMsgId = crypto.randomUUID();
+      const body = `${user.username} left the group.`;
+      await tx.insert(messages).values({
         id: leaveMsgId,
+        groupId,
+        authorId: null,
         body,
         type: "system",
-        createdAt: new Date().toISOString(),
-        authorId: null,
-        authorUsername: null,
-      },
+      });
+
+      await broadcastWsEvent({
+        type: "new_message",
+        groupId,
+        message: {
+          id: leaveMsgId,
+          body,
+          type: "system",
+          createdAt: new Date().toISOString(),
+          authorId: null,
+          authorUsername: null,
+        },
+      });
+
+      await broadcastWsEvent({ type: "refresh", groupId });
     });
 
-    await broadcastWsEvent({ type: "refresh", groupId });
-  });
-
-  return { success: true };
+    return { success: true };
+  } catch (error) {
+    if (error instanceof LeaveGroupBlocked) {
+      return error.result;
+    }
+    console.error("Failed to leave group:", error);
+    return { success: false, error: "Failed to leave group", status: 500 };
+  }
 }

@@ -26,6 +26,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Core Architecture & Principles
 
 - **No required contact details**: Local accounts need only a `username` and password—no real email or phone number. Better Auth stores an internal, non-deliverable `<handle>@pacttab.local` for local accounts, and optional Google/GitHub sign-in keeps provider identity inside the auth layer, never exposed to groups.
+- **History Preservation**: user-referencing foreign keys use `ON DELETE RESTRICT`, and account deletion is an anonymising soft delete (tombstone handle) — a member's departure or account deletion must never rewrite another member's expense or settlement history (`docs/adr/adr-004-anonymising-account-deletion-and-non-destructive-foreign-keys.md`).
 - **Privacy by Default**: Groups and invites are non-discoverable and invite-only.
 - **Write API Layering**: Client mutations call REST route handlers under `src/app/api/**`. Handlers authenticate via `authenticateRequest()`, delegate to domain services in `src/lib/*-service.ts` (group, expense, chat), and map `ServiceResult`s with `serviceResponse()` (both helpers live in `src/lib/api-auth.ts`). Server Actions are used only for onboarding (`src/actions/onboarding.ts`).
 - **Client Data Layer**: Reads and mutations use TanStack Query hooks under `src/hooks/queries` and `src/hooks/mutations`.

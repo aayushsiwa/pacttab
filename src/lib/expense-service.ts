@@ -1,6 +1,6 @@
 import { z } from "zod";
 import crypto from "crypto";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { expenses, expenseSplits, settlements, messages, groupMembers, users } from "@/db/schema";
 import {
@@ -112,10 +112,19 @@ export async function createExpense(
     .select({ userId: groupMembers.userId, username: users.username })
     .from(groupMembers)
     .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(and(eq(groupMembers.groupId, groupId), inArray(groupMembers.userId, allNeededUsers)));
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.status, "active"),
+        inArray(groupMembers.userId, allNeededUsers)
+      )
+    );
 
   if (foundMembers.length !== allNeededUsers.length) {
-    return { success: false, error: "One or more selected participants are not in this group" };
+    return {
+      success: false,
+      error: "One or more selected participants are not active members of this group",
+    };
   }
 
   const payerName = foundMembers.find((m) => m.userId === paidByUserId)?.username || "A member";
@@ -266,10 +275,19 @@ export async function updateExpense(
     .select({ userId: groupMembers.userId, username: users.username })
     .from(groupMembers)
     .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(and(eq(groupMembers.groupId, groupId), inArray(groupMembers.userId, allNeededUsers)));
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.status, "active"),
+        inArray(groupMembers.userId, allNeededUsers)
+      )
+    );
 
   if (foundMembers.length !== allNeededUsers.length) {
-    return { success: false, error: "One or more selected participants are not in this group" };
+    return {
+      success: false,
+      error: "One or more selected participants are not active members of this group",
+    };
   }
 
   let splits: { userId: string; owedAmount: number }[];
@@ -483,6 +501,24 @@ export async function recordSettlement(
     return { success: false, error: "You are not an active member of this group", status: 403 };
   }
 
+  const partyMemberships = await db
+    .select({ userId: groupMembers.userId })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.status, "active"),
+        inArray(groupMembers.userId, [paidByUserId, receivedByUserId])
+      )
+    );
+
+  if (partyMemberships.length !== 2) {
+    return {
+      success: false,
+      error: "Payer and recipient must both be active members of this group",
+    };
+  }
+
   const memberRecords = await db
     .select({ userId: users.id, username: users.username })
     .from(users)
@@ -618,8 +654,29 @@ export async function confirmSettlement(
   const recipientName =
     memberRecords.find((m) => m.userId === settlement.receivedByUserId)?.username || "Member";
 
+  const partiesInactiveError = new Error("Settlement parties are no longer active");
+
   try {
     await db.transaction(async (tx) => {
+      // Serialize with leaveGroup so a party cannot leave between the balance
+      // check and the confirmation write (TOCTOU).
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${groupId}))`);
+
+      const activeParties = await tx
+        .select({ userId: groupMembers.userId })
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, groupId),
+            eq(groupMembers.status, "active"),
+            inArray(groupMembers.userId, [settlement.paidByUserId, settlement.receivedByUserId])
+          )
+        );
+
+      if (activeParties.length !== 2) {
+        throw partiesInactiveError;
+      }
+
       await tx
         .update(settlements)
         .set({
@@ -662,6 +719,13 @@ export async function confirmSettlement(
 
     return { success: true };
   } catch (error) {
+    if (error === partiesInactiveError) {
+      return {
+        success: false,
+        error: "Both settlement parties must still be active members of this group",
+        status: 409,
+      };
+    }
     console.error("Failed to confirm settlement:", error);
     return { success: false, error: "Failed to confirm settlement", status: 500 };
   }

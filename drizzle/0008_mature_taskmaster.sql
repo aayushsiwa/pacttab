@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "group_members_active_admin_unique_idx" ON "group_members" USING btree ("group_id") WHERE "group_members"."role" = 'admin' AND "group_members"."status" = 'active';

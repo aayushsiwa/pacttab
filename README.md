@@ -39,6 +39,7 @@ Existing expense-splitting applications often demand email addresses, phone numb
 - 💰 **Flexible Expense Tracking**: Add expenses split equally, by exact per-person amounts, by percentage, or by custom shares. Edit or remove expenses with live balance recomputations.
 - ⚖️ **Optimal Balance Settlement**: Automatically computes net balances and debt-simplification settlement suggestions.
 - 🤝 **Settlement Affirmation Workflow**: When a member records a settlement payment, the recipient can affirm or dispute the transaction.
+- 🗂️ **History-Safe Accounts**: Leaving a group or deleting your account never rewrites anyone else's history — departed members stay in the ledger as anonymised ghosts, and deleting an account erases your personal details while shared expenses and settlements survive intact.
 - 📱 **Installable Progressive Web App (PWA)**: Includes an offline fallback shell, web app manifest, and responsive mobile-first UI for desktop and mobile devices.
 
 ---
@@ -185,7 +186,7 @@ docker compose up -d
 
 - [Self-Hosting Guide](docs/self-hosting.md): Complete instructions for Docker Compose, low-memory mode, Caddy/Nginx reverse proxies, automated migrations, backups, and bare-metal systemd.
 - [Web MCP Implementation POC](docs/pocs/web-mcp/README.md): Architectural design, use cases, security safeguards, and implementation roadmap for Model Context Protocol (Web MCP) support over SSE and in-browser agents.
-- [Architecture Decision Records](docs/adr/): Better Auth with optional Google/GitHub sign-in (001), direct invites by username (002), CI quality gate, test suite, and automated production migrations (003).
+- [Architecture Decision Records](docs/adr/): Better Auth with optional Google/GitHub sign-in (001), direct invites by username (002), CI quality gate, test suite, and automated production migrations (003), anonymising account deletion with non-destructive foreign keys (004).
 - [MVP Specification & Roadmap](MVP.md): Detailed product requirements, data entities, and shipped milestone tracking.
 
 ---

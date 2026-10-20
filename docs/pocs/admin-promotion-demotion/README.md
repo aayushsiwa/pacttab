@@ -44,9 +44,14 @@ admins.
 
 ## 4. Data Model
 
-**No schema change required.** `group_members.role` already stores `"admin" | "member"`
-(`src/db/schema.ts:89`) and there is no single-admin constraint. All new logic lives in the service
-layer plus a fix to the leave guard.
+`group_members.role` already stores `"admin" | "member"` (`src/db/schema.ts:89`), so the role split
+needs no new column. One constraint does need to change: the schema now carries a **partial unique
+index** `group_members_active_admin_unique_idx` (`group_id` where `role = 'admin' AND
+status = 'active'`, migration `0008`) that enforces **at most one active admin per group**. That
+index is what stops two concurrent transfers from leaving two active admins, and it must be
+**dropped when multi-admin ships** — this POC's promote/demote endpoints are exactly the change
+that makes it obsolete. The "at least one admin" invariant that replaces it is enforced by the
+service layer (see the last-admin guard in §5.2).
 
 ## 5. Service Layer (`src/lib/group-service.ts`)
 
@@ -68,7 +73,7 @@ layer plus a fix to the leave guard.
 5. Transaction: set `role: "member"`, post system message
    `"<admin> removed @<admin>'s admin rights."`, broadcast `new_message` + `refresh`.
 
-### 5.3 `leaveGroup` fix (`src/lib/group-service.ts:921-930`)
+### 5.3 `leaveGroup` fix (`src/lib/group-service.ts:921-930`) — **shipped**
 
 Current logic blocks **any** admin from leaving whenever `otherActiveMembers.length > 0`.
 New logic: block only when the leaver is an admin **and no other active admin exists**. The error
@@ -76,12 +81,20 @@ message updates to: _"You are the group's only admin. Promote another member to 
 leaving."_ Non-admin members, and admins with a fellow admin, leave normally (member row set to
 `inactive`, unchanged behavior otherwise).
 
-### 5.4 `transferAdmin` — unchanged
+This rule is **already implemented** (shared by the service and the settings dialog through
+`src/lib/group-membership.ts`): the gate counts _other active admins_, not other active members,
+so an admin is never stranded by a group that briefly holds two admins.
+
+### 5.4 `transferAdmin` — mostly unchanged
 
 The existing endpoint (`/api/groups/[id]/transfer-admin`) keeps working: it remains the explicit
 handover (promote target, demote self in one transaction). With promote/demote available it is no
 longer the _only_ path, and the "transfer before leaving" requirement shrinks to "make sure another
 admin exists before leaving".
+
+It now also takes the group advisory lock (`pg_advisory_xact_lock(hashtext(groupId))`) and
+re-validates the caller inside the transaction, so a transfer cannot interleave with a leave, a
+settlement confirmation, or another transfer.
 
 ## 6. API Surface
 
