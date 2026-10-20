@@ -129,6 +129,8 @@ PactTab uses **Husky**, **lint-staged**, and **commitlint** to ensure high code 
 
 The same checks run in CI on every pull request (`.github/workflows/ci.yml`), where the Vitest suite runs against Postgres and Redis service containers. Merges to `master` that touch the schema apply the generated Drizzle migrations to production automatically (`.github/workflows/migrate-db.yml`) — see [ADR 003](docs/adr/adr-003-ci-quality-gate-and-production-migrations.md).
 
+Both workflows can also be started manually from the **Actions** tab (`workflow_dispatch`), which is how a failed migration run is retried once the migration file is fixed.
+
 ---
 
 ## Architecture
