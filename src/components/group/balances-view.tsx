@@ -161,6 +161,8 @@ export function BalancesView({
   const myBalance = balances.find((b) => b.userId === currentUserId);
   const myNet = myBalance ? myBalance.netBalance : 0;
 
+  const ghostUserIds = new Set(balances.filter((b) => !b.isActive).map((b) => b.userId));
+
   return (
     <div className="space-y-6">
       {/* Pending Affirmations Queue */}
@@ -357,6 +359,14 @@ export function BalancesView({
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-1.5 truncate text-xs font-bold sm:text-sm">
                         <span>@{b.username}</span>
+                        {!b.isActive && (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[10px] font-semibold text-amber-700 dark:text-amber-400"
+                          >
+                            Left group
+                          </Badge>
+                        )}
                         {isMe && (
                           <Badge
                             variant="secondary"
@@ -420,6 +430,8 @@ export function BalancesView({
               suggestedSettlements.map((s, idx) => {
                 const isMyDebt = s.fromUserId === currentUserId;
                 const isOwedToMe = s.toUserId === currentUserId;
+                const involvesGhost =
+                  ghostUserIds.has(s.fromUserId) || ghostUserIds.has(s.toUserId);
 
                 return (
                   <div
@@ -459,6 +471,11 @@ export function BalancesView({
                         <strong className="text-foreground text-sm font-black">
                           {formatMoney(s.amount)}
                         </strong>
+                        {involvesGhost && (
+                          <span className="ml-1 text-amber-600 dark:text-amber-400">
+                            • a party has left the group
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -466,6 +483,12 @@ export function BalancesView({
                       size="sm"
                       variant={isMyDebt ? "default" : "outline"}
                       onClick={() => handleSettleSuggestion(s)}
+                      disabled={involvesGhost}
+                      title={
+                        involvesGhost
+                          ? "Settlements require both parties to be active members"
+                          : undefined
+                      }
                       className={`h-8 gap-1 rounded-lg px-3 text-xs font-bold ${
                         isMyDebt ? "bg-amber-600 text-white shadow-xs hover:bg-amber-700" : ""
                       }`}

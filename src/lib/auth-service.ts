@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { betterAuthInstance } from "@/lib/auth";
+import { betterAuthInstance, getCurrentUser } from "@/lib/auth";
+import { getUserUnsettledGroups } from "@/lib/queries";
 
 const UsernameSchema = z.object({
   username: z
@@ -129,6 +130,25 @@ export async function deleteUserAccount(
   requestHeaders?: Headers
 ): Promise<AuthActionResult> {
   try {
+    const currentUser = await getCurrentUser();
+    if (currentUser) {
+      const unsettled = await getUserUnsettledGroups(currentUser.id);
+      if (unsettled.length > 0) {
+        const summary = unsettled
+          .map((g) => {
+            const amount = Math.abs(g.netBalance).toFixed(2);
+            return g.netBalance > 0
+              ? `${g.groupName} (you are owed ₹${amount})`
+              : `${g.groupName} (you owe ₹${amount})`;
+          })
+          .join(", ");
+        return {
+          ok: false,
+          error: `You still have unsettled balances. Settle up before deleting your account: ${summary}.`,
+        };
+      }
+    }
+
     await betterAuthInstance.api.deleteUser({
       headers: requestHeaders ?? new Headers(),
       body: { password: input.password },

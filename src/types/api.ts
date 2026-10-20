@@ -47,6 +47,7 @@ export interface GroupDetails {
   balances: Array<{
     userId: string;
     username: string;
+    isActive: boolean;
     totalExpensePaid: string;
     totalExpenseShare: string;
     settlementsSent: string;

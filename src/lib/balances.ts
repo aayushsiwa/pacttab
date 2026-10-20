@@ -1,6 +1,7 @@
 export interface MemberBalance {
   userId: string;
   username: string;
+  isActive: boolean; // false for departed ("ghost") members kept for history
   netBalance: number; // positive = owed money, negative = owes money
   totalExpensePaid: number; // what the member actually spent on expenses
   totalExpenseShare: number; // what the member actually consumed
@@ -385,7 +386,7 @@ function buildPlan(
  * `Σ netBalance === 0` and the suggested settlements settle every paise.
  */
 export function calculateBalancesAndSettlements(
-  members: { id: string; username: string }[],
+  members: { id: string; username: string; isActive?: boolean }[],
   expenses: {
     id: string;
     amount: string | number;
@@ -407,6 +408,7 @@ export function calculateBalancesAndSettlements(
     string,
     {
       username: string;
+      isActive: boolean;
       expensePaidCents: number;
       expenseShareCents: number;
       settlementsSentCents: number;
@@ -417,6 +419,7 @@ export function calculateBalancesAndSettlements(
   for (const m of members) {
     memberMap.set(m.id, {
       username: m.username,
+      isActive: m.isActive ?? true,
       expensePaidCents: 0,
       expenseShareCents: 0,
       settlementsSentCents: 0,
@@ -475,6 +478,7 @@ export function calculateBalancesAndSettlements(
     balances.push({
       userId,
       username: data.username,
+      isActive: data.isActive,
       netBalance: netCents / 100,
       totalExpensePaid: data.expensePaidCents / 100,
       totalExpenseShare: data.expenseShareCents / 100,

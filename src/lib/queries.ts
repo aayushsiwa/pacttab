@@ -140,17 +140,23 @@ export async function getGroupDetails(groupId: string, userId: string) {
 
   if (group.length === 0) return null;
 
-  // 3. Fetch all active members
-  const members = await db
+  // 3. Fetch all members (active and departed). Departed members must stay in
+  //    the balance math so transactions referencing them are never dropped.
+  const allMembers = await db
     .select({
       id: users.id,
       username: users.username,
       role: groupMembers.role,
+      status: groupMembers.status,
       joinedAt: groupMembers.joinedAt,
     })
     .from(groupMembers)
     .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active")));
+    .where(eq(groupMembers.groupId, groupId));
+
+  const members = allMembers
+    .filter((m) => m.status === "active")
+    .map(({ id, username, role, joinedAt }) => ({ id, username, role, joinedAt }));
 
   // 4. Fetch expenses with payer and splits
   const rawExpenses = await db
@@ -215,7 +221,7 @@ export async function getGroupDetails(groupId: string, userId: string) {
     .where(eq(settlements.groupId, groupId))
     .orderBy(desc(settlements.settledAt), desc(settlements.createdAt));
 
-  const memberNameMap = new Map(members.map((m) => [m.id, m.username]));
+  const memberNameMap = new Map(allMembers.map((m) => [m.id, m.username]));
 
   const detailedSettlements = rawSettlements.map((s) => ({
     ...s,
@@ -225,8 +231,12 @@ export async function getGroupDetails(groupId: string, userId: string) {
   }));
 
   // 6. Compute balances and settlements (only confirmed settlements count towards net balances)
-  const { balances, suggestedSettlements } = calculateBalancesAndSettlements(
-    members.map((m) => ({ id: m.id, username: m.username })),
+  const { balances: allBalances, suggestedSettlements } = calculateBalancesAndSettlements(
+    allMembers.map((m) => ({
+      id: m.id,
+      username: m.username,
+      isActive: m.status === "active",
+    })),
     detailedExpenses.map((e) => ({
       id: e.id,
       amount: e.amount,
@@ -241,6 +251,9 @@ export async function getGroupDetails(groupId: string, userId: string) {
       status: s.status,
     }))
   );
+
+  // Departed members only appear as "ghosts" while they still hold a residual.
+  const balances = allBalances.filter((b) => b.isActive || Math.round(b.netBalance * 100) !== 0);
 
   // 7. If admin, fetch active invite links, pending join requests & direct invites
   let activeInvites: {
@@ -410,4 +423,94 @@ export async function getUserPendingAdminActionsCount(userId: string): Promise<n
     .where(eq(joinRequests.status, "pending"));
 
   return result[0]?.count || 0;
+}
+
+export interface UnsettledGroup {
+  groupId: string;
+  groupName: string;
+  netBalance: number;
+}
+
+/**
+ * Lists active groups where the user still owes or is owed money. Used to block
+ * account deletion so a hard delete can never rewrite other members' history.
+ */
+export async function getUserUnsettledGroups(userId: string): Promise<UnsettledGroup[]> {
+  const memberships = await db
+    .select({ groupId: groupMembers.groupId, groupName: groups.name })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .where(and(eq(groupMembers.userId, userId), eq(groupMembers.status, "active")));
+
+  const unsettled: UnsettledGroup[] = [];
+
+  for (const membership of memberships) {
+    const allMembers = await db
+      .select({ id: users.id, username: users.username, status: groupMembers.status })
+      .from(groupMembers)
+      .innerJoin(users, eq(groupMembers.userId, users.id))
+      .where(eq(groupMembers.groupId, membership.groupId));
+
+    const rawExpenses = await db
+      .select({ id: expenses.id, amount: expenses.amount, paidByUserId: expenses.paidByUserId })
+      .from(expenses)
+      .where(eq(expenses.groupId, membership.groupId));
+
+    const expenseIds = rawExpenses.map((e) => e.id);
+    const splits =
+      expenseIds.length > 0
+        ? await db
+            .select({
+              expenseId: expenseSplits.expenseId,
+              userId: expenseSplits.userId,
+              owedAmount: expenseSplits.owedAmount,
+            })
+            .from(expenseSplits)
+            .where(inArray(expenseSplits.expenseId, expenseIds))
+        : [];
+
+    const splitsByExpenseId = new Map<string, typeof splits>();
+    for (const split of splits) {
+      const list = splitsByExpenseId.get(split.expenseId) || [];
+      list.push(split);
+      splitsByExpenseId.set(split.expenseId, list);
+    }
+
+    const rawSettlements = await db
+      .select({
+        id: settlements.id,
+        amount: settlements.amount,
+        paidByUserId: settlements.paidByUserId,
+        receivedByUserId: settlements.receivedByUserId,
+        status: settlements.status,
+      })
+      .from(settlements)
+      .where(eq(settlements.groupId, membership.groupId));
+
+    const { balances } = calculateBalancesAndSettlements(
+      allMembers.map((m) => ({
+        id: m.id,
+        username: m.username,
+        isActive: m.status === "active",
+      })),
+      rawExpenses.map((e) => ({
+        id: e.id,
+        amount: e.amount,
+        paidByUserId: e.paidByUserId,
+        splits: splitsByExpenseId.get(e.id) || [],
+      })),
+      rawSettlements
+    );
+
+    const mine = balances.find((b) => b.userId === userId)?.netBalance ?? 0;
+    if (Math.round(mine * 100) !== 0) {
+      unsettled.push({
+        groupId: membership.groupId,
+        groupName: membership.groupName,
+        netBalance: mine,
+      });
+    }
+  }
+
+  return unsettled;
 }
