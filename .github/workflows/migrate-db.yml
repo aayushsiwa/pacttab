@@ -2,10 +2,6 @@ name: Migrate database
 
 on:
   push:
-    branches: [master]
-    paths:
-      - "drizzle/**"
-      - "src/db/schema.ts"
   workflow_dispatch:
 
 concurrency:
