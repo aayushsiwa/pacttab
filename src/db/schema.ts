@@ -72,7 +72,7 @@ export const groups = pgTable("groups", {
   description: text("description"),
   createdBy: text("created_by")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -85,7 +85,7 @@ export const groupMembers = pgTable(
       .references(() => groups.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "restrict" }),
     role: varchar("role", { length: 20 }).notNull().default("member"), // "admin" | "member"
     status: varchar("status", { length: 20 }).notNull().default("active"), // "active" | "inactive"
     joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
@@ -101,7 +101,7 @@ export const inviteLinks = pgTable("invite_links", {
   token: varchar("token", { length: 64 }).notNull().unique(),
   createdBy: text("created_by")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "restrict" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   maxUses: integer("max_uses"),
   useCount: integer("use_count").notNull().default(0),
@@ -117,7 +117,7 @@ export const joinRequests = pgTable("join_requests", {
     .references(() => groups.id, { onDelete: "cascade" }),
   userId: text("user_id")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "restrict" }),
   status: varchar("status", { length: 20 }).notNull().default("pending"), // "pending" | "approved" | "declined"
   reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "set null" }),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
@@ -133,10 +133,10 @@ export const directInvites = pgTable(
       .references(() => groups.id, { onDelete: "cascade" }),
     inviterId: text("inviter_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "restrict" }),
     inviteeId: text("invitee_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "restrict" }),
     token: varchar("token", { length: 64 }).notNull().unique(),
     status: varchar("status", { length: 20 }).notNull().default("pending"), // "pending" | "revoked" — rows are deleted on accept, decline, and expiry
     expiresAt: timestamp("expires_at", { withTimezone: true }),
@@ -165,11 +165,11 @@ export const expenses = pgTable("expenses", {
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   paidByUserId: text("paid_by_user_id")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "restrict" }),
   expenseDate: timestamp("expense_date", { withTimezone: true }).defaultNow().notNull(),
   createdBy: text("created_by")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -182,7 +182,7 @@ export const expenseSplits = pgTable(
       .references(() => expenses.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "restrict" }),
     owedAmount: numeric("owed_amount", { precision: 12, scale: 2 }).notNull(),
   },
   (table) => [uniqueIndex("expense_split_unique_idx").on(table.expenseId, table.userId)]
@@ -195,13 +195,13 @@ export const settlements = pgTable("settlements", {
     .references(() => groups.id, { onDelete: "cascade" }),
   paidByUserId: text("paid_by_user_id")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "restrict" }),
   receivedByUserId: text("received_by_user_id")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "restrict" }),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("confirmed"), // "pending" | "confirmed" | "rejected" | "cancelled"
-  createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "cascade" }),
+  createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "restrict" }),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   rejectedAt: timestamp("rejected_at", { withTimezone: true }),
   settledAt: timestamp("settled_at", { withTimezone: true }).defaultNow().notNull(),
