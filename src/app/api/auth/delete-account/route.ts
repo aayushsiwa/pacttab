@@ -1,13 +1,15 @@
-import { NextResponse } from "next/server";
+import { authenticateRequest, parseJsonBody, serviceResponse } from "@/lib/api-auth";
 import { deleteUserAccount } from "@/lib/auth-service";
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const result = await deleteUserAccount(body);
-    const status = result.ok ? 200 : result.error.includes("Incorrect") ? 401 : 400;
-    return NextResponse.json(result, { status });
-  } catch {
-    return NextResponse.json({ ok: false, error: "Invalid request" }, { status: 400 });
-  }
+  const auth = await authenticateRequest();
+  if (auth.response) return auth.response;
+
+  const parsed = await parseJsonBody(request);
+  if (parsed.response) return parsed.response;
+
+  const body = (parsed.data ?? {}) as { password?: string };
+  const result = await deleteUserAccount(auth.user, { password: body.password ?? "" });
+
+  return serviceResponse(result);
 }

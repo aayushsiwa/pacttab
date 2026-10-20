@@ -258,15 +258,10 @@ describe("account deletion", () => {
       { userId: alice.id, owedAmount: "50.00" },
     ]);
 
-    process.env.TEST_CURRENT_USER_ID = alice.id;
-    try {
-      const result = await deleteUserAccount({ password: "irrelevant" });
-      if (result.ok) throw new Error("Expected deletion to be blocked");
-      expect(result.error).toMatch(/unsettled balances/i);
-      expect(result.error).toContain(`Delete ${testRunId}`);
-    } finally {
-      delete process.env.TEST_CURRENT_USER_ID;
-    }
+    const result = await deleteUserAccount(alice, { password: "irrelevant" });
+    if (result.success) throw new Error("Expected deletion to be blocked");
+    expect(result.error).toMatch(/unsettled balances/i);
+    expect(result.error).toContain(`Delete ${testRunId}`);
   });
 });
 

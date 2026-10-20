@@ -42,7 +42,7 @@ export function UserSettingsDialog({ isOpen, onOpenChange, user }: UserSettingsD
           body: JSON.stringify({ password }),
         });
         const data = await res.json();
-        if (data.ok) {
+        if (data.success) {
           router.push("/login");
           router.refresh();
         } else {

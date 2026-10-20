@@ -2,8 +2,9 @@ import { z } from "zod";
 import { and, asc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, directInvites, groupMembers, sessions, settlements, users } from "@/db/schema";
-import { betterAuthInstance, getCurrentUser, verifyPassword } from "@/lib/auth";
+import { betterAuthInstance, verifyPassword } from "@/lib/auth";
 import { getUserUnsettledGroups } from "@/lib/queries";
+import type { ApiUser, ServiceResult } from "@/lib/api-auth";
 
 const UsernameSchema = z.object({
   username: z
@@ -145,24 +146,22 @@ class UnsettledBalancesError extends Error {
   }
 }
 
-export async function deleteUserAccount(input: { password: string }): Promise<AuthActionResult> {
+export async function deleteUserAccount(
+  user: ApiUser,
+  input: { password: string }
+): Promise<ServiceResult> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { ok: false, error: "You are not signed in." };
-    }
-
     const credentialAccount = await db
       .select({ password: accounts.password })
       .from(accounts)
-      .where(and(eq(accounts.userId, currentUser.id), eq(accounts.providerId, "credential")))
+      .where(and(eq(accounts.userId, user.id), eq(accounts.providerId, "credential")))
       .limit(1);
 
     const storedHash = credentialAccount[0]?.password;
     if (storedHash) {
       const passwordMatches = await verifyPassword(input.password, storedHash);
       if (!passwordMatches) {
-        return { ok: false, error: "Incorrect password." };
+        return { success: false, error: "Incorrect password.", status: 401 };
       }
     }
 
@@ -172,14 +171,14 @@ export async function deleteUserAccount(input: { password: string }): Promise<Au
       const activeGroups = await tx
         .select({ groupId: groupMembers.groupId })
         .from(groupMembers)
-        .where(and(eq(groupMembers.userId, currentUser.id), eq(groupMembers.status, "active")))
+        .where(and(eq(groupMembers.userId, user.id), eq(groupMembers.status, "active")))
         .orderBy(asc(groupMembers.groupId));
 
       for (const group of activeGroups) {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${group.groupId}))`);
       }
 
-      const unsettled = await getUserUnsettledGroups(currentUser.id, tx);
+      const unsettled = await getUserUnsettledGroups(user.id, tx);
       if (unsettled.length > 0) {
         const summary = unsettled
           .map((g) => {
@@ -195,7 +194,7 @@ export async function deleteUserAccount(input: { password: string }): Promise<Au
       await tx
         .update(groupMembers)
         .set({ status: "inactive" })
-        .where(eq(groupMembers.userId, currentUser.id));
+        .where(eq(groupMembers.userId, user.id));
 
       await tx
         .update(settlements)
@@ -203,10 +202,7 @@ export async function deleteUserAccount(input: { password: string }): Promise<Au
         .where(
           and(
             eq(settlements.status, "pending"),
-            or(
-              eq(settlements.paidByUserId, currentUser.id),
-              eq(settlements.receivedByUserId, currentUser.id)
-            )
+            or(eq(settlements.paidByUserId, user.id), eq(settlements.receivedByUserId, user.id))
           )
         );
 
@@ -216,40 +212,38 @@ export async function deleteUserAccount(input: { password: string }): Promise<Au
         .where(
           and(
             eq(directInvites.status, "pending"),
-            or(
-              eq(directInvites.inviterId, currentUser.id),
-              eq(directInvites.inviteeId, currentUser.id)
-            )
+            or(eq(directInvites.inviterId, user.id), eq(directInvites.inviteeId, user.id))
           )
         );
 
       await tx
         .update(users)
         .set({
-          username: tombstoneUsername(currentUser.id),
+          username: tombstoneUsername(user.id),
           name: null,
           email: null,
           image: null,
           emailVerified: false,
         })
-        .where(eq(users.id, currentUser.id));
+        .where(eq(users.id, user.id));
 
-      await tx.delete(sessions).where(eq(sessions.userId, currentUser.id));
-      await tx.delete(accounts).where(eq(accounts.userId, currentUser.id));
+      await tx.delete(sessions).where(eq(sessions.userId, user.id));
+      await tx.delete(accounts).where(eq(accounts.userId, user.id));
     });
   } catch (error: unknown) {
     if (error instanceof UnsettledBalancesError) {
       return {
-        ok: false,
+        success: false,
         error: `You still have unsettled balances. Settle up before deleting your account: ${error.summary}.`,
+        status: 400,
       };
     }
     const err = error as { body?: { message?: string }; status?: number };
     if (err.status === 401) {
-      return { ok: false, error: "Incorrect password." };
+      return { success: false, error: "Incorrect password.", status: 401 };
     }
     console.error("Failed to delete account:", error);
-    return { ok: false, error: "Failed to delete account." };
+    return { success: false, error: "Failed to delete account.", status: 500 };
   }
-  return { ok: true };
+  return { success: true };
 }

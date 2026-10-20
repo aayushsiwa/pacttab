@@ -86,15 +86,9 @@ describe("account deletion preserves shared history", () => {
   });
 
   it("anonymises the account while keeping every history row", async () => {
-    process.env.TEST_CURRENT_USER_ID = member.id;
-    let result;
-    try {
-      result = await deleteUserAccount({ password: memberPassword });
-    } finally {
-      delete process.env.TEST_CURRENT_USER_ID;
-    }
+    const result = await deleteUserAccount(member, { password: memberPassword });
 
-    expect(result.ok).toBe(true);
+    expect(result.success).toBe(true);
 
     const [row] = await db.select().from(users).where(eq(users.id, member.id));
     expect(row).toBeDefined();
@@ -154,16 +148,14 @@ describe("account deletion preserves shared history", () => {
       password: await hashPassword(memberPassword),
     });
 
-    process.env.TEST_CURRENT_USER_ID = other.id;
-    let result;
-    try {
-      result = await deleteUserAccount({ password: "WrongPassword123!" });
-    } finally {
-      delete process.env.TEST_CURRENT_USER_ID;
-    }
+    const result = await deleteUserAccount(
+      { id: other.id, username: other.username },
+      { password: "WrongPassword123!" }
+    );
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(401);
+    if (!result.success) {
       expect(result.error).toBe("Incorrect password.");
     }
 
@@ -272,16 +264,10 @@ describe("account deletion validates balances inside the transaction", () => {
   });
 
   it("rejects deletion when the user is owed money and names the group", async () => {
-    process.env.TEST_CURRENT_USER_ID = owedUser.id;
-    let result;
-    try {
-      result = await deleteUserAccount({ password: memberPassword });
-    } finally {
-      delete process.env.TEST_CURRENT_USER_ID;
-    }
+    const result = await deleteUserAccount(owedUser, { password: memberPassword });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
+    expect(result.success).toBe(false);
+    if (!result.success) {
       expect(result.error).toMatch(/unsettled balances/i);
       expect(result.error).toContain(`Owed Group ${testRunId}`);
       expect(result.error).toMatch(/you are owed/i);
@@ -304,9 +290,8 @@ describe("account deletion validates balances inside the transaction", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    process.env.TEST_CURRENT_USER_ID = lockUser.id;
     let settled = false;
-    const deletion = deleteUserAccount({ password: memberPassword }).then((result) => {
+    const deletion = deleteUserAccount(lockUser, { password: memberPassword }).then((result) => {
       settled = true;
       return result;
     });
@@ -318,9 +303,8 @@ describe("account deletion validates balances inside the transaction", () => {
     await holder;
 
     const result = await deletion;
-    delete process.env.TEST_CURRENT_USER_ID;
 
-    expect(result.ok).toBe(true);
+    expect(result.success).toBe(true);
 
     const [row] = await db.select().from(users).where(eq(users.id, lockUser.id));
     expect(row.username).toMatch(/^deleted_/);
